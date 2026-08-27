@@ -1,0 +1,87 @@
+version: "3.8"
+
+# ==============================================================================
+# Janus Testbed — Full Stack Docker Compose
+# Runs the FastAPI backend + React frontend alongside the testbed infrastructure
+# ==============================================================================
+
+services:
+  # ============================================================
+  # BACKEND — FastAPI async API server
+  # ============================================================
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: janus-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./dataset:/dataset
+      - ./captures:/captures
+      - ./reports/output:/reports
+      - ./ml/models:/app/ml/models
+      # Mount source for development hot-reload
+      - ./backend:/app/backend
+      - ./parsing:/app/parsing
+      - ./ml:/app/ml
+      - ./compliance:/app/compliance
+      - ./reports:/app/reports
+      - ./labeling:/app/labeling
+    environment:
+      - JANUS_CAPTURE_DIR=/captures
+      - JANUS_DATASET_DIR=/dataset
+      - JANUS_REPORTS_DIR=/reports
+      - JANUS_MODEL_DIR=/app/ml/models
+      - JANUS_TSHARK_PATH=/usr/bin/tshark
+      - JANUS_LOG_LEVEL=INFO
+      - JANUS_MAX_UPLOAD_MB=100
+    # tshark/tcpdump needs packet capture capability for live capture (stub for now)
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    networks:
+      - janus-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+
+  # ============================================================
+  # FRONTEND — React dev server (Vite)
+  # In production, build and serve via nginx instead
+  # ============================================================
+  frontend:
+    image: node:20-alpine
+    container_name: janus-frontend
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules   # anonymous volume to avoid overwriting container node_modules
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - janus-net
+    restart: unless-stopped
+
+networks:
+  janus-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.21.0.0/24
+
+volumes:
+  dataset:
+    driver: local
+  captures:
+    driver: local

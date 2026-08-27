@@ -1,0 +1,140 @@
+# =============================================================================
+# Janus Testbed — strongSwan 5.9 Peer Image
+# =============================================================================
+# Base: ubuntu:22.04 (jammy)
+#
+# Packages installed
+#   strongswan           — meta-package (charon daemon + plugins)
+#   strongswan-starter   — ipsec starter (legacy compat, keeps /etc/ipsec.conf)
+#   strongswan-swanctl   — swanctl CLI + swanctl.conf reader
+#   charon-systemd       — systemd-journal logging plugin (optional in container)
+#   libstrongswan-*      — cipher / integrity / DH plugins
+#   iproute2             — ip, tc commands
+#   iperf3               — bandwidth testing
+#   tcpdump / tshark     — packet capture inside the container
+#   iputils-ping / hping3— ICMP traffic generation
+#   net-tools            — netstat, ifconfig (legacy debugging)
+#   curl                 — health-check endpoints
+#   jq                   — JSON manipulation for manifest scripts
+#
+# Directory layout
+#   /etc/swanctl/         — swanctl config root (conf.d/ mounted from host)
+#   /var/run/charon.vici  — VICI socket (created at runtime)
+#   /captures/            — pcap output volume
+#   /dataset/             — labelled dataset output volume
+# =============================================================================
+
+FROM ubuntu:22.04
+
+# Avoid interactive prompts during package install
+ENV DEBIAN_FRONTEND=noninteractive \
+    TZ=Etc/UTC
+
+# ---------------------------------------------------------------------------
+# 1. System update + strongSwan + tooling
+# ---------------------------------------------------------------------------
+RUN apt-get update -qq && \
+    apt-get install -y --no-install-recommends \
+        # Core strongSwan packages (Ubuntu 22.04 ships 5.9.5)
+        strongswan \
+        strongswan-starter \
+        strongswan-swanctl \
+        charon-systemd \
+        # Cipher/integrity plugin pack (GCM, SHA2, ECP curves)
+        libstrongswan-extra-plugins \
+        libstrongswan-standard-plugins \
+        libcharon-extra-plugins \
+        libcharon-extauth-plugins \
+        # Network tooling
+        iproute2 \
+        iputils-ping \
+        hping3 \
+        net-tools \
+        tcpdump \
+        tshark \
+        iperf3 \
+        curl \
+        wget \
+        # Scripting / data tools
+        jq \
+        bash \
+        procps \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# ---------------------------------------------------------------------------
+# 2. swanctl directory structure
+#    /etc/swanctl/conf.d   — scenario-specific config files (volume mounted)
+#    /etc/swanctl/x509/    — CA + peer certificates  (TODO: PKI automation)
+#    /etc/swanctl/private/ — private keys
+#    /etc/swanctl/rsa/     — legacy RSA keys
+# ---------------------------------------------------------------------------
+RUN mkdir -p \
+        /etc/swanctl/conf.d \
+        /etc/swanctl/x509ca \
+        /etc/swanctl/x509 \
+        /etc/swanctl/private \
+        /etc/swanctl/rsa \
+        /var/run/charon \
+        /captures \
+        /dataset
+
+# ---------------------------------------------------------------------------
+# 3. Base swanctl.conf — just includes conf.d/*.conf
+#    Scenario-specific files are volume-mounted into conf.d/
+# ---------------------------------------------------------------------------
+RUN cat > /etc/swanctl/swanctl.conf <<'EOF'
+# Janus testbed base — all real config lives in conf.d/
+include conf.d/*.conf
+EOF
+
+# ---------------------------------------------------------------------------
+# 4. charon.conf — tune logging and plugin loading
+# ---------------------------------------------------------------------------
+RUN mkdir -p /etc/strongswan.d && \
+    cat > /etc/strongswan.d/charon.conf <<'EOF'
+charon {
+    # Send logs to stdout so Docker captures them
+    filelog {
+        stdout {
+            path = stdout
+            default = 1          # verbosity 0=quiet … 4=raw
+            time_format = %b %e %T
+            ike_name = yes
+        }
+    }
+
+    # VICI socket location (swanctl connects here)
+    plugins {
+        vici {
+            socket = /var/run/charon/charon.vici
+        }
+    }
+
+    # Increase DH/ECP library tolerance for test scenarios
+    # TODO(uncertain): tighten these limits for production hardening
+    i_dont_care_about_security_and_use_aggressive_mode_psk = no
+
+    # Enable fragmentation for IKE_AUTH messages (important for large PAD)
+    fragment_size = 1280
+
+    # DSCP markings pass through to inner packets when copy_dscp = out
+    # (set per-connection in swanctl.conf)
+}
+EOF
+
+# ---------------------------------------------------------------------------
+# 5. Entrypoint script
+#    - Waits for the network to settle
+#    - Starts the charon daemon (foreground via 'start-charon' plugin)
+#    - Loads swanctl connections
+#    - If ROLE=initiator, issues swanctl --initiate after a short delay
+# ---------------------------------------------------------------------------
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+# UDP ports used by IKEv2
+EXPOSE 500/udp 4500/udp
+
+# charon needs NET_ADMIN + NET_RAW (granted in compose)
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
