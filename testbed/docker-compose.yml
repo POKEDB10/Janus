@@ -1,0 +1,695 @@
+# =============================================================================
+# Janus IPsec Testbed — Docker Compose v3.8
+# =============================================================================
+# Spins up 12 scenario pairs (initiator + responder), a packet-capture service,
+# and a traffic-generation service.  Every peer runs strongSwan 5.9 built from
+# testbed/Dockerfile.strongswan.
+#
+# Network layout
+#   vpn-net  172.20.0.0/16  — control / management plane
+#   vpn6-net fd00::/48      — IPv6 overlay (scenario 11 only)
+#
+# Container IP scheme
+#   172.20.<scenario>.<1|2>   e.g. 172.20.1.1 (sc01-init), 172.20.1.2 (sc01-resp)
+#   172.20.100.x              reserved for infra (capture, traffic-gen)
+#
+# tc netem (100 ms / ±20 ms / 1 % loss) is applied inside traffic-gen via
+#   testbed/scripts/setup_netem.sh after the stack comes up.
+# =============================================================================
+
+version: "3.8"
+
+# ---------------------------------------------------------------------------
+# Re-usable fragments
+# ---------------------------------------------------------------------------
+x-strongswan-common: &strongswan-common
+  build:
+    context: .
+    dockerfile: Dockerfile.strongswan
+  restart: unless-stopped
+  cap_add:
+    - NET_ADMIN
+    - NET_RAW
+  sysctls:
+    net.ipv4.ip_forward: "1"
+    net.ipv4.conf.all.rp_filter: "0"
+    net.ipv4.conf.default.rp_filter: "0"
+  volumes:
+    - captures:/captures
+    - dataset:/dataset
+  networks:
+    - vpn-net
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "20m"
+      max-file: "5"
+
+# ---------------------------------------------------------------------------
+# Networks
+# ---------------------------------------------------------------------------
+networks:
+  vpn-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+          gateway: 172.20.0.1
+
+  vpn6-net:
+    driver: bridge
+    enable_ipv6: true
+    ipam:
+      driver: default
+      config:
+        - subnet: fd00::/48
+
+# ---------------------------------------------------------------------------
+# Named Volumes
+# ---------------------------------------------------------------------------
+volumes:
+  captures:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${CAPTURES_DIR:-./captures}
+
+  dataset:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: ${DATASET_DIR:-./dataset}
+
+# ---------------------------------------------------------------------------
+# Services
+# ---------------------------------------------------------------------------
+services:
+
+  # ==========================================================================
+  # SCENARIO 01 — Tunnel | AES-256-GCM | DH-19 (ecp256) | PFS-on
+  # ==========================================================================
+  sc01-init:
+    <<: *strongswan-common
+    container_name: sc01-init
+    hostname: sc01-init
+    environment:
+      SCENARIO: "01"
+      ROLE: initiator
+      LOCAL_ID: "sc01-init@janus.lab"
+      REMOTE_ID: "sc01-resp@janus.lab"
+      LOCAL_ADDR: "172.20.1.1"
+      REMOTE_ADDR: "172.20.1.2"
+      PSK: "janus-sc01-supersecret"
+    volumes:
+      - ./configs/scenario_01:/etc/swanctl/conf.d:ro
+      - captures:/captures
+      - dataset:/dataset
+    networks:
+      vpn-net:
+        ipv4_address: 172.20.1.1
+
+  sc01-resp:
+    <<: *strongswan-common
+    container_name: sc01-resp
+    hostname: sc01-resp
+    environment:
+      SCENARIO: "01"
+      ROLE: responder
+      LOCAL_ID: "sc01-resp@janus.lab"
+      REMOTE_ID: "sc01-init@janus.lab"
+      LOCAL_ADDR: "172.20.1.2"
+      REMOTE_ADDR: "172.20.1.1"
+      PSK: "janus-sc01-supersecret"
+    volumes:
+      - ./configs/scenario_01:/etc/swanctl/conf.d:ro
+      - captures:/captures
+      - dataset:/dataset
+    networks:
+      vpn-net:
+        ipv4_address: 172.20.1.2
+
+  # ==========================================================================
+  # SCENARIO 02 — Tunnel | AES-128-GCM | DH-19 (ecp256) | PFS-on
+  # ==========================================================================
+  sc02-init:
+    <<: *strongswan-common
+    container_name: sc02-init
+    hostname: sc02-init
+    environment:
+      SCENARIO: "02"
+      ROLE: initiator
+      LOCAL_ID: "sc02-init@janus.lab"
+      REMOTE_ID: "sc02-resp@janus.lab"
+      LOCAL_ADDR: "172.20.2.1"
+      REMOTE_ADDR: "172.20.2.2"
+      PSK: "janus-sc02-supersecret"
+    volumes:
+      - ./configs/scenario_02:/etc/swanctl/conf.d:ro
+      - captures:/captures
+      - dataset:/dataset
+    networks:
+      vpn-net:
+        ipv4_address: 172.20.2.1
+
+  sc02-resp:
+    <<: *strongswan-common
+    container_name: sc02-resp
+    hostname: sc02-resp
+    environment:
+      SCENARIO: "02"
+      ROLE: responder
+      LOCAL_ID: "sc02-resp@janus.lab"
+      REMOTE_ID: "sc02-init@janus.lab"
+      LOCAL_ADDR: "172.20.2.2"
+      REMOTE_ADDR: "172.20.2.1"
+      PSK: "janus-sc02-supersecret"
+    volumes:
+      - ./configs/scenario_02:/etc/swanctl/conf.d:ro
+      - captures:/captures
+      - dataset:/dataset
+    networks:
+      vpn-net:
+        ipv4_address: 172.20.2.2
+
+  # ==========================================================================
+  # SCENARIO 03 — Tunnel | AES-256-CBC + HMAC-SHA2-256 | DH-14 | PFS-on
+  # ==========================================================================
+  sc03-init:
+    <<: *strongswan-common
+    container_name: sc03-init
+    hostname: sc03-init
+    environment:
+      SCENARIO: "03"
+      ROLE: initiator
+      LOCAL_ID: "sc03-init@janus.lab"
+      REMOTE_ID: "sc03-resp@janus.lab"
+      LOCAL_ADDR: "172.20.3.1"
+      REMOTE_ADDR: "172.20.3.2"
+      PSK: "janus-sc03-supersecret"
+    volumes:
+      - ./configs/scenario_03:/etc/swanctl/conf.d:ro
+      - captures:/captures
+      - dataset:/dataset
+    networks:
+      vpn-net:
+        ipv4_address: 172.20.3.1
+
+  sc03-resp:
+    <<: *strongswan-common
+    container_name: sc03-resp
+    hostname: sc03-resp
+    environment:
+      SCENARIO: "03"
+      ROLE: responder
+      LOCAL_ID: "sc03-resp@janus.lab"
+      REMOTE_ID: "sc03-init@janus.lab"
+      LOCAL_ADDR: "172.20.3.2"
+      REMOTE_ADDR: "172.20.3.1"
+      PSK: "janus-sc03-supersecret"
+    volumes:
+      - ./configs/scenario_03:/etc/swanctl/conf.d:ro
+      - captures:/captures
+      - dataset:/dataset
+    networks:
+      vpn-net:
+        ipv4_address: 172.20.3.2
+
+  # ==========================================================================
+  # SCENARIO 04 — Tunnel | AES-128-CBC + HMAC-SHA2-256 | DH-14 | PFS-on
+  # ==========================================================================
+  sc04-init:
+    <<: *strongswan-common
+    container_name: sc04-init
+    hostname: sc04-init
+    environment:
+      SCENARIO: "04"
+      ROLE: initiator
+      LOCAL_ID: "sc04-init@janus.lab"
+      REMOTE_ID: "sc04-resp@janus.lab"
+      LOCAL_ADDR: "172.20.4.1"
+      REMOTE_ADDR: "172.20.4.2"
+      PSK: "janus-sc04-supersecret"
+    volumes:
+      - ./configs/scenario_04:/etc/swanctl/conf.d:ro
+      - captures:/captures
+      - dataset:/dataset
+    networks:
+      vpn-net:
+        ipv4_address: 172.20.4.1
+
+  sc04-resp:
+    <<: *strongswan-common
+    container_name: sc04-resp
+    hostname: sc04-resp
+    environment:
+      SCENARIO: "04"
+      ROLE: responder
+      LOCAL_ID: "sc04-resp@janus.lab"
+      REMOTE_ID: "sc04-init@janus.lab"
+      LOCAL_ADDR: "172.20.4.2"
+      REMOTE_ADDR: "172.20.4.1"
+      PSK: "janus-sc04-supersecret"
+    volumes:
+      - ./configs/scenario_04:/etc/swanctl/conf.d:ro
+      - captures:/captures
+      - dataset:/dataset
+    networks:
+      vpn-net:
+        ipv4_address: 172.20.4.2
+
+  # ==========================================================================
+  # SCENARIO 05 — Tunnel | AES-256-GCM | DH-20 (ecp384) | PFS-on
+  # ==========================================================================
+  sc05-init:
+    <<: *strongswan-common
+    container_name: sc05-init
+    hostname: sc05-init
+    environment:
+      SCENARIO: "05"
+      ROLE: initiator
+      LOCAL_ID: "sc05-init@janus.lab"
+      REMOTE_ID: "sc05-resp@janus.lab"
+      LOCAL_ADDR: "172.20.5.1"
+      REMOTE_ADDR: "172.20.5.2"
+      PSK: "janus-sc05-supersecret"
+    volumes:
+      - ./configs/scenario_05:/etc/swanctl/conf.d:ro
+      - captures:/captures
+      - dataset:/dataset
+    networks:
+      vpn-net:
+        ipv4_address: 172.20.5.1
+
+  sc05-resp:
+    <<: *strongswan-common
+    container_name: sc05-resp
+    hostname: sc05-resp
+    environment:
+      SCENARIO: "05"
+      ROLE: responder
+      LOCAL_ID: "sc05-resp@janus.lab"
+      REMOTE_ID: "sc05-init@janus.lab"
+      LOCAL_ADDR: "172.20.5.2"
+      REMOTE_ADDR: "172.20.5.1"
+      PSK: "janus-sc05-supersecret"
+    volumes:
+      - ./configs/scenario_05:/etc/swanctl/conf.d:ro
+      - captures:/captures
+      - dataset:/dataset
+    networks:
+      vpn-net:
+        ipv4_address: 172.20.5.2
+
+  # ==========================================================================
+  # SCENARIO 06 — Tunnel | AES-256-GCM | DH-14 | PFS-off
+  # ==========================================================================
+  sc06-init:
+    <<: *strongswan-common
+    container_name: sc06-init
+    hostname: sc06-init
+    environment:
+      SCENARIO: "06"
+      ROLE: initiator
+      LOCAL_ID: "sc06-init@janus.lab"
+      REMOTE_ID: "sc06-resp@janus.lab"
+      LOCAL_ADDR: "172.20.6.1"
+      REMOTE_ADDR: "172.20.6.2"
+      PSK: "janus-sc06-supersecret"
+    volumes:
+      - ./configs/scenario_06:/etc/swanctl/conf.d:ro
+      - captures:/captures
+      - dataset:/dataset
+    networks:
+      vpn-net:
+        ipv4_address: 172.20.6.1
+
+  sc06-resp:
+    <<: *strongswan-common
+    container_name: sc06-resp
+    hostname: sc06-resp
+    environment:
+      SCENARIO: "06"
+      ROLE: responder
+      LOCAL_ID: "sc06-resp@janus.lab"
+      REMOTE_ID: "sc06-init@janus.lab"
+      LOCAL_ADDR: "172.20.6.2"
+      REMOTE_ADDR: "172.20.6.1"
+      PSK: "janus-sc06-supersecret"
+    volumes:
+      - ./configs/scenario_06:/etc/swanctl/conf.d:ro
+      - captures:/captures
+      - dataset:/dataset
+    networks:
+      vpn-net:
+        ipv4_address: 172.20.6.2
+
+  # ==========================================================================
+  # SCENARIO 07 — Transport | AES-256-GCM | DH-19 | PFS-on
+  # ==========================================================================
+  sc07-init:
+    <<: *strongswan-common
+    container_name: sc07-init
+    hostname: sc07-init
+    environment:
+      SCENARIO: "07"
+      ROLE: initiator
+      LOCAL_ID: "sc07-init@janus.lab"
+      REMOTE_ID: "sc07-resp@janus.lab"
+      LOCAL_ADDR: "172.20.7.1"
+      REMOTE_ADDR: "172.20.7.2"
+      PSK: "janus-sc07-supersecret"
+    volumes:
+      - ./configs/scenario_07:/etc/swanctl/conf.d:ro
+      - captures:/captures
+      - dataset:/dataset
+    networks:
+      vpn-net:
+        ipv4_address: 172.20.7.1
+
+  sc07-resp:
+    <<: *strongswan-common
+    container_name: sc07-resp
+    hostname: sc07-resp
+    environment:
+      SCENARIO: "07"
+      ROLE: responder
+      LOCAL_ID: "sc07-resp@janus.lab"
+      REMOTE_ID: "sc07-init@janus.lab"
+      LOCAL_ADDR: "172.20.7.2"
+      REMOTE_ADDR: "172.20.7.1"
+      PSK: "janus-sc07-supersecret"
+    volumes:
+      - ./configs/scenario_07:/etc/swanctl/conf.d:ro
+      - captures:/captures
+      - dataset:/dataset
+    networks:
+      vpn-net:
+        ipv4_address: 172.20.7.2
+
+  # ==========================================================================
+  # SCENARIO 08 — Transport | AES-128-CBC + HMAC-SHA2-256 | DH-14 | PFS-off
+  # ==========================================================================
+  sc08-init:
+    <<: *strongswan-common
+    container_name: sc08-init
+    hostname: sc08-init
+    environment:
+      SCENARIO: "08"
+      ROLE: initiator
+      LOCAL_ID: "sc08-init@janus.lab"
+      REMOTE_ID: "sc08-resp@janus.lab"
+      LOCAL_ADDR: "172.20.8.1"
+      REMOTE_ADDR: "172.20.8.2"
+      PSK: "janus-sc08-supersecret"
+    volumes:
+      - ./configs/scenario_08:/etc/swanctl/conf.d:ro
+      - captures:/captures
+      - dataset:/dataset
+    networks:
+      vpn-net:
+        ipv4_address: 172.20.8.1
+
+  sc08-resp:
+    <<: *strongswan-common
+    container_name: sc08-resp
+    hostname: sc08-resp
+    environment:
+      SCENARIO: "08"
+      ROLE: responder
+      LOCAL_ID: "sc08-resp@janus.lab"
+      REMOTE_ID: "sc08-init@janus.lab"
+      LOCAL_ADDR: "172.20.8.2"
+      REMOTE_ADDR: "172.20.8.1"
+      PSK: "janus-sc08-supersecret"
+    volumes:
+      - ./configs/scenario_08:/etc/swanctl/conf.d:ro
+      - captures:/captures
+      - dataset:/dataset
+    networks:
+      vpn-net:
+        ipv4_address: 172.20.8.2
+
+  # ==========================================================================
+  # SCENARIO 09 — Tunnel | 3DES + HMAC-SHA1-96 | DH-2 | PFS-off  [WEAK]
+  # ==========================================================================
+  sc09-init:
+    <<: *strongswan-common
+    container_name: sc09-init
+    hostname: sc09-init
+    environment:
+      SCENARIO: "09"
+      ROLE: initiator
+      LOCAL_ID: "sc09-init@janus.lab"
+      REMOTE_ID: "sc09-resp@janus.lab"
+      LOCAL_ADDR: "172.20.9.1"
+      REMOTE_ADDR: "172.20.9.2"
+      PSK: "janus-sc09-weak"
+    volumes:
+      - ./configs/scenario_09:/etc/swanctl/conf.d:ro
+      - captures:/captures
+      - dataset:/dataset
+    networks:
+      vpn-net:
+        ipv4_address: 172.20.9.1
+
+  sc09-resp:
+    <<: *strongswan-common
+    container_name: sc09-resp
+    hostname: sc09-resp
+    environment:
+      SCENARIO: "09"
+      ROLE: responder
+      LOCAL_ID: "sc09-resp@janus.lab"
+      REMOTE_ID: "sc09-init@janus.lab"
+      LOCAL_ADDR: "172.20.9.2"
+      REMOTE_ADDR: "172.20.9.1"
+      PSK: "janus-sc09-weak"
+    volumes:
+      - ./configs/scenario_09:/etc/swanctl/conf.d:ro
+      - captures:/captures
+      - dataset:/dataset
+    networks:
+      vpn-net:
+        ipv4_address: 172.20.9.2
+
+  # ==========================================================================
+  # SCENARIO 10 — Tunnel | AES-256-CBC + HMAC-SHA1-96 | DH-14 | PFS-on
+  # ==========================================================================
+  sc10-init:
+    <<: *strongswan-common
+    container_name: sc10-init
+    hostname: sc10-init
+    environment:
+      SCENARIO: "10"
+      ROLE: initiator
+      LOCAL_ID: "sc10-init@janus.lab"
+      REMOTE_ID: "sc10-resp@janus.lab"
+      LOCAL_ADDR: "172.20.10.1"
+      REMOTE_ADDR: "172.20.10.2"
+      PSK: "janus-sc10-supersecret"
+    volumes:
+      - ./configs/scenario_10:/etc/swanctl/conf.d:ro
+      - captures:/captures
+      - dataset:/dataset
+    networks:
+      vpn-net:
+        ipv4_address: 172.20.10.1
+
+  sc10-resp:
+    <<: *strongswan-common
+    container_name: sc10-resp
+    hostname: sc10-resp
+    environment:
+      SCENARIO: "10"
+      ROLE: responder
+      LOCAL_ID: "sc10-resp@janus.lab"
+      REMOTE_ID: "sc10-init@janus.lab"
+      LOCAL_ADDR: "172.20.10.2"
+      REMOTE_ADDR: "172.20.10.1"
+      PSK: "janus-sc10-supersecret"
+    volumes:
+      - ./configs/scenario_10:/etc/swanctl/conf.d:ro
+      - captures:/captures
+      - dataset:/dataset
+    networks:
+      vpn-net:
+        ipv4_address: 172.20.10.2
+
+  # ==========================================================================
+  # SCENARIO 11 — Tunnel | AES-256-GCM | DH-19 | PFS-on | IPv6
+  # ==========================================================================
+  sc11-init:
+    <<: *strongswan-common
+    container_name: sc11-init
+    hostname: sc11-init
+    sysctls:
+      net.ipv4.ip_forward: "1"
+      net.ipv6.conf.all.forwarding: "1"
+      net.ipv4.conf.all.rp_filter: "0"
+      net.ipv4.conf.default.rp_filter: "0"
+    environment:
+      SCENARIO: "11"
+      ROLE: initiator
+      LOCAL_ID: "sc11-init@janus.lab"
+      REMOTE_ID: "sc11-resp@janus.lab"
+      LOCAL_ADDR: "172.20.11.1"
+      REMOTE_ADDR: "172.20.11.2"
+      PSK: "janus-sc11-supersecret"
+    volumes:
+      - ./configs/scenario_11:/etc/swanctl/conf.d:ro
+      - captures:/captures
+      - dataset:/dataset
+    networks:
+      vpn-net:
+        ipv4_address: 172.20.11.1
+      vpn6-net:
+        ipv6_address: fd00::b01
+
+  sc11-resp:
+    <<: *strongswan-common
+    container_name: sc11-resp
+    hostname: sc11-resp
+    sysctls:
+      net.ipv4.ip_forward: "1"
+      net.ipv6.conf.all.forwarding: "1"
+      net.ipv4.conf.all.rp_filter: "0"
+      net.ipv4.conf.default.rp_filter: "0"
+    environment:
+      SCENARIO: "11"
+      ROLE: responder
+      LOCAL_ID: "sc11-resp@janus.lab"
+      REMOTE_ID: "sc11-init@janus.lab"
+      LOCAL_ADDR: "172.20.11.2"
+      REMOTE_ADDR: "172.20.11.1"
+      PSK: "janus-sc11-supersecret"
+    volumes:
+      - ./configs/scenario_11:/etc/swanctl/conf.d:ro
+      - captures:/captures
+      - dataset:/dataset
+    networks:
+      vpn-net:
+        ipv4_address: 172.20.11.2
+      vpn6-net:
+        ipv6_address: fd00::b02
+
+  # ==========================================================================
+  # SCENARIO 12 — Tunnel | AES-128-GCM | DH-20 (ecp384) | PFS-on
+  # ==========================================================================
+  sc12-init:
+    <<: *strongswan-common
+    container_name: sc12-init
+    hostname: sc12-init
+    environment:
+      SCENARIO: "12"
+      ROLE: initiator
+      LOCAL_ID: "sc12-init@janus.lab"
+      REMOTE_ID: "sc12-resp@janus.lab"
+      LOCAL_ADDR: "172.20.12.1"
+      REMOTE_ADDR: "172.20.12.2"
+      PSK: "janus-sc12-supersecret"
+    volumes:
+      - ./configs/scenario_12:/etc/swanctl/conf.d:ro
+      - captures:/captures
+      - dataset:/dataset
+    networks:
+      vpn-net:
+        ipv4_address: 172.20.12.1
+
+  sc12-resp:
+    <<: *strongswan-common
+    container_name: sc12-resp
+    hostname: sc12-resp
+    environment:
+      SCENARIO: "12"
+      ROLE: responder
+      LOCAL_ID: "sc12-resp@janus.lab"
+      REMOTE_ID: "sc12-init@janus.lab"
+      LOCAL_ADDR: "172.20.12.2"
+      REMOTE_ADDR: "172.20.12.1"
+      PSK: "janus-sc12-supersecret"
+    volumes:
+      - ./configs/scenario_12:/etc/swanctl/conf.d:ro
+      - captures:/captures
+      - dataset:/dataset
+    networks:
+      vpn-net:
+        ipv4_address: 172.20.12.2
+
+  # ==========================================================================
+  # INFRASTRUCTURE — Packet Capture (tshark / tcpdump)
+  # ==========================================================================
+  capture:
+    image: nicolaka/netshoot:latest
+    container_name: janus-capture
+    hostname: capture
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    # Tshark captures all ESP, IKE, and plaintext on vpn-net.
+    # The ring-buffer approach keeps captures to a manageable size.
+    command: >
+      sh -c "
+        mkdir -p /captures;
+        tshark
+          -i eth0
+          -b filesize:102400
+          -b files:20
+          -w /captures/janus_capture.pcapng
+          -f 'udp port 500 or udp port 4500 or esp or ah'
+          2>&1 | tee /captures/tshark.log
+      "
+    volumes:
+      - captures:/captures
+      - dataset:/dataset
+    networks:
+      vpn-net:
+        ipv4_address: 172.20.100.2
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
+
+  # ==========================================================================
+  # INFRASTRUCTURE — Traffic Generator (iperf3 + hping3 + tcpreplay)
+  # ==========================================================================
+  traffic-gen:
+    image: nicolaka/netshoot:latest
+    container_name: janus-traffic-gen
+    hostname: traffic-gen
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    # tc netem is applied by the entrypoint; traffic generation is triggered
+    # externally via `make run-all-scenarios` or the generate_traffic.sh script.
+    entrypoint: >
+      sh -c "
+        # Apply tc netem impairment to eth0 (inter-peer path).
+        # Parameters match the defaults in scripts/setup_netem.sh.
+        tc qdisc del dev eth0 root 2>/dev/null || true;
+        tc qdisc add dev eth0 root netem
+          delay 100ms 20ms distribution normal
+          loss 1%
+          corrupt 0.1%
+          reorder 5% 25%;
+        echo 'netem configured';
+        tc qdisc show dev eth0;
+        # Keep container alive so scripts can exec into it.
+        tail -f /dev/null
+      "
+    volumes:
+      - ./scripts:/scripts:ro
+      - captures:/captures
+      - dataset:/dataset
+    networks:
+      vpn-net:
+        ipv4_address: 172.20.100.3
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
