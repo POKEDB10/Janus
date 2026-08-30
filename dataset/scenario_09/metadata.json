@@ -1,0 +1,20 @@
+{
+  "scenario_id": "09",
+  "scenario_name": "Congested Gateway (Queue Jitter)",
+  "flow_count": 833,
+  "netem_profile": {
+    "name": "Congested Gateway (Queue Jitter)",
+    "latency_ms": 90.0,
+    "jitter_ms": 30.0,
+    "loss_pct": 2.0,
+    "mtu": 1380
+  },
+  "status": "CAPTURED",
+  "traffic_types": {
+    "Video": 167,
+    "Web": 167,
+    "ICMP": 167,
+    "VoIP": 166,
+    "Email": 166
+  }
+}

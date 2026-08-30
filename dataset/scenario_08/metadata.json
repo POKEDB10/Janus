@@ -1,0 +1,20 @@
+{
+  "scenario_id": "08",
+  "scenario_name": "Lossy Wireless WAN",
+  "flow_count": 833,
+  "netem_profile": {
+    "name": "Lossy Wireless WAN",
+    "latency_ms": 60.0,
+    "jitter_ms": 20.0,
+    "loss_pct": 2.5,
+    "mtu": 1420
+  },
+  "status": "CAPTURED",
+  "traffic_types": {
+    "VoIP": 167,
+    "Web": 167,
+    "Email": 167,
+    "Video": 166,
+    "ICMP": 166
+  }
+}

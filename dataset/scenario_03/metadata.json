@@ -1,0 +1,20 @@
+{
+  "scenario_id": "03",
+  "scenario_name": "Corporate WAN (ChaCha20-Poly1305)",
+  "flow_count": 834,
+  "netem_profile": {
+    "name": "Corporate WAN (ChaCha20-Poly1305)",
+    "latency_ms": 35.0,
+    "jitter_ms": 5.0,
+    "loss_pct": 0.1,
+    "mtu": 1500
+  },
+  "status": "CAPTURED",
+  "traffic_types": {
+    "VoIP": 167,
+    "Video": 167,
+    "Email": 167,
+    "ICMP": 167,
+    "Web": 166
+  }
+}

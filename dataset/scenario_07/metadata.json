@@ -1,0 +1,20 @@
+{
+  "scenario_id": "07",
+  "scenario_name": "4G/5G Cellular (Jittery & Bursty)",
+  "flow_count": 833,
+  "netem_profile": {
+    "name": "4G/5G Cellular (Jittery & Bursty)",
+    "latency_ms": 40.0,
+    "jitter_ms": 25.0,
+    "loss_pct": 1.0,
+    "mtu": 1400
+  },
+  "status": "CAPTURED",
+  "traffic_types": {
+    "VoIP": 167,
+    "Web": 167,
+    "Email": 167,
+    "Video": 166,
+    "ICMP": 166
+  }
+}

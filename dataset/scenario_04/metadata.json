@@ -1,0 +1,20 @@
+{
+  "scenario_id": "04",
+  "scenario_name": "Legacy WAN (3DES-CBC + MD5)",
+  "flow_count": 834,
+  "netem_profile": {
+    "name": "Legacy WAN (3DES-CBC + MD5)",
+    "latency_ms": 45.0,
+    "jitter_ms": 8.0,
+    "loss_pct": 0.2,
+    "mtu": 1500
+  },
+  "status": "CAPTURED",
+  "traffic_types": {
+    "VoIP": 167,
+    "Video": 167,
+    "Email": 167,
+    "ICMP": 167,
+    "Web": 166
+  }
+}

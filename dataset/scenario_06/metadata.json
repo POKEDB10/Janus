@@ -1,0 +1,20 @@
+{
+  "scenario_id": "06",
+  "scenario_name": "Transoceanic Satellite (High Latency)",
+  "flow_count": 833,
+  "netem_profile": {
+    "name": "Transoceanic Satellite (High Latency)",
+    "latency_ms": 240.0,
+    "jitter_ms": 35.0,
+    "loss_pct": 1.5,
+    "mtu": 1420
+  },
+  "status": "CAPTURED",
+  "traffic_types": {
+    "VoIP": 167,
+    "Web": 167,
+    "Email": 167,
+    "Video": 166,
+    "ICMP": 166
+  }
+}

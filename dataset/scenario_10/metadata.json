@@ -1,0 +1,20 @@
+{
+  "scenario_id": "10",
+  "scenario_name": "Transport Mode Host-to-Host",
+  "flow_count": 833,
+  "netem_profile": {
+    "name": "Transport Mode Host-to-Host",
+    "latency_ms": 10.0,
+    "jitter_ms": 1.5,
+    "loss_pct": 0.0,
+    "mtu": 1500
+  },
+  "status": "CAPTURED",
+  "traffic_types": {
+    "Video": 167,
+    "Web": 167,
+    "ICMP": 167,
+    "VoIP": 166,
+    "Email": 166
+  }
+}

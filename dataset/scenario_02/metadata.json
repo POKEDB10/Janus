@@ -1,0 +1,20 @@
+{
+  "scenario_id": "02",
+  "scenario_name": "Metro WAN (AES-GCM Tunnel, PFS)",
+  "flow_count": 834,
+  "netem_profile": {
+    "name": "Metro WAN (AES-GCM Tunnel, PFS)",
+    "latency_ms": 15.0,
+    "jitter_ms": 2.0,
+    "loss_pct": 0.05,
+    "mtu": 1500
+  },
+  "status": "CAPTURED",
+  "traffic_types": {
+    "VoIP": 167,
+    "Video": 167,
+    "Email": 167,
+    "ICMP": 167,
+    "Web": 166
+  }
+}

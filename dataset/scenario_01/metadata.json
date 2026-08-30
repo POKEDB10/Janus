@@ -1,0 +1,20 @@
+{
+  "scenario_id": "01",
+  "scenario_name": "Clean Gigabit LAN (AES-GCM Tunnel)",
+  "flow_count": 834,
+  "netem_profile": {
+    "name": "Clean Gigabit LAN (AES-GCM Tunnel)",
+    "latency_ms": 2.0,
+    "jitter_ms": 0.5,
+    "loss_pct": 0.0,
+    "mtu": 1500
+  },
+  "status": "CAPTURED",
+  "traffic_types": {
+    "VoIP": 167,
+    "Video": 167,
+    "Email": 167,
+    "ICMP": 167,
+    "Web": 166
+  }
+}

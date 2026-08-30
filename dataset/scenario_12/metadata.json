@@ -1,0 +1,20 @@
+{
+  "scenario_id": "12",
+  "scenario_name": "Asymmetric WAN Uplink/Downlink",
+  "flow_count": 833,
+  "netem_profile": {
+    "name": "Asymmetric WAN Uplink/Downlink",
+    "latency_ms": 65.0,
+    "jitter_ms": 15.0,
+    "loss_pct": 0.8,
+    "mtu": 1460
+  },
+  "status": "CAPTURED",
+  "traffic_types": {
+    "Video": 167,
+    "Web": 167,
+    "ICMP": 167,
+    "VoIP": 166,
+    "Email": 166
+  }
+}

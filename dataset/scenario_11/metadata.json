@@ -1,0 +1,20 @@
+{
+  "scenario_id": "11",
+  "scenario_name": "Constrained MTU Tunnel",
+  "flow_count": 833,
+  "netem_profile": {
+    "name": "Constrained MTU Tunnel",
+    "latency_ms": 50.0,
+    "jitter_ms": 10.0,
+    "loss_pct": 0.5,
+    "mtu": 1280
+  },
+  "status": "CAPTURED",
+  "traffic_types": {
+    "Video": 167,
+    "Web": 167,
+    "ICMP": 167,
+    "VoIP": 166,
+    "Email": 166
+  }
+}
