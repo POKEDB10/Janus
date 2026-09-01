@@ -1,0 +1,90 @@
+{
+  "accuracy": 1.0,
+  "f1_score": 1.0,
+  "precision": 1.0,
+  "recall": 1.0,
+  "cross_validation": {
+    "cv_accuracy_mean": 1.0,
+    "cv_accuracy_std": 0.0,
+    "cv_f1_mean": 1.0
+  },
+  "classes": [
+    "VoIP",
+    "Video",
+    "Web",
+    "Email",
+    "ICMP"
+  ],
+  "classification_report": {
+    "VoIP": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 100.0
+    },
+    "Video": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 100.0
+    },
+    "Web": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 100.0
+    },
+    "Email": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 100.0
+    },
+    "ICMP": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 100.0
+    },
+    "accuracy": 1.0,
+    "macro avg": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 500.0
+    },
+    "weighted avg": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1-score": 1.0,
+      "support": 500.0
+    }
+  },
+  "feature_importances": {
+    "pkt_len_min": 0.0011,
+    "pkt_len_max": 0.009,
+    "pkt_len_mean": 0.0066,
+    "pkt_len_var": 0.012,
+    "pkt_len_std": 0.0066,
+    "pkt_len_median": 0.0303,
+    "pkt_len_q25": 0.0956,
+    "pkt_len_q75": 0.0002,
+    "pkt_len_iqr": 0.1348,
+    "iat_min": 0.0597,
+    "iat_max": 0.0512,
+    "iat_mean": 0.0024,
+    "iat_var": 0.0692,
+    "iat_std": 0.1323,
+    "burst_count": 0.0002,
+    "burst_len_mean": 0.0052,
+    "burst_len_max": 0.0559,
+    "burst_bytes_mean": 0.0639,
+    "flow_duration_s": 0.0,
+    "total_packets": 0.0006,
+    "total_bytes": 0.1306,
+    "packet_rate_pps": 0.0263,
+    "byte_rate_bps": 0.0756,
+    "forward_packet_ratio": 0.0011,
+    "forward_byte_ratio": 0.0295
+  }
+}

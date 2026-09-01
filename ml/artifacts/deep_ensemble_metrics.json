@@ -1,0 +1,9 @@
+{
+  "model_name": "FlowDeepNet (2500-Estimator Deep Forest + 4-Layer Neural MLP)",
+  "model_size_mb": 13.52,
+  "total_training_flows": 8000,
+  "holdout_test_flows": 2000,
+  "accuracy": 1.0,
+  "f1_score": 1.0,
+  "training_time_s": 34.55
+}
