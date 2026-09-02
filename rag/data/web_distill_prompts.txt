@@ -1,0 +1,104 @@
+================================================================================
+PROJECT JANUS: WEB CHAT DISTILLATION PROMPTS (FOR GEMINI / CLAUDE SUBSCRIPTIONS)
+================================================================================
+Instructions:
+1. Copy any of the prompt blocks below.
+2. Paste into your Gemini Advanced (3.1 Pro / Flash) or Claude.ai (Sonnet) web chat.
+3. The AI will output valid ChatML JSON lines.
+4. Copy the JSON output from the chat and append it to rag/data/distill_sft_dataset.jsonl
+================================================================================
+
+--- [PROMPT BATCH 1: RFC8221-ENCR_3DES] ---
+
+You are a specialized IPsec and cryptography standards auditor for Project Janus.
+Generate 5 distinct, high-density ChatML training samples in JSONL format for the finding below.
+
+Finding Details:
+- Parameter: ESP Encryption (3DES)
+- Vulnerability: SWEET32 (CVE-2016-2183)
+- Governing Clause: [RFC 8221 §5]
+
+Requirements for each assistant response:
+1. Include '### Cryptanalytic Threat & Mathematical Analysis' with exact math (e.g. 2^32 collisions, discrete log precomputation).
+2. Include '### Primary Standards Grounding' explicitly citing [RFC 8221 §5] in brackets.
+3. Include '### System Impact & Blast Radius'.
+4. Include '### Verified Actionable Remediation' with strongSwan `swanctl.conf` code.
+
+Output ONLY valid raw JSON Lines (one JSON per line) following this schema:
+{"messages": [{"role": "system", "content": "..."}, {"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]}
+
+--- [PROMPT BATCH 2: RFC8247-DH_GROUP_2] ---
+
+You are a specialized IPsec and cryptography standards auditor for Project Janus.
+Generate 5 distinct, high-density ChatML training samples in JSONL format for the finding below.
+
+Finding Details:
+- Parameter: Diffie-Hellman Group 2 (MODP-1024)
+- Vulnerability: Logjam (CVE-2015-4000)
+- Governing Clause: [RFC 8247 §2.4]
+
+Requirements for each assistant response:
+1. Include '### Cryptanalytic Threat & Mathematical Analysis' with exact math (e.g. 2^32 collisions, discrete log precomputation).
+2. Include '### Primary Standards Grounding' explicitly citing [RFC 8247 §2.4] in brackets.
+3. Include '### System Impact & Blast Radius'.
+4. Include '### Verified Actionable Remediation' with strongSwan `swanctl.conf` code.
+
+Output ONLY valid raw JSON Lines (one JSON per line) following this schema:
+{"messages": [{"role": "system", "content": "..."}, {"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]}
+
+--- [PROMPT BATCH 3: RFC8221-AUTH_MD5] ---
+
+You are a specialized IPsec and cryptography standards auditor for Project Janus.
+Generate 5 distinct, high-density ChatML training samples in JSONL format for the finding below.
+
+Finding Details:
+- Parameter: ESP Authentication (HMAC-MD5-96)
+- Vulnerability: MD5 Hash Collision
+- Governing Clause: [RFC 8221 §5]
+
+Requirements for each assistant response:
+1. Include '### Cryptanalytic Threat & Mathematical Analysis' with exact math (e.g. 2^32 collisions, discrete log precomputation).
+2. Include '### Primary Standards Grounding' explicitly citing [RFC 8221 §5] in brackets.
+3. Include '### System Impact & Blast Radius'.
+4. Include '### Verified Actionable Remediation' with strongSwan `swanctl.conf` code.
+
+Output ONLY valid raw JSON Lines (one JSON per line) following this schema:
+{"messages": [{"role": "system", "content": "..."}, {"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]}
+
+--- [PROMPT BATCH 4: RFC8784-PPK] ---
+
+You are a specialized IPsec and cryptography standards auditor for Project Janus.
+Generate 5 distinct, high-density ChatML training samples in JSONL format for the finding below.
+
+Finding Details:
+- Parameter: Post-Quantum Defense
+- Vulnerability: Harvest Now, Decrypt Later
+- Governing Clause: [RFC 8784 §6]
+
+Requirements for each assistant response:
+1. Include '### Cryptanalytic Threat & Mathematical Analysis' with exact math (e.g. 2^32 collisions, discrete log precomputation).
+2. Include '### Primary Standards Grounding' explicitly citing [RFC 8784 §6] in brackets.
+3. Include '### System Impact & Blast Radius'.
+4. Include '### Verified Actionable Remediation' with strongSwan `swanctl.conf` code.
+
+Output ONLY valid raw JSON Lines (one JSON per line) following this schema:
+{"messages": [{"role": "system", "content": "..."}, {"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]}
+
+--- [PROMPT BATCH 5: RFC7383-IKE_FRAG] ---
+
+You are a specialized IPsec and cryptography standards auditor for Project Janus.
+Generate 5 distinct, high-density ChatML training samples in JSONL format for the finding below.
+
+Finding Details:
+- Parameter: IKEv2 Message Fragmentation
+- Vulnerability: UDP Fragment Drop
+- Governing Clause: [RFC 7383 §2.3]
+
+Requirements for each assistant response:
+1. Include '### Cryptanalytic Threat & Mathematical Analysis' with exact math (e.g. 2^32 collisions, discrete log precomputation).
+2. Include '### Primary Standards Grounding' explicitly citing [RFC 7383 §2.3] in brackets.
+3. Include '### System Impact & Blast Radius'.
+4. Include '### Verified Actionable Remediation' with strongSwan `swanctl.conf` code.
+
+Output ONLY valid raw JSON Lines (one JSON per line) following this schema:
+{"messages": [{"role": "system", "content": "..."}, {"role": "user", "content": "..."}, {"role": "assistant", "content": "..."}]}
