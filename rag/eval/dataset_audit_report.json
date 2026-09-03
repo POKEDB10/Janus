@@ -1,0 +1,74 @@
+{
+  "dataset_path": "C:\\Users\\soulp\\Desktop\\Projects\\Janus\\rag\\data\\distill_sft_dataset.jsonl",
+  "total_samples": 258,
+  "schema_integrity": {
+    "valid_json_count": 258,
+    "valid_chatml_count": 258,
+    "format_integrity_percentage": 100.0
+  },
+  "length_statistics": {
+    "avg_assistant_words": 859.1,
+    "min_assistant_words": 111,
+    "max_assistant_words": 1223,
+    "estimated_avg_tokens": 1117
+  },
+  "citation_grounding": {
+    "total_citations_analyzed": 1937,
+    "verified_citations": 1937,
+    "unverified_citations": 0,
+    "citation_precision_percentage": 100.0,
+    "avg_citations_per_sample": 7.51
+  },
+  "content_quality": {
+    "mathematical_reasoning_percentage": 79.5,
+    "actionable_remediation_code_percentage": 98.1
+  },
+  "standards_coverage": {
+    "RFC 8221": 192,
+    "RFC 8247": 182,
+    "RFC 7296": 150,
+    "RFC 4301": 43,
+    "RFC 4303": 106,
+    "RFC 7383": 21,
+    "RFC 8784": 37,
+    "RFC 9347": 35,
+    "NIST SP 800-77": 227,
+    "NIST SP 800-131A": 192,
+    "DoD IPsec STIG": 78
+  },
+  "model_distribution": {
+    "gateway/gemini-3-flash": 91,
+    "gateway/gemini-3.8-flash": 151,
+    "gateway/gemini-3.1-pro-low": 10,
+    "gateway/claude-sonnet-4-6": 5,
+    "Janus-Local-Mock": 1
+  },
+  "rule_distribution": {
+    "RFC8221-ENCR_3DES": 28,
+    "RFC8221-ENCR_DES": 26,
+    "RFC8247-DH_GROUP_2": 25,
+    "RFC8247-DH_GROUP_1": 23,
+    "RFC8221-AUTH_HMAC_MD5_96": 23,
+    "RFC8221-AUTH_NONE_CBC": 20,
+    "RFC9347-IP_TFS": 20,
+    "RFC7383-IKE_FRAG": 20,
+    "RFC8784-PPK": 20,
+    "NIST-SA_LIFETIME": 20,
+    "RFC4303-NO_ESN_HIGH_SPEED": 3,
+    "RFC8247-DH_GROUP_5": 3,
+    "RFC8221-ENCR_BLOWFISH": 3,
+    "RFC8221-ENCR_NULL_PROD": 3,
+    "DOD-STIG-PFS_MISSING": 3,
+    "RFC7296-IKE_COOKIE_DOS": 3,
+    "RFC7296-DEAD_PEER_DETECTION": 3,
+    "RFC4301-SPD_TRAFFIC_SELECTOR": 3,
+    "NIST-DH_GROUP_14_MIN": 3,
+    "RFC8247-PRFAES128_CBC": 3,
+    "DOD-STIG-AEAD_MANDATE": 3
+  },
+  "rating": {
+    "composite_quality_score": 94.4,
+    "letter_grade": "A (High Quality)",
+    "production_ready": true
+  }
+}

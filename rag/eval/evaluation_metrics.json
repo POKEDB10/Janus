@@ -1,0 +1,47 @@
+{
+  "total_benchmark_queries": 34,
+  "hit_rate_at_1_pct": 64.71,
+  "hit_rate_at_3_pct": 88.24,
+  "mrr": 0.7877,
+  "citation_precision_pct": 100.0,
+  "avg_retrieval_latency_ms": 1.17,
+  "avg_generation_latency_ms": 63.55,
+  "before_after_comparison": {
+    "finding": "RFC8221-ENCR_3DES (SWEET32)",
+    "base_model_ungrounded": "Triple-DES is generally considered an older encryption algorithm that shouldn't be used anymore because its key size is small. You should probably switch to AES instead for better security.",
+    "janus_rag_grounded": "### Cryptanalytic Threat & Mathematical Analysis\n3DES operates with a 64-bit block size. Under the Birthday Paradox, ciphertext block collisions occur with high probability after approximately 2^32 bl...",
+    "cited_clauses": [
+      "[DoD IPsec STIG V-220710]"
+    ],
+    "advantage": "Exact mathematical block-collision attribution, RFC 8221 \u00a75 citation, and swanctl.conf upgrade instructions."
+  },
+  "sample_outputs": [
+    {
+      "finding_id": "RFC8221-ENCR_3DES",
+      "explanation_snippet": "### Cryptanalytic Threat & Mathematical Analysis\n3DES operates with a 64-bit block size. Under the Birthday Paradox, ciphertext block collisions occur with high probability after approximately 2^32 bl...",
+      "citations": [
+        "[DoD IPsec STIG V-220710]"
+      ],
+      "verified": true,
+      "latency_ms": 86.21
+    },
+    {
+      "finding_id": "RFC8247-DH_GROUP_2",
+      "explanation_snippet": "### Cryptanalytic Threat & Mathematical Analysis\nMODP-1024 / MODP-768 groups are susceptible to Number Field Sieve (NFS) precomputation. Adversaries can precalculate discrete logarithms for standard p...",
+      "citations": [
+        "[DoD IPsec STIG V-220720]"
+      ],
+      "verified": true,
+      "latency_ms": 45.18
+    },
+    {
+      "finding_id": "RFC8221-AUTH_HMAC_MD5_96",
+      "explanation_snippet": "### Cryptanalytic Threat & Mathematical Analysis\nMD5 has demonstrated cryptographic collision vulnerability. Attackers can forge valid HMAC-MD5 signatures in milliseconds, completely compromising pack...",
+      "citations": [
+        "[NIST SP 800-131A Rev. 2 \u00a79]"
+      ],
+      "verified": true,
+      "latency_ms": 59.25
+    }
+  ]
+}
