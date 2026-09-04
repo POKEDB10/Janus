@@ -1,0 +1,1 @@
+"""Backend module — FastAPI application."""
