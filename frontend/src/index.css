@@ -1,0 +1,17 @@
+﻿@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-navy: #1a2332;
+  --color-blue: #0066cc;
+}
+
+body {
+  @apply bg-janus-navy text-gray-100 font-sans antialiased;
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { @apply bg-janus-navy; }
+::-webkit-scrollbar-thumb { @apply bg-janus-blue rounded; }
