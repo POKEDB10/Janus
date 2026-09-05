@@ -17,6 +17,58 @@ import {
 import { getExecutiveReportUrl, getTechnicalReportUrl, draftReportNarrative } from "../api/client";
 import type { ReportNarrativeResponse } from "../types";
 
+function FormattedNarrative({ content }: { content: string }) {
+  if (!content) return null;
+
+  const lines = content.split("\n");
+  return (
+    <div className="space-y-2 text-xs leading-relaxed">
+      {lines.map((line, idx) => {
+        const trimmed = line.trim();
+        if (!trimmed) return <div key={idx} className="h-1" />;
+
+        // Header lines (### or ##)
+        if (trimmed.startsWith("### ") || trimmed.startsWith("## ")) {
+          const headerText = trimmed.replace(/^#{2,3}\s+/, "");
+          return (
+            <h4 key={idx} className="text-sm font-bold text-blue-300 pt-2 pb-0.5 border-b border-white/5 flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
+              {headerText}
+            </h4>
+          );
+        }
+
+        // Inline parse: **bold** and `code`
+        const parts = trimmed.split(/(\*\*.*?\*\*|`.*?`)/g);
+        return (
+          <p key={idx} className="text-gray-200">
+            {parts.map((part, pIdx) => {
+              if (part.startsWith("**") && part.endsWith("**")) {
+                return (
+                  <strong key={pIdx} className="font-bold text-white">
+                    {part.slice(2, -2)}
+                  </strong>
+                );
+              }
+              if (part.startsWith("`") && part.endsWith("`")) {
+                return (
+                  <code
+                    key={pIdx}
+                    className="px-1.5 py-0.5 rounded bg-slate-900 border border-white/10 text-cyan-300 font-mono text-[11px]"
+                  >
+                    {part.slice(1, -1)}
+                  </code>
+                );
+              }
+              return part;
+            })}
+          </p>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function ReportPage() {
   const { captureId = "scenario_01" } = useParams<{ captureId: string }>();
 
@@ -26,8 +78,31 @@ export default function ReportPage() {
   const [draftingNarrative, setDraftingNarrative] = useState(false);
   const [copiedSection, setCopiedSection] = useState<string | null>(null);
 
-  const handleCopy = (text: string, section: string) => {
-    navigator.clipboard.writeText(text);
+  const handleCopy = async (text: string, section: string) => {
+    let copied = false;
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(text);
+        copied = true;
+      } catch {
+        copied = false;
+      }
+    }
+    if (!copied) {
+      try {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      } catch (err) {
+        console.error("Copy fallback error", err);
+      }
+    }
     setCopiedSection(section);
     setTimeout(() => setCopiedSection(null), 2000);
   };
@@ -214,8 +289,8 @@ export default function ReportPage() {
                   {copiedSection === "exec" ? "Copied" : "Copy"}
                 </button>
               </div>
-              <div className="p-4 rounded-xl bg-slate-950 border border-white/10 text-xs text-gray-200 leading-relaxed whitespace-pre-line">
-                {narrative.executive_narrative}
+              <div className="p-4 rounded-xl bg-slate-950 border border-white/10 text-xs text-gray-200 leading-relaxed">
+                <FormattedNarrative content={narrative.executive_narrative} />
               </div>
             </div>
 
@@ -234,8 +309,8 @@ export default function ReportPage() {
                   {copiedSection === "tech" ? "Copied" : "Copy"}
                 </button>
               </div>
-              <div className="p-4 rounded-xl bg-slate-950 border border-white/10 text-xs text-gray-200 leading-relaxed whitespace-pre-line">
-                {narrative.technical_narrative}
+              <div className="p-4 rounded-xl bg-slate-950 border border-white/10 text-xs text-gray-200 leading-relaxed">
+                <FormattedNarrative content={narrative.technical_narrative} />
               </div>
             </div>
 

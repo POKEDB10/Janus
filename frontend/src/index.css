@@ -7,26 +7,18 @@
   --color-blue: #0066cc;
 }
 
-html {
-  scroll-behavior: smooth;
-  overflow-y: scroll;
+html, body {
+  min-height: 100%;
 }
 
 body {
   @apply bg-janus-navy text-gray-100 font-sans antialiased;
-  overflow-x: hidden;
-  overscroll-behavior-y: none;
 }
 
 /* Custom scrollbar for dark theme */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-track { @apply bg-janus-navy; }
 ::-webkit-scrollbar-thumb { @apply bg-janus-blue rounded; }
-
-/* Contain nested scroll events so page scroll stays buttery smooth */
-pre, code, .overflow-x-auto, .overflow-y-auto {
-  overscroll-behavior: contain;
-}
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(4px); }

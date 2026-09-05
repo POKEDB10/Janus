@@ -332,10 +332,14 @@ export default function Analysis() {
                 <RechartsTooltip
                   contentStyle={{
                     backgroundColor: "#0f172a",
-                    borderColor: "rgba(255,255,255,0.1)",
+                    borderColor: "rgba(255,255,255,0.2)",
                     borderRadius: 8,
                     fontSize: 12,
+                    color: "#ffffff",
+                    boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.5)",
                   }}
+                  itemStyle={{ color: "#38bdf8", fontWeight: "bold" }}
+                  labelStyle={{ color: "#ffffff", fontWeight: "bold" }}
                 />
                 <Legend
                   formatter={(value) => <span className="text-xs text-gray-300">{value}</span>}
@@ -441,10 +445,14 @@ export default function Analysis() {
                 <RechartsTooltip
                   contentStyle={{
                     backgroundColor: "#0f172a",
-                    borderColor: "rgba(255,255,255,0.1)",
+                    borderColor: "rgba(255,255,255,0.2)",
                     borderRadius: 8,
                     fontSize: 12,
+                    color: "#ffffff",
+                    boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.5)",
                   }}
+                  itemStyle={{ color: "#38bdf8", fontWeight: "bold" }}
+                  labelStyle={{ color: "#ffffff", fontWeight: "bold" }}
                   formatter={(value: number) => [`${value}%`, "Confidence"]}
                 />
                 <Line

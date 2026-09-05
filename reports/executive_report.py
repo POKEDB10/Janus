@@ -137,37 +137,67 @@ def generate_executive_pdf(
         )
     )
 
-    exec_score_style = ParagraphStyle(
-        "ExecScoreStyle",
-        parent=body_style,
+    score_hdr_center = ParagraphStyle(
+        "ScoreHdrCenter",
+        parent=bold_body,
         fontName="Helvetica-Bold",
-        fontSize=22,
-        leading=26,
-        textColor=score_color,
+        fontSize=9,
+        leading=11,
+        textColor=primary_color,
+        alignment=1,
     )
-    exec_grade_style = ParagraphStyle(
-        "ExecGradeStyle",
-        parent=body_style,
+    score_hdr_left = ParagraphStyle(
+        "ScoreHdrLeft",
+        parent=bold_body,
         fontName="Helvetica-Bold",
-        fontSize=22,
-        leading=26,
-        textColor=score_color,
+        fontSize=9,
+        leading=11,
+        textColor=primary_color,
+        alignment=0,
+    )
+
+    grade_cell = Paragraph(
+        f"<font size=32 color='{score_color.hexval()}'><b>{grade}</b></font><br/>"
+        f"<font size=9 color='#64748b'><b>GRADE</b></font>",
+        ParagraphStyle(
+            "GradeStacked",
+            parent=body_style,
+            fontName="Helvetica-Bold",
+            alignment=1,
+            leading=18,
+            spaceBefore=2,
+            spaceAfter=2,
+        ),
+    )
+
+    score_cell = Paragraph(
+        f"<font size=26 color='{score_color.hexval()}'><b>{score:.1f}</b></font><br/>"
+        f"<font size=9 color='#64748b'><b>/ 100</b></font>",
+        ParagraphStyle(
+            "ScoreStacked",
+            parent=body_style,
+            fontName="Helvetica-Bold",
+            alignment=1,
+            leading=16,
+            spaceBefore=2,
+            spaceAfter=2,
+        ),
     )
 
     # Score Box
     score_box_data = [
         [
-            Paragraph("<b>OVERALL COMPLIANCE SCORE</b>", ParagraphStyle("H", parent=bold_body, fontSize=10, textColor=primary_color)),
-            Paragraph("<b>SECURITY GRADE</b>", ParagraphStyle("H", parent=bold_body, fontSize=10, textColor=primary_color)),
-            Paragraph("<b>POSTURE VERDICT</b>", ParagraphStyle("H", parent=bold_body, fontSize=10, textColor=primary_color)),
+            Paragraph("<b>OVERALL COMPLIANCE SCORE</b>", score_hdr_center),
+            Paragraph("<b>SECURITY GRADE</b>", score_hdr_center),
+            Paragraph("<b>POSTURE VERDICT</b>", score_hdr_left),
         ],
         [
-            Paragraph(f"<b>{score:.1f} / 100</b>", exec_score_style),
-            Paragraph(f"<b>GRADE {grade}</b>", exec_grade_style),
+            score_cell,
+            grade_cell,
             Paragraph(f"<b>{compliance_data.get('summary', 'Evaluation complete.')}</b>", body_style),
         ],
     ]
-    score_table = Table(score_box_data, colWidths=[170, 140, 230])
+    score_table = Table(score_box_data, colWidths=[160, 130, 250])
     score_table.setStyle(
         TableStyle(
             [

@@ -134,36 +134,66 @@ def generate_technical_pdf(
     grade = str(compliance_data.get("grade", "F"))
     score_color = colors.HexColor("#16a34a") if score >= 80 else (colors.HexColor("#ea580c") if score >= 60 else colors.HexColor("#dc2626"))
 
-    score_val_style = ParagraphStyle(
-        "TechScoreVal",
-        parent=body_style,
-        fontName="Helvetica-Bold",
-        fontSize=18,
-        leading=22,
-    )
-    score_hdr_style = ParagraphStyle(
-        "TechScoreHdr",
+    tech_score_hdr_center = ParagraphStyle(
+        "TechScoreHdrCenter",
         parent=subtitle_style,
         fontName="Helvetica-Bold",
         fontSize=8,
         leading=10,
         textColor=colors.HexColor("#475569"),
-        spaceAfter=2,
+        alignment=1,
+    )
+    tech_score_hdr_left = ParagraphStyle(
+        "TechScoreHdrLeft",
+        parent=subtitle_style,
+        fontName="Helvetica-Bold",
+        fontSize=8,
+        leading=10,
+        textColor=colors.HexColor("#475569"),
+        alignment=0,
+    )
+
+    tech_grade_cell = Paragraph(
+        f"<font size=26 color='{score_color.hexval()}'><b>{grade}</b></font><br/>"
+        f"<font size=8 color='#64748b'><b>GRADE</b></font>",
+        ParagraphStyle(
+            "TechGradeStacked",
+            parent=body_style,
+            fontName="Helvetica-Bold",
+            alignment=1,
+            leading=14,
+            spaceBefore=1,
+            spaceAfter=1,
+        ),
+    )
+
+    tech_score_cell = Paragraph(
+        f"<font size=22 color='{score_color.hexval()}'><b>{score:.1f}</b></font><br/>"
+        f"<font size=8 color='#64748b'><b>/ 100</b></font>",
+        ParagraphStyle(
+            "TechScoreStacked",
+            parent=body_style,
+            fontName="Helvetica-Bold",
+            alignment=1,
+            leading=13,
+            spaceBefore=1,
+            spaceAfter=1,
+        ),
     )
 
     score_box_data = [
         [
-            Paragraph("<b>COMPLIANCE SCORE</b>", score_hdr_style),
-            Paragraph("<b>SECURITY GRADE</b>", score_hdr_style),
-            Paragraph("<b>POSTURE VERDICT & SUMMARY</b>", score_hdr_style),
+            Paragraph("<b>COMPLIANCE SCORE</b>", tech_score_hdr_center),
+            Paragraph("<b>SECURITY GRADE</b>", tech_score_hdr_center),
+            Paragraph("<b>POSTURE VERDICT & SUMMARY</b>", tech_score_hdr_left),
         ],
         [
-            Paragraph(f"<font color='{score_color.hexval()}'><b>{score:.1f} / 100</b></font>", score_val_style),
-            Paragraph(f"<font color='{score_color.hexval()}'><b>GRADE {grade}</b></font>", score_val_style),
+            tech_score_cell,
+            tech_grade_cell,
             Paragraph(f"<b>{compliance_data.get('summary', 'Audit complete.')}</b>", body_style),
         ],
     ]
-    score_table = Table(score_box_data, colWidths=[140, 130, 270])
+    score_table = Table(score_box_data, colWidths=[130, 110, 300])
     score_table.setStyle(
         TableStyle(
             [
