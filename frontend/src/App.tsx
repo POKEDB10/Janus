@@ -21,6 +21,7 @@ import Compliance from "./pages/Compliance";
 import Report from "./pages/Report";
 import Compare from "./pages/Compare";
 import NotFound from "./pages/NotFound";
+import ScrollToTop from "./components/ScrollToTop";
 
 // ─── Nav items ───────────────────────────────────────────────────────────────
 
@@ -220,7 +221,9 @@ function CaptureLayout({
 
 export default function App() {
   return (
-    <Routes>
+    <>
+      <ScrollToTop />
+      <Routes>
       <Route
         path="/"
         element={
@@ -279,7 +282,8 @@ export default function App() {
         }
       />
     </Routes>
-  );
+  </>
+);
 }
 
 /**

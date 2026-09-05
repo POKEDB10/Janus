@@ -47,7 +47,7 @@ export default function UploadPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sseRef = useRef<EventSource | null>(null);
   const pollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const logsEndRef = useRef<HTMLDivElement>(null);
+  const logsContainerRef = useRef<HTMLDivElement>(null);
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -144,8 +144,8 @@ export default function UploadPage() {
   }, []);
 
   useEffect(() => {
-    if (logs.length > 0) {
-      logsEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (logsContainerRef.current) {
+      logsContainerRef.current.scrollTop = logsContainerRef.current.scrollHeight;
     }
   }, [logs]);
 
@@ -494,7 +494,10 @@ export default function UploadPage() {
                 </span>
               </div>
             </div>
-            <div className="p-4 font-mono text-xs max-h-56 overflow-y-auto space-y-1.5 scrollbar-thin">
+            <div
+              ref={logsContainerRef}
+              className="p-4 font-mono text-xs max-h-56 overflow-y-auto space-y-1.5 scrollbar-thin [overflow-anchor:none]"
+            >
               {logs.length === 0 ? (
                 <div className="text-gray-500 flex items-center gap-2">
                   <RefreshCw size={12} className="animate-spin text-blue-400" />
@@ -522,7 +525,6 @@ export default function UploadPage() {
                   );
                 })
               )}
-              <div ref={logsEndRef} />
             </div>
           </div>
 

@@ -168,18 +168,79 @@ function DiffValueBadge({ label, value }: { label: string; value: string | numbe
 
 // ─── Skeleton loader for loading state ───────────────────────────────────────
 
-function PanelSkeleton() {
-  return (
-    <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 space-y-4 animate-pulse">
-      <div className="h-4 bg-slate-700 rounded w-3/4" />
-      <div className="flex justify-center py-6">
-        <div className="w-40 h-40 rounded-full bg-slate-800" />
-      </div>
-      {[1, 2, 3].map((i) => (
-        <div key={i} className="h-10 bg-slate-800 rounded-xl" />
-      ))}
-    </div>
-  );
+export function getScenarioFallbackReport(id: string): ComplianceReport {
+  const isScenario4 = id.includes("04") || id.includes("weak");
+  const isScenario7 = id.includes("07") || id.includes("iptfs");
+  const isScenario5 = id.includes("05");
+  const isScenario6 = id.includes("06");
+  const isScenario8 = id.includes("08");
+  const isScenario9 = id.includes("09");
+  const isScenario11 = id.includes("11");
+  const isScenario12 = id.includes("12");
+
+  const isGradeB = isScenario5 || isScenario6 || isScenario8 || isScenario9 || isScenario11 || isScenario12;
+
+  return {
+    capture_id: id,
+    overall_score: isScenario4 ? 25.0 : isGradeB ? 78.0 : isScenario7 ? 95.0 : 98.0,
+    grade: isScenario4 ? "F" : isGradeB ? "B" : "A",
+    summary: isScenario4
+      ? "CRITICAL: Deprecated 3DES cipher and weak Diffie-Hellman Group 2 detected."
+      : isScenario7
+      ? "COMPLIANT: RFC 9347 IP-TFS constant-rate tunnel neutralizing metadata leakage."
+      : isGradeB
+      ? "ACCEPTABLE: Legacy AES-CBC cipher in use; migration to AES-GCM recommended."
+      : "COMPLIANT: Modern AES-256-GCM AEAD encryption with DH Group 19 (ECP-256).",
+    evaluated_parameters: {
+      esp_encryption: isScenario4 ? "ENCR_3DES" : isGradeB ? "ENCR_AES_CBC_256" : "ENCR_AES_GCM_16",
+      esp_auth: isScenario4 ? "AUTH_HMAC_MD5_96" : isGradeB ? "AUTH_HMAC_SHA2_256_128" : "AUTH_NONE",
+      dh_group: isScenario4 ? 2 : isGradeB ? 14 : 19,
+      pfs_enabled: !isScenario4,
+      sa_lifetime_seconds: isScenario4 ? 86400 : 3600,
+    },
+    findings: isScenario4
+      ? [
+          {
+            rule_id: "RFC8221-ENCR_3DES",
+            parameter: "ESP Encryption",
+            severity: "HIGH",
+            description: "SWEET32 vulnerability (CVE-2016-2183).",
+            recommendation: "Replace with ENCR_AES_GCM_16.",
+            references: ["RFC 8221 §5", "CVE-2016-2183"],
+          },
+          {
+            rule_id: "RFC8247-DH_GROUP_2",
+            parameter: "DH Group",
+            severity: "CRITICAL",
+            description: "Logjam attack surface on 1024-bit MODP.",
+            recommendation: "Upgrade to DH Group 19 (ECP-256).",
+            references: ["RFC 8247 §2.4"],
+          },
+          {
+            rule_id: "RFC8221-AUTH_HMAC_MD5_96",
+            parameter: "ESP Authentication",
+            severity: "CRITICAL",
+            description: "MD5 collision vulnerabilities.",
+            recommendation: "Migrate to integrated AEAD cipher.",
+            references: ["RFC 8221 §4"],
+          },
+        ]
+      : isGradeB
+      ? [
+          {
+            rule_id: "RFC8221-ENCR_AES_CBC",
+            parameter: "ESP Encryption",
+            severity: "MEDIUM",
+            description: "CBC mode vulnerable to padding oracle attacks.",
+            recommendation: "Migrate to AEAD AES-GCM.",
+            references: ["RFC 8221 §5"],
+          },
+        ]
+      : [],
+    remediation_config: "",
+    threat_matrix: [],
+    generated_at: new Date().toISOString(),
+  };
 }
 
 // ─── Score color helper ───────────────────────────────────────────────────────
@@ -254,14 +315,16 @@ function DiffRow({ label, left, right }: DiffRowProps) {
 function ScenarioPanel({
   report,
   label,
+  loading = false,
 }: {
   report: ComplianceReport;
   label: string;
+  loading?: boolean;
 }) {
   const navigate = useNavigate();
 
   return (
-    <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 space-y-5 shadow-xl flex flex-col">
+    <div className={`bg-slate-900 border border-white/10 rounded-2xl p-6 space-y-5 shadow-xl flex flex-col transition-opacity duration-150 ${loading ? "opacity-80" : "opacity-100"}`}>
       {/* Score gauge + summary */}
       <div className="text-center space-y-2">
         <h2 className="text-sm font-bold text-white">{label}</h2>
@@ -357,53 +420,24 @@ function ScenarioPanel({
 export default function Compare() {
   const [leftId, setLeftId] = useState("scenario_01");
   const [rightId, setRightId] = useState("scenario_04");
-  const [leftReport, setLeftReport] = useState<ComplianceReport | null>(null);
-  const [rightReport, setRightReport] = useState<ComplianceReport | null>(null);
+  const [leftReport, setLeftReport] = useState<ComplianceReport>(() => getScenarioFallbackReport("scenario_01"));
+  const [rightReport, setRightReport] = useState<ComplianceReport>(() => getScenarioFallbackReport("scenario_04"));
   const [loadingLeft, setLoadingLeft] = useState(false);
   const [loadingRight, setLoadingRight] = useState(false);
 
   async function loadReport(
     id: string,
-    setReport: React.Dispatch<React.SetStateAction<ComplianceReport | null>>,
+    setReport: React.Dispatch<React.SetStateAction<ComplianceReport>>,
     setLoading: React.Dispatch<React.SetStateAction<boolean>>,
   ) {
     setLoading(true);
-    setReport(null);
+    // Immediately set baseline data so the cards and diff table never collapse
+    setReport(getScenarioFallbackReport(id));
     try {
       const data = await getComplianceReport(id);
       setReport(data);
     } catch {
-      // Fallback for demo
-      const isScenario4 = id.includes("04") || id.includes("weak");
-      const fallback: ComplianceReport = {
-        capture_id: id,
-        overall_score: isScenario4 ? 25.0 : 96.0,
-        grade: isScenario4 ? "F" : "A",
-        summary: isScenario4
-          ? "CRITICAL: Deprecated 3DES cipher and weak DH Group 2."
-          : "COMPLIANT: AES-GCM AEAD + DH Group 19.",
-        evaluated_parameters: {
-          esp_encryption: isScenario4 ? "ENCR_3DES" : "ENCR_AES_GCM_16",
-          esp_auth: isScenario4 ? "AUTH_HMAC_MD5_96" : "AUTH_NONE",
-          dh_group: isScenario4 ? 2 : 19,
-          pfs_enabled: !isScenario4,
-          sa_lifetime_seconds: isScenario4 ? 86400 : 3600,
-        },
-        findings: isScenario4
-          ? [
-              { rule_id: "RFC8221-ENCR_3DES", parameter: "ESP Encryption", severity: "HIGH",
-                description: "SWEET32 vulnerability.", recommendation: "Use AES-GCM-16.",
-                references: ["RFC 8221 §5", "CVE-2016-2183"] },
-              { rule_id: "RFC8247-DH_GROUP_2", parameter: "DH Group", severity: "CRITICAL",
-                description: "Logjam attack surface.", recommendation: "Use DH Group 19.",
-                references: ["RFC 8247 §2.4"] },
-            ]
-          : [],
-        remediation_config: "",
-        threat_matrix: [],
-        generated_at: new Date().toISOString(),
-      };
-      setReport(fallback);
+      // baseline fallback is already active
     } finally {
       setLoading(false);
     }
@@ -469,12 +503,8 @@ export default function Compare() {
 
       {/* Split Panel */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {loadingLeft ? <PanelSkeleton /> : leftReport ? (
-          <ScenarioPanel report={leftReport} label={leftLabel} />
-        ) : null}
-        {loadingRight ? <PanelSkeleton /> : rightReport ? (
-          <ScenarioPanel report={rightReport} label={rightLabel} />
-        ) : null}
+        <ScenarioPanel report={leftReport} label={leftLabel} loading={loadingLeft} />
+        <ScenarioPanel report={rightReport} label={rightLabel} loading={loadingRight} />
       </div>
 
       {/* Parameter Diff Table */}
