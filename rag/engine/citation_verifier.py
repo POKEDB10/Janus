@@ -25,9 +25,9 @@ logger = logging.getLogger(__name__)
 
 CHUNKS_PATH = Path(__file__).resolve().parent.parent / "data" / "chunks.json"
 
-# Regex matching citations like [RFC 8221 §5], [RFC 7296 §2.5], [NIST SP 800-77 Rev. 1 Table 1], [DoD IPsec STIG V-220710]
+# Regex matching citations like [RFC 8221 §5], [RFC 8221 Sec. 5], [RFC 7296 §2.5], [NIST SP 800-77 Rev. 1 Table 1], [DoD IPsec STIG V-220710]
 CITATION_REGEX = re.compile(
-    r"\[(RFC\s*[0-9]{4}|NIST\s*SP\s*800-(?:77|131A)(?:\s*Rev\.\s*[12])?|DoD\s*(?:IPsec\s*)?STIG)\s*(?:§|Section|Table|V\-)?\s*([0-9\.\w\-]+)\]",
+    r"\[(RFC\s*[0-9]{4}|NIST\s*SP\s*800-(?:77|131A)(?:\s*Rev\.\s*[12])?|DoD\s*(?:IPsec\s*)?STIG)\s*(?:§|Section|Sec\.?|Table|V\-)?\s*([0-9\.\w\-]+)\]",
     re.IGNORECASE,
 )
 

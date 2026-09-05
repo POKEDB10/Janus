@@ -320,9 +320,9 @@ export default function Analysis() {
                   data={trafficPieData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={60}
-                  outerRadius={85}
-                  paddingAngle={5}
+                  innerRadius={55}
+                  outerRadius={80}
+                  paddingAngle={4}
                   dataKey="value"
                 >
                   {trafficPieData.map((entry) => (
@@ -342,7 +342,14 @@ export default function Analysis() {
                   labelStyle={{ color: "#ffffff", fontWeight: "bold" }}
                 />
                 <Legend
-                  formatter={(value) => <span className="text-xs text-gray-300">{value}</span>}
+                  formatter={(value) => {
+                    const item = trafficPieData.find((p) => p.name === value);
+                    return (
+                      <span className="text-xs font-medium text-gray-200 ml-1">
+                        {value} {item ? `(${item.value})` : ""}
+                      </span>
+                    );
+                  }}
                 />
               </PieChart>
             </ResponsiveContainer>
@@ -394,15 +401,16 @@ export default function Analysis() {
                       <td className="py-2.5 font-mono">{flow.duration_s.toFixed(1)}s</td>
                       <td className="py-2.5">
                         <span
-                          className="px-2 py-0.5 rounded text-[11px] font-semibold"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold"
                           style={{
                             backgroundColor: `${color}20`,
                             color: color,
                             border: `1px solid ${color}40`,
                           }}
-                          title={ood ? "Anti-hallucination OOD guardrail fired — shows raw prediction intent" : undefined}
+                          title={ood ? "Anti-hallucination OOD guardrail fired: shows raw prediction intent" : undefined}
                         >
-                          {ood ? "⚠ OOD" : label}
+                          {ood && <AlertTriangle size={11} className="shrink-0" />}
+                          <span>{ood ? "OOD" : label}</span>
                         </span>
                       </td>
                       <td className="py-2.5 font-mono font-semibold">

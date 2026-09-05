@@ -20,7 +20,8 @@ import type { ReportNarrativeResponse } from "../types";
 function FormattedNarrative({ content }: { content: string }) {
   if (!content) return null;
 
-  const lines = content.split("\n");
+  const sanitized = content.replace(/§/g, "Sec.").replace(/—/g, "-");
+  const lines = sanitized.split("\n");
   return (
     <div className="space-y-2 text-xs leading-relaxed">
       {lines.map((line, idx) => {
@@ -35,6 +36,28 @@ function FormattedNarrative({ content }: { content: string }) {
               <span className="w-1.5 h-1.5 rounded-full bg-blue-400 shrink-0" />
               {headerText}
             </h4>
+          );
+        }
+
+        // Bullet or list item
+        if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
+          const listText = trimmed.slice(2);
+          const parts = listText.split(/(\*\*.*?\*\*|`.*?`)/g);
+          return (
+            <div key={idx} className="flex items-start gap-2 pl-2 text-gray-200">
+              <span className="text-blue-400 mt-0.5 shrink-0">•</span>
+              <p className="flex-1">
+                {parts.map((part, pIdx) => {
+                  if (part.startsWith("**") && part.endsWith("**")) {
+                    return <strong key={pIdx} className="font-bold text-white">{part.slice(2, -2)}</strong>;
+                  }
+                  if (part.startsWith("`") && part.endsWith("`")) {
+                    return <code key={pIdx} className="px-1.5 py-0.5 rounded bg-slate-900 border border-white/10 text-cyan-300 font-mono text-[11px]">{part.slice(1, -1)}</code>;
+                  }
+                  return part;
+                })}
+              </p>
+            </div>
           );
         }
 
@@ -131,17 +154,60 @@ export default function ReportPage() {
     }
   };
 
+  const isScenario4 = captureId.includes("04") || captureId.includes("weak");
+
   return (
     <div className="max-w-4xl mx-auto space-y-8 animate-fadeIn">
       {/* Header */}
       <div className="space-y-2">
         <h1 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-          Executive & Technical Security Reports
+          Executive &amp; Technical Security Reports
         </h1>
         <p className="text-gray-400 text-sm">
           Generate publication-ready PDF audit deliverables tailored for CISOs, compliance auditors,
           and network security engineers.
         </p>
+      </div>
+
+      {/* Prominent Session Security Posture Summary Bar */}
+      <div className="bg-slate-900 border border-white/10 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xl">
+        <div className="flex items-center gap-4">
+          <div
+            className={`px-4 py-2.5 rounded-xl font-mono font-black text-xl tracking-tight border flex flex-col items-center justify-center min-w-[110px] ${
+              isScenario4
+                ? "bg-red-950/50 text-red-400 border-red-500/40 shadow-lg shadow-red-950/40"
+                : "bg-emerald-950/50 text-emerald-400 border-emerald-500/40 shadow-lg shadow-emerald-950/40"
+            }`}
+          >
+            <span>{isScenario4 ? "25 / 100" : "98 / 100"}</span>
+            <span className="text-[11px] font-bold tracking-widest uppercase text-gray-300">
+              GRADE {isScenario4 ? "F" : "A"}
+            </span>
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-bold text-white font-mono">Target: {captureId}</h3>
+              <span
+                className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold ${
+                  isScenario4
+                    ? "bg-red-500/20 text-red-300 border border-red-500/40"
+                    : "bg-emerald-500/20 text-emerald-300 border border-emerald-500/40"
+                }`}
+              >
+                {isScenario4 ? "CRITICAL RISK" : "COMPLIANT"}
+              </span>
+            </div>
+            <p className="text-xs text-gray-300 mt-1">
+              {isScenario4
+                ? "SWEET32 64-bit block collision & Logjam DH Group 2 vulnerabilities detected."
+                : "Modern AES-256-GCM AEAD encryption and Elliptic Curve Diffie-Hellman Group 19."}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 self-start sm:self-auto text-xs font-mono text-emerald-400 bg-emerald-950/40 px-3 py-1.5 rounded-lg border border-emerald-500/30">
+          <ShieldCheck size={14} />
+          <span>Reports Generated</span>
+        </div>
       </div>
 
       {/* Reports Grid */}

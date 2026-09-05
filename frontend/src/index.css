@@ -7,11 +7,19 @@
   --color-blue: #0066cc;
 }
 
-html, body {
+html, body, #root {
   min-height: 100%;
+  width: 100%;
+}
+
+html {
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 body {
+  overflow-y: visible;
+  overflow-x: hidden;
   @apply bg-janus-navy text-gray-100 font-sans antialiased;
 }
 
