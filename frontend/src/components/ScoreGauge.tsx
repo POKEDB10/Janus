@@ -68,6 +68,7 @@ export const ScoreGauge: React.FC<ScoreGaugeProps> = ({
             />
             {/* Background track */}
             <RadialBar
+              isAnimationActive={false}
               background={{ fill: clamped === 0 ? "rgba(239, 68, 68, 0.12)" : "rgba(255,255,255,0.06)" }}
               dataKey="value"
               angleAxisId={0}

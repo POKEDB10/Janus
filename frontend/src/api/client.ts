@@ -71,13 +71,20 @@ export async function getAnalysisStatus(captureId: string): Promise<AnalysisStat
   return data;
 }
 
+const complianceCache = new Map<string, ComplianceReport>();
+const analysisCache = new Map<string, AnalysisResults>();
+
 /**
  * Retrieve the full analysis results once the pipeline is DONE.
  */
 export async function getAnalysisResults(captureId: string): Promise<AnalysisResults> {
+  if (analysisCache.has(captureId)) {
+    return analysisCache.get(captureId)!;
+  }
   const { data } = await apiClient.get<AnalysisResults>(
     `/api/analysis/${encodeURIComponent(captureId)}/results`
   );
+  analysisCache.set(captureId, data);
   return data;
 }
 
@@ -113,9 +120,13 @@ export async function getFlowDetail(
  * Fetch the compliance assessment report for a capture.
  */
 export async function getCompliance(captureId: string): Promise<ComplianceReport> {
+  if (complianceCache.has(captureId)) {
+    return complianceCache.get(captureId)!;
+  }
   const { data } = await apiClient.get<ComplianceReport>(
     `/api/compliance/${encodeURIComponent(captureId)}`
   );
+  complianceCache.set(captureId, data);
   return data;
 }
 

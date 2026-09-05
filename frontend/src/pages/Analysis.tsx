@@ -324,6 +324,7 @@ export default function Analysis() {
                   outerRadius={80}
                   paddingAngle={4}
                   dataKey="value"
+                  isAnimationActive={false}
                 >
                   {trafficPieData.map((entry) => (
                     <Cell key={entry.name} fill={entry.color} />
@@ -470,6 +471,7 @@ export default function Analysis() {
                   strokeWidth={2}
                   dot={{ fill: "#3b82f6", r: 4 }}
                   activeDot={{ r: 6, fill: "#60a5fa" }}
+                  isAnimationActive={false}
                 />
               </LineChart>
             </ResponsiveContainer>

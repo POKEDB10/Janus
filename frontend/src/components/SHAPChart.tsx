@@ -146,7 +146,7 @@ export const SHAPChart: React.FC<SHAPChartProps> = ({
               </div>
             )}
           />
-          <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+          <Bar dataKey="value" radius={[0, 4, 4, 0]} isAnimationActive={false}>
             {entries.map((entry) => (
               <Cell
                 key={entry.feature}

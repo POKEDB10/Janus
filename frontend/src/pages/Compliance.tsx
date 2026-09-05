@@ -2,6 +2,7 @@
  * pages/Compliance.tsx — Deterministic RFC 8221, RFC 8247 & NIST SP 800-77 Engine Dashboard
  */
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   ShieldAlert,
@@ -168,6 +169,207 @@ function FormattedExplanation({ content }: { content: string }) {
   );
 }
 
+// ─── Synchronous Baseline Report Generator ──────────────────────────────────
+// Ensures zero-layout-shift and immediate render when clicking any scenario
+
+function getBaselineComplianceReport(captureId: string): ComplianceReport {
+  const isScenario4 = captureId.includes("04") || captureId.includes("weak");
+  const isScenario7 = captureId.includes("07") || captureId.includes("iptfs");
+
+  if (isScenario4) {
+    return {
+      capture_id: captureId,
+      overall_score: 25.0,
+      grade: "F",
+      summary: "CRITICAL: Deprecated 3DES cipher and weak Diffie-Hellman Group 2 detected.",
+      evaluated_parameters: {
+        esp_encryption: "ENCR_3DES",
+        esp_auth: "AUTH_HMAC_MD5_96",
+        dh_group: 2,
+        pfs_enabled: false,
+        sa_lifetime_seconds: 86400,
+      },
+      remediation_config: `# =============================================================================
+# Janus Automated strongSwan Remediation Configuration
+# Generated based on RFC 8221 (ESP), RFC 8247 (IKEv2) & NIST SP 800-77 Rev. 1
+# =============================================================================
+# Fix for RFC8221-ENCR_3DES [HIGH]: Replace with ENCR_AES_GCM_16
+# Fix for RFC8247-DH_GROUP_2 [CRITICAL]: Upgrade to DH Group 19 (ECP-256)
+# Fix for RFC8221-AUTH_HMAC_MD5_96 [CRITICAL]: Replace MD5 with AEAD cipher
+
+connections {
+    janus-remediated {
+        version = 2
+        proposals = aes256gcm16-prfsha256-ecp256!
+        rekey_time = 4h
+        children {
+            net-traffic {
+                esp_proposals = aes256gcm16-ecp256!
+                rekey_time = 4h
+                copy_dscp = out
+                copy_ecn = yes
+            }
+        }
+    }
+}`,
+      findings: [
+        {
+          rule_id: "RFC8221-ENCR_3DES",
+          parameter: "ESP Encryption",
+          severity: "HIGH",
+          description: "3DES is vulnerable to SWEET32 64-bit block collision attacks.",
+          recommendation: "Replace with ENCR_AES_GCM_16 or ENCR_CHACHA20_POLY1305.",
+          references: ["RFC 8221 §5", "CVE-2016-2183"],
+        },
+        {
+          rule_id: "RFC8247-DH_GROUP_2",
+          parameter: "Diffie-Hellman Group",
+          severity: "CRITICAL",
+          description: "DH Group 2 (MODP-1024) is vulnerable to Logjam precomputation attacks.",
+          recommendation: "Upgrade to DH Group 19 (ECP-256) or Group 20 (ECP-384).",
+          references: ["RFC 8247 §2.4", "NIST SP 800-77 Rev. 1"],
+        },
+        {
+          rule_id: "RFC8221-AUTH_HMAC_MD5_96",
+          parameter: "ESP Authentication",
+          severity: "CRITICAL",
+          description: "MD5 hash algorithm suffers from severe collision vulnerabilities.",
+          recommendation: "Migrate to HMAC-SHA2-256-128 or AEAD cipher.",
+          references: ["RFC 8221 §5"],
+        },
+      ],
+      threat_matrix: [
+        {
+          technique_id: "T1040",
+          tactic: "Credential Access",
+          technique_name: "Network Sniffing",
+          severity: "HIGH",
+          status: "VULNERABLE",
+          details: "Weak 3DES/MD5 suite allows traffic eavesdropping and active MITM.",
+        },
+        {
+          technique_id: "T1557",
+          tactic: "Credential Access",
+          technique_name: "Adversary-in-the-Middle",
+          severity: "CRITICAL",
+          status: "VULNERABLE",
+          details: "Logjam precomputation against DH Group 2 enables offline key recovery.",
+        },
+        {
+          technique_id: "T1020",
+          tactic: "Exfiltration",
+          technique_name: "Automated Exfiltration",
+          severity: "MEDIUM",
+          status: "SUSCEPTIBLE",
+          details: "No traffic flow security enabled; packet timing and sizing reveals application layer metadata.",
+        },
+      ],
+      generated_at: new Date().toISOString(),
+    };
+  }
+
+  if (isScenario7) {
+    return {
+      capture_id: captureId,
+      overall_score: 95.0,
+      grade: "A",
+      summary: "COMPLIANT: AES-256-GCM with RFC 9347 IP-TFS traffic flow security and DH Group 20.",
+      evaluated_parameters: {
+        esp_encryption: "ENCR_AES_GCM_16",
+        esp_auth: "AUTH_NONE",
+        dh_group: 20,
+        pfs_enabled: true,
+        sa_lifetime_seconds: 3600,
+      },
+      remediation_config: `# =============================================================================
+# Janus Automated strongSwan Remediation Configuration
+# Generated based on RFC 8221 (ESP), RFC 8247 (IKEv2) & NIST SP 800-77 Rev. 1
+# =============================================================================
+# Status: Satisfies all cryptographic recommendations and RFC 9347 IP-TFS.
+
+connections {
+    janus-iptfs {
+        version = 2
+        proposals = aes256gcm16-prfsha384-ecp384!
+        rekey_time = 1h
+        children {
+            net-traffic {
+                esp_proposals = aes256gcm16-ecp384!
+                rekey_time = 1h
+            }
+        }
+    }
+}`,
+      findings: [],
+      threat_matrix: [
+        {
+          technique_id: "T1040",
+          tactic: "Credential Access",
+          technique_name: "Network Sniffing",
+          severity: "INFO",
+          status: "PROTECTED",
+          details: "Protected via modern authenticated encryption (AES-256-GCM).",
+        },
+        {
+          technique_id: "T1020",
+          tactic: "Exfiltration",
+          technique_name: "Automated Exfiltration",
+          severity: "INFO",
+          status: "PROTECTED",
+          details: "Protected by RFC 9347 constant-rate packet scheduling and uniform sizing.",
+        },
+      ],
+      generated_at: new Date().toISOString(),
+    };
+  }
+
+  // Default / Scenario 01
+  return {
+    capture_id: captureId,
+    overall_score: 98.0,
+    grade: "A",
+    summary: "COMPLIANT: Modern AES-GCM AEAD encryption and DH Group 19 compliant with RFC 8221.",
+    evaluated_parameters: {
+      esp_encryption: "ENCR_AES_GCM_16",
+      esp_auth: "AUTH_NONE",
+      dh_group: 19,
+      pfs_enabled: true,
+      sa_lifetime_seconds: 3600,
+    },
+    remediation_config: `# =============================================================================
+# Janus Automated strongSwan Remediation Configuration
+# Generated based on RFC 8221 (ESP), RFC 8247 (IKEv2) & NIST SP 800-77 Rev. 1
+# =============================================================================
+# Status: Baseline satisfies standard requirements
+
+connections {
+    janus-hardened {
+        version = 2
+        proposals = aes256gcm16-prfsha256-ecp256!
+        rekey_time = 1h
+        children {
+            net-traffic {
+                esp_proposals = aes256gcm16-ecp256!
+                rekey_time = 1h
+            }
+        }
+    }
+}`,
+    findings: [],
+    threat_matrix: [
+      {
+        technique_id: "T1040",
+        tactic: "Credential Access",
+        technique_name: "Network Sniffing",
+        severity: "INFO",
+        status: "PROTECTED",
+        details: "Protected via modern authenticated encryption (AES-256-GCM).",
+      },
+    ],
+    generated_at: new Date().toISOString(),
+  };
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export default function Compliance() {
@@ -175,7 +377,8 @@ export default function Compliance() {
 
   const navigate = useNavigate();
 
-  const [report, setReport] = useState<ComplianceReport | null>(null);
+  // Initialize immediately with synchronous baseline so there is ZERO layout jump / collapse
+  const [report, setReport] = useState<ComplianceReport>(() => getBaselineComplianceReport(captureId));
   const [copiedConfig, setCopiedConfig] = useState(false);
   const [isDemoMode, setIsDemoMode] = useState(false);
 
@@ -194,6 +397,24 @@ export default function Compliance() {
   const [loadingExplanation, setLoadingExplanation] = useState(false);
   const [showSourceClauses, setShowSourceClauses] = useState(false);
 
+  // Lock body scrolling and listen to Escape key when modal is open
+  useEffect(() => {
+    if (explainingFinding) {
+      const prevOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          setExplainingFinding(null);
+        }
+      };
+      window.addEventListener("keydown", handleKeyDown);
+      return () => {
+        document.body.style.overflow = prevOverflow;
+        window.removeEventListener("keydown", handleKeyDown);
+      };
+    }
+  }, [explainingFinding]);
+
   const handleExplainFinding = async (finding: Finding) => {
     setExplainingFinding(finding);
     setLoadingExplanation(true);
@@ -210,6 +431,10 @@ export default function Compliance() {
   };
 
   useEffect(() => {
+    // Immediately set baseline data for the new scenario to eliminate any layout shift
+    const baseline = getBaselineComplianceReport(captureId);
+    setReport((prev) => (prev && prev.capture_id === captureId ? prev : baseline));
+
     async function loadData() {
       try {
         const data = await getComplianceReport(captureId);
@@ -221,86 +446,7 @@ export default function Compliance() {
         setReport(data);
         setIsDemoMode(false);
       } catch {
-        // High-fidelity fallback profile if backend has no active capture session
-        const isScenario4 = captureId.includes("04") || captureId.includes("weak");
-        const fallback: ComplianceReport = {
-          capture_id: captureId,
-          overall_score: isScenario4 ? 25.0 : 96.0,
-          grade: isScenario4 ? "F" : "A",
-          summary: isScenario4
-            ? "CRITICAL: Deprecated 3DES cipher and weak Diffie-Hellman Group 2 detected."
-            : "COMPLIANT: Modern AES-GCM AEAD encryption and DH Group 19 compliant with RFC 8221.",
-          evaluated_parameters: {
-            esp_encryption: isScenario4 ? "ENCR_3DES" : "ENCR_AES_GCM_16",
-            esp_auth: isScenario4 ? "AUTH_HMAC_MD5_96" : "AUTH_NONE",
-            dh_group: isScenario4 ? 2 : 19,
-            pfs_enabled: !isScenario4,
-            sa_lifetime_seconds: isScenario4 ? 86400 : 3600,
-          },
-          remediation_config: `# =============================================================================
-# Janus Automated strongSwan Remediation Configuration
-# Generated based on RFC 8221 (ESP), RFC 8247 (IKEv2) & NIST SP 800-77 Rev. 1
-# =============================================================================
-${isScenario4 ? "# Fix for RFC8221-ENCR_3DES [HIGH]: Replace with ENCR_AES_GCM_16\n# Fix for RFC8247-DH_GROUP_2 [CRITICAL]: Upgrade to DH Group 19 (ECP-256)" : "# Status: Baseline satisfies standard requirements"}
-
-connections {
-    janus-remediated {
-        version = 2
-        proposals = aes256gcm16-prfsha256-ecp256!
-        rekey_time = 4h
-        children {
-            net-traffic {
-                esp_proposals = aes256gcm16-ecp256!
-                rekey_time = 4h
-                copy_dscp = out
-                copy_ecn = yes
-            }
-        }
-    }
-}`,
-          findings: isScenario4
-            ? [
-                {
-                  rule_id: "RFC8221-ENCR_3DES",
-                  parameter: "ESP Encryption",
-                  severity: "HIGH",
-                  description: "3DES is vulnerable to SWEET32 64-bit block collision attacks.",
-                  recommendation: "Replace with ENCR_AES_GCM_16 or ENCR_CHACHA20_POLY1305.",
-                  references: ["RFC 8221 §5", "CVE-2016-2183"],
-                },
-                {
-                  rule_id: "RFC8247-DH_GROUP_2",
-                  parameter: "Diffie-Hellman Group",
-                  severity: "CRITICAL",
-                  description: "DH Group 2 (MODP-1024) is vulnerable to Logjam precomputation attacks.",
-                  recommendation: "Upgrade to DH Group 19 (ECP-256) or Group 20 (ECP-384).",
-                  references: ["RFC 8247 §2.4", "NIST SP 800-77 Rev. 1"],
-                },
-                {
-                  rule_id: "RFC8221-AUTH_HMAC_MD5_96",
-                  parameter: "ESP Authentication",
-                  severity: "CRITICAL",
-                  description: "MD5 hash algorithm suffers from severe collision vulnerabilities.",
-                  recommendation: "Migrate to HMAC-SHA2-256-128 or AEAD cipher.",
-                  references: ["RFC 8221 §5"],
-                },
-              ]
-            : [],
-          threat_matrix: [
-            {
-              technique_id: "T1040",
-              tactic: "Credential Access",
-              technique_name: "Network Sniffing",
-              severity: isScenario4 ? "HIGH" : "INFO",
-              status: isScenario4 ? "VULNERABLE" : "PROTECTED",
-              details: isScenario4
-                ? "Weak 3DES/MD5 suite allows traffic eavesdropping and active MITM."
-                : "Protected via modern authenticated encryption (AES-256-GCM).",
-            },
-          ],
-          generated_at: new Date().toISOString(),
-        };
-        setReport(fallback);
+        setReport(baseline);
         setIsDemoMode(true);
       }
     }
@@ -335,7 +481,14 @@ connections {
   };
 
   // Accordion state for expandable/collapsible findings & config
-  const [expandedFindings, setExpandedFindings] = useState<Record<number, boolean>>({ 0: true });
+  const [expandedFindings, setExpandedFindings] = useState<Record<number, boolean>>({
+    0: true,
+    1: true,
+    2: true,
+    3: true,
+    4: true,
+    5: true,
+  });
   const [showStrongswanConfig, setShowStrongswanConfig] = useState(true);
 
   const toggleFinding = (idx: number) => {
@@ -806,157 +959,168 @@ connections {
         </div>
       </div>
 
-      {/* Compliance-RAG Explainer Modal / Drawer */}
-      {explainingFinding && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-slate-900 border border-blue-500/40 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl flex flex-col">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-5 border-b border-white/10 bg-slate-950/80 sticky top-0 z-10">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-lg bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                  <Sparkles size={18} />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-base font-bold text-white">RFC/NIST Standards Explainer</h3>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                      Qwen3-4B-Instruct RAG
-                    </span>
+      {/* Compliance-RAG Explainer Modal Portal — Strictly centered in the viewport */}
+      {explainingFinding &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-md animate-fadeIn"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setExplainingFinding(null);
+            }}
+          >
+            <div
+              className="bg-slate-900 border border-blue-500/50 rounded-2xl w-full max-w-2xl max-h-[85vh] shadow-2xl flex flex-col overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Modal Header */}
+              <div className="shrink-0 flex items-center justify-between p-5 border-b border-white/10 bg-slate-950">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-lg bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                    <Sparkles size={18} />
                   </div>
-                  <p className="text-xs text-gray-400">
-                    Grounded domain specialist explanation citing primary standards text.
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setExplainingFinding(null)}
-                className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            {/* Modal Body */}
-            <div className="p-6 space-y-5 flex-1">
-              {/* Target Finding Summary */}
-              <div className="p-3.5 rounded-xl bg-slate-950/60 border border-white/10 flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <span className="text-xs font-mono font-bold text-gray-400">{explainingFinding.rule_id}</span>
-                  <p className="text-sm font-semibold text-white">{explainingFinding.parameter}</p>
-                </div>
-                <RiskBadge level={(explainingFinding.severity || explainingFinding.risk_level || "MEDIUM") as RiskLevel} />
-              </div>
-
-              {loadingExplanation ? (
-                <div className="flex flex-col items-center justify-center py-12 space-y-3">
-                  <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                  <p className="text-xs text-gray-400 font-mono">Retrieving standards clauses &amp; generating grounded explanation...</p>
-                </div>
-              ) : explanationResult ? (
-                <div className="space-y-4">
-                  {/* Model Metadata Banner */}
-                  <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-lg bg-blue-950/40 border border-blue-500/20 text-xs font-mono text-gray-300">
-                    <span className="flex items-center gap-1.5 text-blue-300">
-                      <ShieldCheck size={14} className="text-emerald-400" />
-                      Model: <span className="text-white font-bold">{explanationResult.model_name}</span>
-                    </span>
-                    <span className="text-gray-400">
-                      Latency: <span className="text-white">{explanationResult.latency_ms} ms</span>
-                    </span>
-                    <span className="text-emerald-400 font-semibold">
-                      Groundedness: {Math.round(explanationResult.groundedness_score * 100)}%
-                    </span>
-                  </div>
-
-                  {/* Warning Banner if ungrounded citations were remediated */}
-                  {explanationResult.warning && (
-                    <div className="p-3 rounded-lg bg-amber-950/40 border border-amber-500/40 text-xs text-amber-300 flex items-center gap-2">
-                      <AlertTriangle size={14} className="shrink-0 text-amber-400" />
-                      <span>{explanationResult.warning}</span>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-base font-bold text-white">RFC/NIST Standards Explainer</h3>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                        Qwen3-4B-Instruct RAG
+                      </span>
                     </div>
-                  )}
-
-                  {/* Natural Language Explanation */}
-                  <div className="bg-slate-950/80 p-4 rounded-xl border border-white/10 text-sm text-gray-200 leading-relaxed">
-                    <FormattedExplanation content={explanationResult.explanation} />
+                    <p className="text-xs text-gray-400">
+                      Grounded domain specialist explanation citing primary standards text.
+                    </p>
                   </div>
+                </div>
+                <button
+                  onClick={() => setExplainingFinding(null)}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+                  aria-label="Close modal"
+                >
+                  <X size={18} />
+                </button>
+              </div>
 
-                  {/* Verified Citations List */}
-                  {explanationResult.citations && explanationResult.citations.length > 0 && (
-                    <div className="space-y-2">
-                      <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wider">
-                        Verified Primary Standards Citations
-                      </h4>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        {explanationResult.citations.map((c, cIdx) => (
-                          <div
-                            key={cIdx}
-                            className={`p-2.5 rounded-lg border text-xs flex items-center justify-between ${
-                              c.verified
-                                ? "bg-emerald-950/30 border-emerald-500/30 text-emerald-300"
-                                : "bg-amber-950/30 border-amber-500/30 text-amber-300"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2 font-mono">
-                              <span className="font-bold">{c.raw_citation}</span>
-                              <span className="text-[10px] text-gray-400 truncate max-w-[150px]">{c.clause_title}</span>
-                            </div>
-                            <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-white/10">
-                              {c.verified ? "Verified" : "Flagged"}
-                            </span>
-                          </div>
-                        ))}
+              {/* Modal Body with sleek modal-scroll */}
+              <div className="p-6 space-y-5 flex-1 overflow-y-auto modal-scroll">
+                {/* Target Finding Summary */}
+                <div className="p-3.5 rounded-xl bg-slate-950/60 border border-white/10 flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <span className="text-xs font-mono font-bold text-gray-400">{explainingFinding.rule_id}</span>
+                    <p className="text-sm font-semibold text-white">{explainingFinding.parameter}</p>
+                  </div>
+                  <RiskBadge level={(explainingFinding.severity || explainingFinding.risk_level || "MEDIUM") as RiskLevel} />
+                </div>
+
+                {loadingExplanation ? (
+                  <div className="flex flex-col items-center justify-center py-12 space-y-3">
+                    <div className="w-8 h-8 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                    <p className="text-xs text-gray-400 font-mono">Retrieving standards clauses &amp; generating grounded explanation...</p>
+                  </div>
+                ) : explanationResult ? (
+                  <div className="space-y-4">
+                    {/* Model Metadata Banner */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 rounded-lg bg-blue-950/40 border border-blue-500/20 text-xs font-mono text-gray-300">
+                      <span className="flex items-center gap-1.5 text-blue-300">
+                        <ShieldCheck size={14} className="text-emerald-400" />
+                        Model: <span className="text-white font-bold">{explanationResult.model_name}</span>
+                      </span>
+                      <span className="text-gray-400">
+                        Latency: <span className="text-white">{explanationResult.latency_ms} ms</span>
+                      </span>
+                      <span className="text-emerald-400 font-semibold">
+                        Groundedness: {Math.round(explanationResult.groundedness_score * 100)}%
+                      </span>
+                    </div>
+
+                    {/* Warning Banner if ungrounded citations were remediated */}
+                    {explanationResult.warning && (
+                      <div className="p-3 rounded-lg bg-amber-950/40 border border-amber-500/40 text-xs text-amber-300 flex items-center gap-2">
+                        <AlertTriangle size={14} className="shrink-0 text-amber-400" />
+                        <span>{explanationResult.warning}</span>
                       </div>
+                    )}
+
+                    {/* Natural Language Explanation */}
+                    <div className="bg-slate-950/80 p-4 rounded-xl border border-white/10 text-sm text-gray-200 leading-relaxed">
+                      <FormattedExplanation content={explanationResult.explanation} />
                     </div>
-                  )}
 
-                  {/* Collapsible Retrieved Source Chunks */}
-                  {explanationResult.retrieved_chunks && explanationResult.retrieved_chunks.length > 0 && (
-                    <div className="border border-white/10 rounded-xl overflow-hidden">
-                      <button
-                        onClick={() => setShowSourceClauses(!showSourceClauses)}
-                        className="w-full flex items-center justify-between p-3 bg-slate-950 hover:bg-slate-800/60 text-xs font-semibold text-gray-300 transition-colors cursor-pointer"
-                      >
-                        <span className="flex items-center gap-2">
-                          <BookOpen size={14} className="text-blue-400" />
-                          View Primary Standards Chunks ({explanationResult.retrieved_chunks.length} clauses)
-                        </span>
-                        {showSourceClauses ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                      </button>
-
-                      {showSourceClauses && (
-                        <div className="p-3 bg-slate-950/90 border-t border-white/10 space-y-3 max-h-60 overflow-y-auto">
-                          {explanationResult.retrieved_chunks.map((chk, kIdx) => (
-                            <div key={kIdx} className="p-2.5 rounded-lg bg-slate-900 border border-white/5 space-y-1 text-xs">
-                              <div className="flex items-center justify-between font-mono text-[11px] text-blue-300">
-                                <span>{chk.document} {chk.section} — {chk.title}</span>
-                                <span className="text-gray-500">score: {chk.score.toFixed(4)}</span>
+                    {/* Verified Citations List */}
+                    {explanationResult.citations && explanationResult.citations.length > 0 && (
+                      <div className="space-y-2">
+                        <h4 className="text-xs font-bold text-gray-300 uppercase tracking-wider">
+                          Verified Primary Standards Citations
+                        </h4>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {explanationResult.citations.map((c, cIdx) => (
+                            <div
+                              key={cIdx}
+                              className={`p-2.5 rounded-lg border text-xs flex items-center justify-between ${
+                                c.verified
+                                  ? "bg-emerald-950/30 border-emerald-500/30 text-emerald-300"
+                                  : "bg-amber-950/30 border-amber-500/30 text-amber-300"
+                              }`}
+                            >
+                              <div className="flex items-center gap-2 font-mono">
+                                <span className="font-bold">{c.raw_citation}</span>
+                                <span className="text-[10px] text-gray-400 truncate max-w-[150px]">{c.clause_title}</span>
                               </div>
-                              <p className="text-gray-400 font-mono text-[10px] whitespace-pre-wrap leading-relaxed line-clamp-4">
-                                {chk.text}
-                              </p>
+                              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-white/10">
+                                {c.verified ? "Verified" : "Flagged"}
+                              </span>
                             </div>
                           ))}
                         </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ) : null}
-            </div>
+                      </div>
+                    )}
 
-            {/* Modal Footer */}
-            <div className="p-4 border-t border-white/10 bg-slate-950/80 flex justify-end">
-              <button
-                onClick={() => setExplainingFinding(null)}
-                className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold transition-all cursor-pointer"
-              >
-                Close
-              </button>
+                    {/* Collapsible Retrieved Source Chunks */}
+                    {explanationResult.retrieved_chunks && explanationResult.retrieved_chunks.length > 0 && (
+                      <div className="border border-white/10 rounded-xl overflow-hidden">
+                        <button
+                          onClick={() => setShowSourceClauses(!showSourceClauses)}
+                          className="w-full flex items-center justify-between p-3 bg-slate-950 hover:bg-slate-800/60 text-xs font-semibold text-gray-300 transition-colors cursor-pointer"
+                        >
+                          <span className="flex items-center gap-2">
+                            <BookOpen size={14} className="text-blue-400" />
+                            View Primary Standards Chunks ({explanationResult.retrieved_chunks.length} clauses)
+                          </span>
+                          {showSourceClauses ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                        </button>
+
+                        {showSourceClauses && (
+                          <div className="p-3 bg-slate-950/90 border-t border-white/10 space-y-3 max-h-60 overflow-y-auto modal-scroll">
+                            {explanationResult.retrieved_chunks.map((chk, kIdx) => (
+                              <div key={kIdx} className="p-2.5 rounded-lg bg-slate-900 border border-white/5 space-y-1 text-xs">
+                                <div className="flex items-center justify-between font-mono text-[11px] text-blue-300">
+                                  <span>{chk.document} {chk.section} — {chk.title}</span>
+                                  <span className="text-gray-500">score: {chk.score.toFixed(4)}</span>
+                                </div>
+                                <p className="text-gray-400 font-mono text-[10px] whitespace-pre-wrap leading-relaxed line-clamp-4">
+                                  {chk.text}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="shrink-0 p-4 border-t border-white/10 bg-slate-950 flex justify-end">
+                <button
+                  onClick={() => setExplainingFinding(null)}
+                  className="px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold transition-all cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
