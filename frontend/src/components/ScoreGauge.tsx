@@ -34,15 +34,20 @@ export const ScoreGauge: React.FC<ScoreGaugeProps> = ({
   const clamped = Math.min(100, Math.max(0, score));
   const color = scoreColor(clamped);
 
-  const data = [{ value: clamped, fill: color }];
+  // When score is 0, give a subtle 3% segment so the red failure arc is visually distinct
+  const chartVal = clamped === 0 ? 3 : clamped;
+  const data = [{ value: chartVal, fill: color }];
 
   return (
     <div
-      className="flex flex-col items-center justify-center"
+      className="flex flex-col items-center justify-center select-none"
       role="img"
       aria-label={`${label}: ${clamped} out of 100`}
     >
-      <div style={{ width: size, height: size }} className="relative">
+      <div
+        style={{ width: size, height: size, minWidth: size, minHeight: size }}
+        className="relative shrink-0 flex items-center justify-center"
+      >
         <ResponsiveContainer width="100%" height="100%">
           <RadialBarChart
             cx="50%"
@@ -63,7 +68,7 @@ export const ScoreGauge: React.FC<ScoreGaugeProps> = ({
             />
             {/* Background track */}
             <RadialBar
-              background={{ fill: "rgba(255,255,255,0.06)" }}
+              background={{ fill: clamped === 0 ? "rgba(239, 68, 68, 0.12)" : "rgba(255,255,255,0.06)" }}
               dataKey="value"
               angleAxisId={0}
               cornerRadius={8}
@@ -75,8 +80,8 @@ export const ScoreGauge: React.FC<ScoreGaugeProps> = ({
         <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
           <div className="flex items-baseline gap-1">
             <span
-              className="text-3xl font-bold tabular-nums font-mono"
-              style={{ color }}
+              className="text-3xl font-extrabold tabular-nums font-mono tracking-tight"
+              style={{ color, textShadow: clamped === 0 ? "0 0 12px rgba(239,68,68,0.4)" : undefined }}
               aria-hidden="true"
             >
               {clamped.toFixed(0)}
@@ -90,7 +95,7 @@ export const ScoreGauge: React.FC<ScoreGaugeProps> = ({
               </span>
             )}
           </div>
-          <span className="text-[10px] text-gray-400" aria-hidden="true">
+          <span className="text-[11px] text-gray-400 font-mono tracking-wider" aria-hidden="true">
             / 100
           </span>
         </div>

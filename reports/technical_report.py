@@ -129,6 +129,57 @@ def generate_technical_pdf(
     story.append(Paragraph("IPsec VPN Protocol Security & Traffic Analysis Report", title_style))
     story.append(Paragraph(f"Capture ID: {analysis_data.get('capture_id', 'session_01')}", subtitle_style))
 
+    # 1b. Cryptographic Compliance Score & Grade Summary
+    score = float(compliance_data.get("overall_score", 0.0))
+    grade = str(compliance_data.get("grade", "F"))
+    score_color = colors.HexColor("#16a34a") if score >= 80 else (colors.HexColor("#ea580c") if score >= 60 else colors.HexColor("#dc2626"))
+
+    score_val_style = ParagraphStyle(
+        "TechScoreVal",
+        parent=body_style,
+        fontName="Helvetica-Bold",
+        fontSize=18,
+        leading=22,
+    )
+    score_hdr_style = ParagraphStyle(
+        "TechScoreHdr",
+        parent=subtitle_style,
+        fontName="Helvetica-Bold",
+        fontSize=8,
+        leading=10,
+        textColor=colors.HexColor("#475569"),
+        spaceAfter=2,
+    )
+
+    score_box_data = [
+        [
+            Paragraph("<b>COMPLIANCE SCORE</b>", score_hdr_style),
+            Paragraph("<b>SECURITY GRADE</b>", score_hdr_style),
+            Paragraph("<b>POSTURE VERDICT & SUMMARY</b>", score_hdr_style),
+        ],
+        [
+            Paragraph(f"<font color='{score_color.hexval()}'><b>{score:.1f} / 100</b></font>", score_val_style),
+            Paragraph(f"<font color='{score_color.hexval()}'><b>GRADE {grade}</b></font>", score_val_style),
+            Paragraph(f"<b>{compliance_data.get('summary', 'Audit complete.')}</b>", body_style),
+        ],
+    ]
+    score_table = Table(score_box_data, colWidths=[140, 130, 270])
+    score_table.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, -1), bg_light),
+                ("BOX", (0, 0), (-1, -1), 1, colors.HexColor("#cbd5e1")),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 6),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+            ]
+        )
+    )
+    story.append(score_table)
+    story.append(Spacer(1, 8))
+
     # 2. Section 1: Handshake & Cryptographic Proposals
     story.append(Paragraph("1. IKEv2 Handshake & Security Association Dissection", section_heading))
 

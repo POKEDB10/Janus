@@ -257,12 +257,60 @@ connections {
     }
   };
 
-  const handleCopyConfig = () => {
-    if (report?.remediation_config) {
-      navigator.clipboard.writeText(report.remediation_config);
-      setCopiedConfig(true);
-      setTimeout(() => setCopiedConfig(false), 2000);
+  // Accordion state for expandable/collapsible findings & config
+  const [expandedFindings, setExpandedFindings] = useState<Record<number, boolean>>({ 0: true });
+  const [showStrongswanConfig, setShowStrongswanConfig] = useState(true);
+
+  const toggleFinding = (idx: number) => {
+    setExpandedFindings((prev) => ({
+      ...prev,
+      [idx]: !prev[idx],
+    }));
+  };
+
+  const expandAllFindings = () => {
+    if (!report?.findings) return;
+    const next: Record<number, boolean> = {};
+    report.findings.forEach((_, i) => {
+      next[i] = true;
+    });
+    setExpandedFindings(next);
+  };
+
+  const collapseAllFindings = () => {
+    setExpandedFindings({});
+  };
+
+  const handleCopyConfig = async () => {
+    const text = report?.remediation_config;
+    if (!text) return;
+    let copied = false;
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(text);
+        copied = true;
+      } catch (err) {
+        console.warn("navigator.clipboard failed, attempting fallback", err);
+      }
     }
+    if (!copied) {
+      try {
+        const textarea = document.createElement("textarea");
+        textarea.value = text;
+        textarea.style.position = "fixed";
+        textarea.style.left = "-9999px";
+        textarea.style.top = "-9999px";
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        copied = document.execCommand("copy");
+        document.body.removeChild(textarea);
+      } catch (e) {
+        console.error("Fallback execCommand copy error:", e);
+      }
+    }
+    setCopiedConfig(true);
+    setTimeout(() => setCopiedConfig(false), 2500);
   };
 
   return (
@@ -380,7 +428,7 @@ connections {
 
       {/* Audit Findings Section */}
       <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 space-y-5 shadow-xl">
-        <div className="flex items-center justify-between border-b border-white/10 pb-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/10 pb-4 gap-3">
           <div>
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
               <ShieldAlert size={18} className="text-blue-400" />
@@ -390,9 +438,24 @@ connections {
               Exact RFC rule deductions with mitigation guidance and CVE references.
             </p>
           </div>
-          <span className="text-xs font-mono font-bold px-3 py-1 rounded-full bg-slate-800 text-gray-300">
-            {report?.findings.length || 0} Issues Detected
-          </span>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <button
+              onClick={expandAllFindings}
+              className="text-[11px] font-medium text-blue-400 hover:text-blue-300 hover:underline cursor-pointer"
+            >
+              Expand All
+            </button>
+            <span className="text-gray-600">•</span>
+            <button
+              onClick={collapseAllFindings}
+              className="text-[11px] font-medium text-gray-400 hover:text-gray-300 hover:underline cursor-pointer"
+            >
+              Collapse All
+            </button>
+            <span className="text-xs font-mono font-bold px-3 py-1 rounded-full bg-slate-800 text-gray-300 ml-1">
+              {report?.findings.length || 0} Issues Detected
+            </span>
+          </div>
         </div>
 
         {report?.findings.length === 0 ? (
@@ -405,67 +468,92 @@ connections {
             </p>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {report?.findings.map((finding, idx) => {
               const fixSuggestion = getFixSuggestion(finding.rule_id);
+              const isExpanded = !!expandedFindings[idx];
+
               return (
                 <div
                   key={idx}
-                  className="bg-slate-950/60 border border-white/10 rounded-xl p-4 space-y-3 hover:border-red-500/40 transition-colors duration-200"
+                  className={`bg-slate-950/60 border rounded-xl transition-all duration-200 overflow-hidden ${
+                    isExpanded ? "border-blue-500/30 shadow-lg shadow-black/40" : "border-white/10 hover:border-white/20"
+                  }`}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-mono font-bold text-gray-400">{finding.rule_id}</span>
-                        <span className="text-xs text-gray-500">•</span>
-                        <span className="text-xs font-semibold text-white">{finding.parameter}</span>
+                  {/* Clickable Accordion Header */}
+                  <div
+                    onClick={() => toggleFinding(idx)}
+                    className="p-4 flex items-start sm:items-center justify-between gap-3 cursor-pointer hover:bg-white/[0.02] select-none transition-colors"
+                  >
+                    <div className="flex items-start sm:items-center gap-3 min-w-0">
+                      <div className="p-1 rounded-md bg-white/5 text-gray-400 mt-0.5 sm:mt-0 shrink-0">
+                        {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
                       </div>
-                      <p className="text-sm font-medium text-gray-200">{finding.description}</p>
+                      <div className="space-y-0.5 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs font-mono font-bold text-gray-400">{finding.rule_id}</span>
+                          <span className="text-xs text-gray-500">•</span>
+                          <span className="text-xs font-semibold text-white">{finding.parameter}</span>
+                        </div>
+                        <p className={`text-sm font-medium text-gray-200 ${!isExpanded ? "truncate max-w-xl" : ""}`}>
+                          {finding.description}
+                        </p>
+                      </div>
                     </div>
-                    <RiskBadge level={(finding.severity || finding.risk_level || "MEDIUM") as RiskLevel} />
+                    <div className="flex items-center gap-2 shrink-0">
+                      <RiskBadge level={(finding.severity || finding.risk_level || "MEDIUM") as RiskLevel} />
+                    </div>
                   </div>
 
-                  <div className="bg-slate-900/80 p-3 rounded-lg border border-white/5 space-y-1 text-xs">
-                    <span className="text-blue-400 font-semibold flex items-center gap-1">
-                      <CheckCircle2 size={13} />
-                      Recommended Remediation:
-                    </span>
-                    <p className="text-gray-300">{finding.recommendation || finding.remediation}</p>
-                  </div>
+                  {/* Expandable Details Content */}
+                  {isExpanded && (
+                    <div className="px-4 pb-4 pt-1 border-t border-white/5 space-y-3 animate-fadeIn">
+                      <div className="bg-slate-900/80 p-3 rounded-lg border border-white/5 space-y-1 text-xs">
+                        <span className="text-blue-400 font-semibold flex items-center gap-1">
+                          <CheckCircle2 size={13} />
+                          Recommended Remediation:
+                        </span>
+                        <p className="text-gray-300 leading-relaxed">{finding.recommendation || finding.remediation}</p>
+                      </div>
 
-                  {/* "What would fix this?" inline explainer */}
-                  {fixSuggestion && (
-                    <div className="flex items-start gap-2 p-3 bg-blue-950/30 border border-blue-500/20 rounded-lg text-xs text-blue-300">
-                      <Lightbulb size={13} className="shrink-0 mt-0.5 text-blue-400" />
-                      <span>
-                        <span className="font-bold">Quick fix: </span>
-                        {fixSuggestion}
-                      </span>
+                      {/* "What would fix this?" inline explainer */}
+                      {fixSuggestion && (
+                        <div className="flex items-start gap-2 p-3 bg-blue-950/30 border border-blue-500/20 rounded-lg text-xs text-blue-300">
+                          <Lightbulb size={13} className="shrink-0 mt-0.5 text-blue-400" />
+                          <span>
+                            <span className="font-bold">Quick fix: </span>
+                            {fixSuggestion}
+                          </span>
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-between pt-1 flex-wrap gap-2">
+                        <div className="flex flex-wrap gap-1.5">
+                          {finding.references && finding.references.length > 0 ? (
+                            finding.references.map((ref, rIdx) => (
+                              <span
+                                key={rIdx}
+                                className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[10px] text-gray-400 font-mono"
+                              >
+                                {ref}
+                              </span>
+                            ))
+                          ) : null}
+                        </div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleExplainFinding(finding);
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 text-xs font-semibold transition-all cursor-pointer hover:border-blue-400/50 shrink-0"
+                          title="Explain why this finding has this severity using RAG over RFC/NIST clauses"
+                        >
+                          <Sparkles size={13} className="text-blue-400" />
+                          Explain (RFC RAG)
+                        </button>
+                      </div>
                     </div>
                   )}
-
-                  <div className="flex items-center justify-between pt-1">
-                    <div className="flex flex-wrap gap-1.5">
-                      {finding.references && finding.references.length > 0 ? (
-                        finding.references.map((ref, rIdx) => (
-                          <span
-                            key={rIdx}
-                            className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[10px] text-gray-400 font-mono"
-                          >
-                            {ref}
-                          </span>
-                        ))
-                      ) : null}
-                    </div>
-                    <button
-                      onClick={() => handleExplainFinding(finding)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-300 border border-blue-500/30 text-xs font-semibold transition-all cursor-pointer hover:border-blue-400/50 shrink-0"
-                      title="Explain why this finding has this severity using RAG over RFC/NIST clauses"
-                    >
-                      <Sparkles size={13} className="text-blue-400" />
-                      Explain (RFC RAG)
-                    </button>
-                  </div>
                 </div>
               );
             })}
@@ -476,11 +564,17 @@ connections {
       {/* Auto-Remediated swanctl.conf Generator Card */}
       {report?.remediation_config && (
         <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 space-y-4 shadow-xl">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div
+              onClick={() => setShowStrongswanConfig(!showStrongswanConfig)}
+              className="flex items-center gap-2 cursor-pointer select-none group"
+            >
+              <div className="p-1 rounded-md bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500/20 transition-colors">
+                {showStrongswanConfig ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </div>
               <Terminal size={18} className="text-emerald-400" />
               <div>
-                <h3 className="text-base font-bold text-white">
+                <h3 className="text-base font-bold text-white group-hover:text-emerald-300 transition-colors">
                   Automated strongSwan Remediation Configuration
                 </h3>
                 <p className="text-xs text-gray-400">
@@ -488,27 +582,37 @@ connections {
                 </p>
               </div>
             </div>
-            <button
-              onClick={handleCopyConfig}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 text-xs font-mono font-semibold transition-all cursor-pointer"
-            >
-              {copiedConfig ? (
-                <>
-                  <Check size={14} className="text-emerald-400" />
-                  Copied!
-                </>
-              ) : (
-                <>
-                  <Copy size={14} />
-                  Copy Config
-                </>
-              )}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowStrongswanConfig(!showStrongswanConfig)}
+                className="text-xs text-gray-400 hover:text-gray-200 px-2.5 py-1 rounded bg-slate-800 border border-white/10 cursor-pointer"
+              >
+                {showStrongswanConfig ? "Collapse" : "Expand"}
+              </button>
+              <button
+                onClick={handleCopyConfig}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 text-xs font-mono font-semibold transition-all cursor-pointer active:scale-95"
+              >
+                {copiedConfig ? (
+                  <>
+                    <Check size={14} className="text-emerald-400" />
+                    Copied!
+                  </>
+                ) : (
+                  <>
+                    <Copy size={14} />
+                    Copy Config
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
-          <div className="bg-slate-950 p-4 rounded-xl border border-white/5 font-mono text-xs text-emerald-300/90 overflow-x-auto max-h-72">
-            <pre>{report.remediation_config}</pre>
-          </div>
+          {showStrongswanConfig && (
+            <div className="bg-slate-950 p-4 rounded-xl border border-white/5 font-mono text-xs text-emerald-300/90 overflow-x-auto max-h-72 animate-fadeIn">
+              <pre>{report.remediation_config}</pre>
+            </div>
+          )}
         </div>
       )}
 

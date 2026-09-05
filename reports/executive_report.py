@@ -1,4 +1,4 @@
-﻿"""
+"""
 Janus Report Engine — Executive Security Summary PDF
 ===================================================
 Generates high-impact 1-2 page Executive Briefing PDF using ReportLab.
@@ -137,20 +137,37 @@ def generate_executive_pdf(
         )
     )
 
+    exec_score_style = ParagraphStyle(
+        "ExecScoreStyle",
+        parent=body_style,
+        fontName="Helvetica-Bold",
+        fontSize=22,
+        leading=26,
+        textColor=score_color,
+    )
+    exec_grade_style = ParagraphStyle(
+        "ExecGradeStyle",
+        parent=body_style,
+        fontName="Helvetica-Bold",
+        fontSize=22,
+        leading=26,
+        textColor=score_color,
+    )
+
     # Score Box
     score_box_data = [
         [
-            Paragraph("<b>OVERALL COMPLIANCE SCORE</b>", ParagraphStyle("H", parent=bold_body, fontSize=11, textColor=primary_color)),
-            Paragraph("<b>SECURITY GRADE</b>", ParagraphStyle("H", parent=bold_body, fontSize=11, textColor=primary_color)),
-            Paragraph("<b>POSTURE VERDICT</b>", ParagraphStyle("H", parent=bold_body, fontSize=11, textColor=primary_color)),
+            Paragraph("<b>OVERALL COMPLIANCE SCORE</b>", ParagraphStyle("H", parent=bold_body, fontSize=10, textColor=primary_color)),
+            Paragraph("<b>SECURITY GRADE</b>", ParagraphStyle("H", parent=bold_body, fontSize=10, textColor=primary_color)),
+            Paragraph("<b>POSTURE VERDICT</b>", ParagraphStyle("H", parent=bold_body, fontSize=10, textColor=primary_color)),
         ],
         [
-            Paragraph(f"<font size=26 color='{score_color.hexval()}'><b>{score:.1f} / 100</b></font>", body_style),
-            Paragraph(f"<font size=26 color='{score_color.hexval()}'><b>GRADE {grade}</b></font>", body_style),
+            Paragraph(f"<b>{score:.1f} / 100</b>", exec_score_style),
+            Paragraph(f"<b>GRADE {grade}</b>", exec_grade_style),
             Paragraph(f"<b>{compliance_data.get('summary', 'Evaluation complete.')}</b>", body_style),
         ],
     ]
-    score_table = Table(score_box_data, colWidths=[170, 130, 240])
+    score_table = Table(score_box_data, colWidths=[170, 140, 230])
     score_table.setStyle(
         TableStyle(
             [

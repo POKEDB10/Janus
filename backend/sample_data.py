@@ -10,7 +10,16 @@ and generated PDF deliverables even if not uploaded in the active session.
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 from typing import Any, Tuple
+
+# Ensure project root and backend are in sys.path
+_ROOT = Path(__file__).resolve().parent.parent
+_BACKEND = Path(__file__).resolve().parent
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+if str(_BACKEND) not in sys.path:
+    sys.path.insert(0, str(_BACKEND))
 
 from compliance.score import evaluator
 from reports.generator import generate_all_reports
