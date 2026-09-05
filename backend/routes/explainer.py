@@ -169,26 +169,31 @@ async def draft_report_narrative_endpoint(
         analysis_data = results
 
     if not comp_data:
-        # Provide representative demo baseline if ad-hoc or scenario
-        comp_data = {
-            "overall_score": 88.0,
-            "grade": "B",
-            "summary": "Baseline IPsec configuration with minor legacy cipher parameters.",
-            "findings": [
-                {
-                    "rule_id": "RFC8221-ENCR_AES_CBC",
-                    "severity": "LOW",
-                    "parameter": "ESP Encryption",
-                    "description": "AES-CBC lacks AEAD authenticated encryption.",
-                    "recommendation": "Upgrade to AES-256-GCM AEAD.",
-                }
-            ],
-            "evaluated_parameters": {
-                "esp_encryption": "ENCR_AES_CBC",
-                "esp_auth": "AUTH_HMAC_SHA2_256_128",
-                "dh_group": 19,
-            },
-        }
+        try:
+            from sample_data import get_sample_compliance_data, get_sample_analysis_data
+            comp_data = get_sample_compliance_data(capture_id)
+            analysis_data = get_sample_analysis_data(capture_id)
+        except Exception:
+            # Fallback to representative demo baseline if ad-hoc
+            comp_data = {
+                "overall_score": 88.0,
+                "grade": "B",
+                "summary": "Baseline IPsec configuration with minor legacy cipher parameters.",
+                "findings": [
+                    {
+                        "rule_id": "RFC8221-ENCR_AES_CBC",
+                        "severity": "LOW",
+                        "parameter": "ESP Encryption",
+                        "description": "AES-CBC lacks AEAD authenticated encryption.",
+                        "recommendation": "Upgrade to AES-256-GCM AEAD.",
+                    }
+                ],
+                "evaluated_parameters": {
+                    "esp_encryption": "ENCR_AES_CBC",
+                    "esp_auth": "AUTH_HMAC_SHA2_256_128",
+                    "dh_group": 19,
+                },
+            }
 
     res = narrative_writer.draft_narrative(
         capture_id=capture_id,

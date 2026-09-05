@@ -26,7 +26,12 @@ from sample_data import ensure_reports_generated
     response_model=ReportStatusResponse,
     summary="Get report generation status",
 )
-async def get_report_status(capture_id: str) -> ReportStatusResponse:
+@router.get(
+    "/report/{capture_id}/status/{report_id}",
+    response_model=ReportStatusResponse,
+    summary="Get report generation status (with report_id)",
+)
+async def get_report_status(capture_id: str, report_id: str = "") -> ReportStatusResponse:
     """Check if Executive and Technical PDF reports are generated and ready for download."""
     exec_path = Path("reports/output") / capture_id / "executive_summary.pdf"
     tech_path = Path("reports/output") / capture_id / "technical_assessment.pdf"
