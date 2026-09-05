@@ -36,9 +36,23 @@ export interface AnalysisStatus {
   progress?: number; // 0-100
   progress_pct?: number;
   message?: string;
+  logs?: string[];
   started_at?: string | null;
   completed_at?: string | null;
   error?: string | null;
+}
+
+export interface SamplePcap {
+  id: string;
+  filename: string;
+  title: string;
+  category: string;
+  rfc_status: string;
+  cipher: string;
+  description: string;
+  download_url: string;
+  external_url: string;
+  size_bytes: number;
 }
 
 // ─── Classification & SHAP ───────────────────────────────────────────────────

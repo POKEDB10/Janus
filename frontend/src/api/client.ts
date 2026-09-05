@@ -15,6 +15,7 @@ import type {
   ReportStatus,
   ExplainerResponse,
   ReportNarrativeResponse,
+  SamplePcap,
 } from "../types";
 
 // ─── Axios Instance ───────────────────────────────────────────────────────────
@@ -291,5 +292,14 @@ export async function draftReportNarrative(
   );
   return data;
 }
+
+/**
+ * Retrieve list of downloadable testbed and public sample PCAPs.
+ */
+export async function getSamplePcaps(): Promise<SamplePcap[]> {
+  const { data } = await apiClient.get<SamplePcap[]>("/api/samples");
+  return data;
+}
+
 
 

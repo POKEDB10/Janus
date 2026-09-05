@@ -41,6 +41,8 @@ class AnalysisStatus(BaseModel):
     status: PipelineStatus = Field(..., description="Current pipeline status.")
     error: Optional[str] = Field(default=None, description="Error message if pipeline failed.")
     progress_pct: float = Field(default=0.0, ge=0.0, le=100.0, description="Pipeline progress percentage.")
+    message: Optional[str] = Field(default=None, description="Current status message.")
+    logs: list[str] = Field(default_factory=list, description="Real-time execution log messages.")
 
 
 class SHAPContributionModel(BaseModel):

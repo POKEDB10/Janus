@@ -1,10 +1,6 @@
-/**
- * pages/Compare.tsx — Side-by-side scenario comparison
- * Shows two compliance scenarios in split panels with diff table highlighting.
- */
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { GitCompare, ArrowRight, Shield, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { GitCompare, ArrowRight, Shield, AlertTriangle, CheckCircle2, AlertCircle } from "lucide-react";
 import { getComplianceReport } from "../api/client";
 import type { ComplianceReport } from "../types";
 import ScoreGauge from "../components/ScoreGauge";
@@ -12,10 +8,163 @@ import RiskBadge from "../components/RiskBadge";
 import type { RiskLevel } from "../types";
 
 const AVAILABLE_SCENARIOS = [
-  { id: "scenario_01", label: "Scenario 01 — Modern AES-256-GCM + DH19", grade: "A" },
-  { id: "scenario_04", label: "Scenario 04 — Legacy 3DES + MD5 + DH2",   grade: "F" },
-  { id: "scenario_07", label: "Scenario 07 — RFC 9347 IP-TFS Obfuscated", grade: "A" },
+  { id: "scenario_01", label: "Scenario 01 — Modern AES-256-GCM + DH19 (Gigabit LAN)", grade: "A" },
+  { id: "scenario_02", label: "Scenario 02 — Metro WAN (AES-GCM + PFS)", grade: "A" },
+  { id: "scenario_03", label: "Scenario 03 — Corporate WAN (ChaCha20-Poly1305)", grade: "A" },
+  { id: "scenario_04", label: "Scenario 04 — Legacy Enterprise (3DES-CBC + MD5 + DH2)", grade: "F" },
+  { id: "scenario_05", label: "Scenario 05 — Cross-Country WAN (AES-CBC + SHA256)", grade: "B" },
+  { id: "scenario_06", label: "Scenario 06 — Satellite Link (High Latency)", grade: "B" },
+  { id: "scenario_07", label: "Scenario 07 — RFC 9347 IP-TFS (Obfuscated Tunnel)", grade: "A" },
+  { id: "scenario_08", label: "Scenario 08 — Lossy Wireless WAN", grade: "B" },
+  { id: "scenario_09", label: "Scenario 09 — Congested Gateway", grade: "B" },
+  { id: "scenario_10", label: "Scenario 10 — Host-to-Host Transport Mode", grade: "A" },
+  { id: "scenario_11", label: "Scenario 11 — Constrained MTU Tunnel", grade: "B" },
+  { id: "scenario_12", label: "Scenario 12 — Asymmetric WAN Uplink", grade: "B" },
 ];
+
+// ─── Posture evaluation (Green = Good / Red = Bad) ───────────────────────────
+
+export type PostureType = "GOOD" | "BAD" | "WARN" | "NEUTRAL";
+
+export interface ParameterEvaluation {
+  posture: PostureType;
+  badgeText?: string;
+}
+
+export function evaluateParameterPosture(
+  label: string,
+  rawVal: string | number | boolean
+): ParameterEvaluation {
+  const str = String(rawVal).trim().toLowerCase();
+
+  if (label === "Overall Score") {
+    const match = str.match(/^(\d+(?:\.\d+)?)/);
+    if (match) {
+      const num = parseFloat(match[1]);
+      if (num >= 80) return { posture: "GOOD", badgeText: "SECURE" };
+      if (num >= 50) return { posture: "WARN", badgeText: "MODERATE" };
+      return { posture: "BAD", badgeText: "CRITICAL" };
+    }
+  }
+
+  if (label === "ESP Cipher") {
+    if (str.includes("3des") || str.includes("des") || str.includes("rc4") || str.includes("blowfish")) {
+      return { posture: "BAD", badgeText: "SWEET32 / DEPRECATED" };
+    }
+    if (str.includes("gcm") || str.includes("chacha") || str.includes("poly") || str.includes("aes_256")) {
+      return { posture: "GOOD", badgeText: "RFC 8221 AEAD" };
+    }
+    if (str.includes("cbc")) {
+      return { posture: "WARN", badgeText: "LEGACY CBC" };
+    }
+  }
+
+  if (label === "ESP Auth") {
+    if (str.includes("md5") || str.includes("sha1")) {
+      return { posture: "BAD", badgeText: "COLLISION RISK" };
+    }
+    if (str.includes("none") || str.includes("n/a") || str === "—") {
+      return { posture: "GOOD", badgeText: "AEAD INTEGRATED" };
+    }
+    if (str.includes("sha2") || str.includes("sha256") || str.includes("sha384") || str.includes("sha512")) {
+      return { posture: "GOOD", badgeText: "SECURE HMAC" };
+    }
+  }
+
+  if (label === "DH Group") {
+    if (str.includes("group 2") || str.includes("group 1") || str.includes("group 5") || str === "2" || str === "1" || str === "5") {
+      return { posture: "BAD", badgeText: "LOGJAM VULN" };
+    }
+    if (str.includes("19") || str.includes("20") || str.includes("21") || str.includes("31") || str.includes("curve25519") || str.includes("nist-p256")) {
+      return { posture: "GOOD", badgeText: "CNSA 2.0 CURVE" };
+    }
+    if (str.includes("14")) {
+      return { posture: "WARN", badgeText: "2048-BIT MODP" };
+    }
+  }
+
+  if (label === "PFS") {
+    if (str === "enabled" || str === "true") {
+      return { posture: "GOOD", badgeText: "FORWARD SECRECY" };
+    }
+    if (str === "disabled" || str === "false") {
+      return { posture: "BAD", badgeText: "NO PFS" };
+    }
+  }
+
+  if (label === "SA Lifetime") {
+    const hours = parseFloat(str);
+    if (!isNaN(hours)) {
+      if (hours <= 8) return { posture: "GOOD", badgeText: "HEALTHY (≤8H)" };
+      if (hours > 12) return { posture: "BAD", badgeText: "OVER-EXPOSED" };
+      return { posture: "WARN", badgeText: "ACCEPTABLE" };
+    }
+  }
+
+  if (label === "# Findings") {
+    const num = parseInt(str, 10);
+    if (!isNaN(num)) {
+      if (num === 0) return { posture: "GOOD", badgeText: "CLEAN AUDIT" };
+      if (num <= 2) return { posture: "WARN", badgeText: `${num} FINDINGS` };
+      return { posture: "BAD", badgeText: `${num} VULNERABILITIES` };
+    }
+  }
+
+  return { posture: "NEUTRAL" };
+}
+
+// ─── Value badge helper ───────────────────────────────────────────────────────
+
+function DiffValueBadge({ label, value }: { label: string; value: string | number | boolean }) {
+  const evalResult = evaluateParameterPosture(label, value);
+  const displayVal = String(value);
+
+  if (evalResult.posture === "GOOD") {
+    return (
+      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 font-mono font-bold text-xs shadow-sm">
+        <CheckCircle2 size={13} className="text-emerald-400 shrink-0" />
+        <span>{displayVal}</span>
+        {evalResult.badgeText && (
+          <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 ml-1">
+            {evalResult.badgeText}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  if (evalResult.posture === "BAD") {
+    return (
+      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-red-500/15 border border-red-500/30 text-red-300 font-mono font-bold text-xs shadow-sm">
+        <AlertCircle size={13} className="text-red-400 shrink-0" />
+        <span>{displayVal}</span>
+        {evalResult.badgeText && (
+          <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-red-500/20 text-red-300 border border-red-500/30 ml-1">
+            {evalResult.badgeText}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  if (evalResult.posture === "WARN") {
+    return (
+      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-amber-500/15 border border-amber-500/30 text-amber-300 font-mono font-bold text-xs shadow-sm">
+        <AlertTriangle size={13} className="text-amber-400 shrink-0" />
+        <span>{displayVal}</span>
+        {evalResult.badgeText && (
+          <span className="text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 ml-1">
+            {evalResult.badgeText}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <span className="font-mono text-gray-300 text-xs px-1 font-semibold">{displayVal}</span>
+  );
+}
 
 // ─── Skeleton loader for loading state ───────────────────────────────────────
 
@@ -51,27 +200,50 @@ interface DiffRowProps {
 
 function DiffRow({ label, left, right }: DiffRowProps) {
   const different = String(left) !== String(right);
+  const leftEval = evaluateParameterPosture(label, left);
+  const rightEval = evaluateParameterPosture(label, right);
+
+  let statusBadge = (
+    <span className="inline-flex items-center gap-1 text-gray-400 font-mono text-[11px] px-2 py-0.5 rounded bg-slate-800 border border-white/5">
+      <CheckCircle2 size={11} className="text-gray-400" />
+      SAME
+    </span>
+  );
+
+  if (different) {
+    if (leftEval.posture === "GOOD" && rightEval.posture === "BAD") {
+      statusBadge = (
+        <span className="inline-flex items-center gap-1 text-emerald-300 font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 border border-emerald-500/40">
+          A SECURE
+        </span>
+      );
+    } else if (rightEval.posture === "GOOD" && leftEval.posture === "BAD") {
+      statusBadge = (
+        <span className="inline-flex items-center gap-1 text-purple-300 font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-purple-500/20 border border-purple-500/40">
+          B SECURE
+        </span>
+      );
+    } else {
+      statusBadge = (
+        <span className="inline-flex items-center gap-1 text-amber-300 font-mono text-[11px] font-bold px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/40">
+          <AlertTriangle size={11} className="text-amber-400" />
+          DIFFER
+        </span>
+      );
+    }
+  }
+
   return (
-    <tr className={`text-xs border-b border-white/5 ${different ? "bg-red-950/10" : ""}`}>
-      <td className="py-2.5 px-3 text-gray-400 font-mono">{label}</td>
-      <td className={`py-2.5 px-3 font-mono font-semibold ${different ? "text-red-300" : "text-white"}`}>
-        {String(left)}
+    <tr className={`text-xs border-b border-white/5 transition-colors ${different ? "bg-slate-800/30 hover:bg-slate-800/50" : "hover:bg-slate-800/20"}`}>
+      <td className="py-3 px-3.5 text-gray-300 font-mono font-medium">{label}</td>
+      <td className="py-3 px-3.5">
+        <DiffValueBadge label={label} value={left} />
       </td>
-      <td className={`py-2.5 px-3 font-mono font-semibold ${different ? "text-red-300" : "text-white"}`}>
-        {String(right)}
+      <td className="py-3 px-3.5">
+        <DiffValueBadge label={label} value={right} />
       </td>
-      <td className="py-2.5 px-3">
-        {different ? (
-          <span className="flex items-center gap-1 text-amber-400 text-[10px] font-semibold">
-            <AlertTriangle size={11} />
-            DIFFER
-          </span>
-        ) : (
-          <span className="flex items-center gap-1 text-emerald-500 text-[10px] font-semibold">
-            <CheckCircle2 size={11} />
-            SAME
-          </span>
-        )}
+      <td className="py-3 px-3.5">
+        {statusBadge}
       </td>
     </tr>
   );
@@ -109,15 +281,37 @@ function ScenarioPanel({
           { label: "Auth",       value: report.evaluated_parameters?.esp_auth || "—" },
           { label: "DH Group",   value: `Group ${report.evaluated_parameters?.dh_group || "—"}` },
           { label: "PFS",        value: report.evaluated_parameters?.pfs_enabled ? "Enabled" : "Disabled" },
-        ].map((p) => (
-          <div
-            key={p.label}
-            className="bg-slate-950/60 p-2.5 rounded-lg border border-white/5 space-y-0.5"
-          >
-            <span className="text-gray-500 font-mono block">{p.label}</span>
-            <span className="text-white font-semibold font-mono block">{p.value}</span>
-          </div>
-        ))}
+        ].map((p) => {
+          const evalRes = evaluateParameterPosture(p.label, p.value);
+          const borderCls = evalRes.posture === "GOOD"
+            ? "border-emerald-500/30 bg-emerald-950/20"
+            : evalRes.posture === "BAD"
+            ? "border-red-500/30 bg-red-950/20"
+            : evalRes.posture === "WARN"
+            ? "border-amber-500/30 bg-amber-950/20"
+            : "border-white/5 bg-slate-950/60";
+          const textCls = evalRes.posture === "GOOD"
+            ? "text-emerald-400"
+            : evalRes.posture === "BAD"
+            ? "text-red-400"
+            : evalRes.posture === "WARN"
+            ? "text-amber-400"
+            : "text-white";
+
+          return (
+            <div
+              key={p.label}
+              className={`p-2.5 rounded-lg border space-y-0.5 transition-colors ${borderCls}`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-gray-400 font-mono text-[11px] block">{p.label}</span>
+                {evalRes.posture === "GOOD" && <CheckCircle2 size={12} className="text-emerald-400" />}
+                {evalRes.posture === "BAD" && <AlertCircle size={12} className="text-red-400" />}
+              </div>
+              <span className={`font-semibold font-mono block text-xs ${textCls}`}>{p.value}</span>
+            </div>
+          );
+        })}
       </div>
 
       {/* Findings */}
@@ -286,13 +480,22 @@ export default function Compare() {
       {/* Parameter Diff Table */}
       {leftReport && rightReport && (
         <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 space-y-4 shadow-xl">
-          <h2 className="text-sm font-bold text-white flex items-center gap-2">
-            <GitCompare size={16} className="text-purple-400" />
-            Parameter Diff Table
-            <span className="text-xs font-normal text-gray-400 ml-1">
-              — rows highlighted in red differ between the two profiles
-            </span>
-          </h2>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <h2 className="text-sm font-bold text-white flex items-center gap-2">
+              <GitCompare size={16} className="text-purple-400" />
+              Cryptographic Diff &amp; Posture Comparison
+            </h2>
+            <div className="flex flex-wrap items-center gap-3 text-[11px] font-mono">
+              <span className="flex items-center gap-1.5 text-emerald-400 font-semibold">
+                <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                Green: Secure / RFC Compliant
+              </span>
+              <span className="flex items-center gap-1.5 text-red-400 font-semibold">
+                <span className="w-2 h-2 rounded-full bg-red-400" />
+                Red: Vulnerable / Deprecated
+              </span>
+            </div>
+          </div>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
               <thead>

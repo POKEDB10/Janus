@@ -43,6 +43,8 @@ async def get_analysis_status(capture_id: str) -> AnalysisStatus:
         status=PipelineStatus(entry.get("status", "INIT")),
         error=entry.get("error"),
         progress_pct=float(entry.get("progress_pct", 0.0)),
+        message=entry.get("message"),
+        logs=list(entry.get("logs", [])),
     )
 
 
@@ -57,7 +59,7 @@ async def stream_analysis_progress(capture_id: str) -> StreamingResponse:
     Clients should use ``EventSource('/api/analysis/{id}/stream')``.
 
     Events emitted:
-      - ``progress`` — JSON with ``{status, progress_pct, message}``
+      - ``progress`` — JSON with ``{status, progress_pct, message, logs}``
       - ``done``     — JSON with full results summary when pipeline completes
       - ``error``    — JSON with ``{error}`` if pipeline fails
     """
@@ -70,29 +72,34 @@ async def stream_analysis_progress(capture_id: str) -> StreamingResponse:
     async def event_generator():
         """Poll state store and emit SSE events until terminal state."""
         _STATUS_MESSAGES: dict[str, str] = {
-            "INIT":       "Initialising pipeline...",
-            "PARSING":    "Parsing IKE handshakes & extracting ESP flows...",
+            "INIT":        "Initialising pipeline...",
+            "PARSING":     "Parsing IKE handshakes & extracting ESP flows...",
             "CLASSIFYING": "Running FlowDeepNet Ensemble + SHAP attribution...",
-            "SCORING":    "Evaluating RFC 8221 / RFC 8247 / NIST SP 800-77 compliance...",
-            "DONE":       "Analysis complete — all results ready.",
-            "ERROR":      "Pipeline encountered an error.",
+            "SCORING":     "Evaluating RFC 8221 / RFC 8247 / NIST SP 800-77 compliance...",
+            "DONE":        "Analysis complete — all results ready.",
+            "ERROR":       "Pipeline encountered an error.",
         }
         last_pct = -1.0
+        last_logs_len = -1
         timeout_seconds = 300  # 5-minute max SSE lifetime
-        elapsed = 0
+        elapsed = 0.0
 
         while elapsed < timeout_seconds:
             entry = _state_store.get(capture_id, {})
             current_status = entry.get("status", "INIT")
             current_pct = float(entry.get("progress_pct", 0.0))
+            current_logs = list(entry.get("logs", []))
+            current_msg = entry.get("message") or _STATUS_MESSAGES.get(current_status, current_status)
 
-            # Only emit when something changes
-            if current_pct != last_pct:
+            # Emit whenever progress percentage advances or new log line appears
+            if current_pct != last_pct or len(current_logs) != last_logs_len:
                 last_pct = current_pct
+                last_logs_len = len(current_logs)
                 payload = {
                     "status": current_status,
                     "progress_pct": current_pct,
-                    "message": _STATUS_MESSAGES.get(current_status, current_status),
+                    "message": current_msg,
+                    "logs": current_logs,
                 }
 
                 if current_status == "DONE":
@@ -111,8 +118,8 @@ async def stream_analysis_progress(capture_id: str) -> StreamingResponse:
 
                 yield f"event: progress\ndata: {json.dumps(payload)}\n\n"
 
-            await asyncio.sleep(0.8)
-            elapsed += 0.8
+            await asyncio.sleep(0.25)
+            elapsed += 0.25
 
         # Timeout — send a final status and close
         yield f"event: error\ndata: {json.dumps({'error': 'SSE timeout after 5 minutes'})}\n\n"

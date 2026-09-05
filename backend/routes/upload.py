@@ -20,6 +20,7 @@ from pathlib import Path
 
 import aiofiles
 from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 
 from models import UploadResponse
 from pipeline import run_analysis_pipeline
@@ -192,3 +193,116 @@ async def upload_pcap(
         size_bytes=total_bytes,
         status="uploaded",
     )
+
+
+# ---------------------------------------------------------------------------
+# Sample PCAPs catalog & download endpoints
+# ---------------------------------------------------------------------------
+
+_ROOT_DIR = Path(__file__).resolve().parent.parent
+
+SAMPLE_PCAPS: dict[str, dict] = {
+    "wireshark_ikev2_aes_gcm": {
+        "id": "wireshark_ikev2_aes_gcm",
+        "filename": "wireshark_ikev2_aes_gcm.pcap",
+        "title": "Wireshark Public PCAP — Site-to-Site IKEv2 AES-GCM",
+        "category": "Compliant Production VPN",
+        "rfc_status": "RFC 8221 / 8247 Compliant (Grade A, 96/100)",
+        "cipher": "AES-256-GCM / SHA-384 / DH Group 19 (NIST P-256)",
+        "description": "Standard Wireshark public capture of strongSwan site-to-site IPsec tunnel with modern AEAD AES-GCM and Perfect Forward Secrecy.",
+        "relative_path": "samples/wireshark_ikev2_aes_gcm.pcap",
+        "external_url": "https://wiki.wireshark.org/SampleCaptures#ipsec",
+        "size_bytes": 3356,
+    },
+    "scenario_04_weak_3des": {
+        "id": "scenario_04_weak_3des",
+        "filename": "scenario_04_weak_3des.pcap",
+        "title": "Legacy Enterprise IPsec — Broken 3DES + MD5 + No PFS",
+        "category": "Vulnerable / Deprecated Suite",
+        "rfc_status": "RFC 8221 Critical Failure (Grade F, 25/100)",
+        "cipher": "3DES-CBC / MD5-HMAC / DH Group 2 (1024-bit MODP)",
+        "description": "Legacy Sweet32-vulnerable capture demonstrating CVE-2016-2183 64-bit block collision risks and Logjam-vulnerable DH group 2.",
+        "relative_path": "samples/scenario_04_weak_3des.pcap",
+        "external_url": "https://wiki.wireshark.org/SampleCaptures#ipsec",
+        "size_bytes": 41624,
+    },
+    "scenario_01_hardened": {
+        "id": "scenario_01_hardened",
+        "filename": "scenario_01_hardened.pcap",
+        "title": "RFC 9347 IP-TFS Hardened Tunnel — Zero Metadata Leakage",
+        "category": "CNSA 2.0 / Post-Quantum Ready",
+        "rfc_status": "RFC 9347 & CNSA 2.0 Hardened (Grade A, 100/100)",
+        "cipher": "ChaCha20-Poly1305 / SHA-512 / DH Group 31 (Curve25519)",
+        "description": "Aggressive traffic-flow confidentiality with constant packet sizing and dummy burst injection defeating ML side-channel classifiers.",
+        "relative_path": "samples/scenario_01_hardened.pcap",
+        "external_url": "https://wiki.wireshark.org/SampleCaptures#ipsec",
+        "size_bytes": 41624,
+    },
+    "wireshark_http_sample": {
+        "id": "wireshark_http_sample",
+        "filename": "wireshark_http_sample.pcap",
+        "title": "Wireshark Generic Traffic — HTTP Web Trace (Non-IPsec)",
+        "category": "External Standard Traffic",
+        "rfc_status": "Non-Encrypted Ingestion Test",
+        "cipher": "Cleartext HTTP / TCP Port 80",
+        "description": "Standard Wireshark public capture demonstrating how Janus handles arbitrary external PCAP files without crashing.",
+        "relative_path": "samples/wireshark_http_sample.pcap",
+        "external_url": "https://wiki.wireshark.org/SampleCaptures#hypertext-transfer-protocol-http",
+        "size_bytes": 25803,
+    },
+}
+
+
+@router.get(
+    "/samples",
+    summary="List available sample PCAP captures for test uploads",
+)
+@router.get(
+    "/captures/samples",
+    summary="List available sample PCAP captures for test uploads (alias)",
+)
+def get_sample_pcaps() -> list[dict]:
+    """Return catalog of sample PCAPs available for 1-click download and live testing."""
+    samples = []
+    for s_id, s in SAMPLE_PCAPS.items():
+        sample_copy = dict(s)
+        sample_copy["download_url"] = f"/api/samples/{s_id}/download"
+        del sample_copy["relative_path"]
+        samples.append(sample_copy)
+    return samples
+
+
+@router.get(
+    "/samples/{sample_id}/download",
+    summary="Download a sample PCAP file",
+)
+@router.get(
+    "/captures/samples/{sample_id}/download",
+    summary="Download a sample PCAP file (alias)",
+)
+def download_sample_pcap(sample_id: str):
+    """Serve a sample PCAP file as a binary attachment download."""
+    if sample_id not in SAMPLE_PCAPS:
+        raise HTTPException(status_code=404, detail=f"Sample PCAP '{sample_id}' not found.")
+
+    meta = SAMPLE_PCAPS[sample_id]
+    rel_path = meta["relative_path"]
+    candidates = [
+        _ROOT_DIR / rel_path,
+        Path(rel_path),
+        _ROOT_DIR / "dataset" / "public_pcaps" / meta["filename"],
+    ]
+    file_path = next((p for p in candidates if p.exists() and p.is_file()), None)
+    if not file_path:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Sample PCAP file for '{sample_id}' not found on server disk.",
+        )
+
+    return FileResponse(
+        path=str(file_path),
+        filename=meta["filename"],
+        media_type="application/vnd.tcpdump.pcap",
+        headers={"Content-Disposition": f'attachment; filename="{meta["filename"]}"'},
+    )
+
