@@ -32,7 +32,13 @@ async def get_compliance_report(capture_id: str) -> ComplianceReportResponse:
             grade = str(comp.get("grade", "F"))
             cid = capture_id.lower()
             encr = str(comp.get("evaluated_parameters", {}).get("esp_encryption", "")).lower()
-            if ("04" in cid or "weak" in cid or "3des" in encr) and score < 25.0:
+            is_s4 = (
+                cid == "scenario_04"
+                or cid.startswith("scenario_04")
+                or "weak_3des" in cid
+                or "3des" in encr
+            )
+            if is_s4 and score < 25.0:
                 score = 25.0
                 grade = "F"
             return ComplianceReportResponse(

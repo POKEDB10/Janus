@@ -169,14 +169,14 @@ function DiffValueBadge({ label, value }: { label: string; value: string | numbe
 // ─── Skeleton loader for loading state ───────────────────────────────────────
 
 export function getScenarioFallbackReport(id: string): ComplianceReport {
-  const isScenario4 = id.includes("04") || id.includes("weak");
-  const isScenario7 = id.includes("07") || id.includes("iptfs");
-  const isScenario5 = id.includes("05");
-  const isScenario6 = id.includes("06");
-  const isScenario8 = id.includes("08");
-  const isScenario9 = id.includes("09");
-  const isScenario11 = id.includes("11");
-  const isScenario12 = id.includes("12");
+  const isScenario4 = id === "scenario_04" || id.startsWith("scenario_04") || id.includes("weak_3des") || id.includes("legacy_3des");
+  const isScenario7 = id === "scenario_07" || id.startsWith("scenario_07") || id.includes("iptfs");
+  const isScenario5 = id === "scenario_05" || id.startsWith("scenario_05");
+  const isScenario6 = id === "scenario_06" || id.startsWith("scenario_06");
+  const isScenario8 = id === "scenario_08" || id.startsWith("scenario_08");
+  const isScenario9 = id === "scenario_09" || id.startsWith("scenario_09");
+  const isScenario11 = id === "scenario_11" || id.startsWith("scenario_11");
+  const isScenario12 = id === "scenario_12" || id.startsWith("scenario_12");
 
   const isGradeB = isScenario5 || isScenario6 || isScenario8 || isScenario9 || isScenario11 || isScenario12;
 

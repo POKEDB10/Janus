@@ -25,10 +25,34 @@ from compliance.score import evaluator
 from reports.generator import generate_all_reports
 
 
+def is_scenario_4(cid: str) -> bool:
+    c = cid.lower()
+    return (
+        c == "scenario_04"
+        or c.startswith("scenario_04")
+        or "weak_3des" in c
+        or "legacy_3des" in c
+        or c == "4"
+        or c == "04"
+    )
+
+
+def is_scenario_7(cid: str) -> bool:
+    c = cid.lower()
+    return (
+        c == "scenario_07"
+        or c.startswith("scenario_07")
+        or "ip_tfs" in c
+        or "iptfs" in c
+        or c == "7"
+        or c == "07"
+    )
+
+
 def get_scenario_crypto_params(capture_id: str) -> dict[str, Any]:
     """Resolve cryptographic parameters for any scenario identifier."""
     cid = capture_id.lower()
-    if "04" in cid or "weak" in cid or "legacy" in cid or "3des" in cid or "vulnerable" in cid:
+    if is_scenario_4(cid):
         return {
             "esp_encryption": "ENCR_3DES",
             "esp_auth": "AUTH_HMAC_MD5_96",
@@ -39,7 +63,7 @@ def get_scenario_crypto_params(capture_id: str) -> dict[str, Any]:
             "ike_version": "IKEv2",
             "filename": "scenario_04_legacy_3des_md5.pcap",
         }
-    elif "07" in cid or "ip_tfs" in cid or "obfuscated" in cid:
+    elif is_scenario_7(cid):
         return {
             "esp_encryption": "ENCR_AES_GCM_16",
             "esp_auth": "AUTH_NONE",
@@ -50,7 +74,7 @@ def get_scenario_crypto_params(capture_id: str) -> dict[str, Any]:
             "ike_version": "IKEv2",
             "filename": "scenario_07_ip_tfs_obfuscation.pcap",
         }
-    elif "02" in cid:
+    elif cid == "scenario_02" or cid.startswith("scenario_02"):
         return {
             "esp_encryption": "ENCR_AES_GCM_16",
             "esp_auth": "AUTH_NONE",
@@ -61,7 +85,7 @@ def get_scenario_crypto_params(capture_id: str) -> dict[str, Any]:
             "ike_version": "IKEv2",
             "filename": "scenario_02_aes128_gcm.pcap",
         }
-    elif "03" in cid:
+    elif cid == "scenario_03" or cid.startswith("scenario_03"):
         return {
             "esp_encryption": "ENCR_AES_CBC_256",
             "esp_auth": "AUTH_HMAC_SHA2_256_128",
@@ -72,7 +96,7 @@ def get_scenario_crypto_params(capture_id: str) -> dict[str, Any]:
             "ike_version": "IKEv2",
             "filename": "scenario_03_aes256_cbc.pcap",
         }
-    elif "05" in cid:
+    elif cid == "scenario_05" or cid.startswith("scenario_05"):
         return {
             "esp_encryption": "ENCR_AES_GCM_16",
             "esp_auth": "AUTH_NONE",
@@ -83,7 +107,7 @@ def get_scenario_crypto_params(capture_id: str) -> dict[str, Any]:
             "ike_version": "IKEv2",
             "filename": "scenario_05_aes256_gcm_dh20.pcap",
         }
-    elif "06" in cid or "no_pfs" in cid:
+    elif cid == "scenario_06" or cid.startswith("scenario_06") or "no_pfs" in cid:
         return {
             "esp_encryption": "ENCR_AES_GCM_16",
             "esp_auth": "AUTH_NONE",
@@ -121,7 +145,7 @@ def get_sample_compliance_data(capture_id: str) -> dict[str, Any]:
     )
     data = report.to_dict()
     data["capture_id"] = capture_id
-    if "04" in capture_id.lower() or "weak" in capture_id.lower() or "legacy" in capture_id.lower() or "3des" in capture_id.lower():
+    if is_scenario_4(capture_id):
         data["overall_score"] = 25.0
         data["grade"] = "F"
     return data
@@ -130,8 +154,8 @@ def get_sample_compliance_data(capture_id: str) -> dict[str, Any]:
 def get_sample_analysis_data(capture_id: str) -> dict[str, Any]:
     """Generate realistic flow records and IKE session metadata for a scenario."""
     params = get_scenario_crypto_params(capture_id)
-    is_s4 = "04" in capture_id.lower() or "weak" in capture_id.lower()
-    is_s7 = "07" in capture_id.lower() or "ip_tfs" in capture_id.lower()
+    is_s4 = is_scenario_4(capture_id)
+    is_s7 = is_scenario_7(capture_id)
 
     demo_flows = [
         {

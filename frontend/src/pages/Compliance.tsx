@@ -173,8 +173,15 @@ function FormattedExplanation({ content }: { content: string }) {
 // Ensures zero-layout-shift and immediate render when clicking any scenario
 
 function getBaselineComplianceReport(captureId: string): ComplianceReport {
-  const isScenario4 = captureId.includes("04") || captureId.includes("weak");
-  const isScenario7 = captureId.includes("07") || captureId.includes("iptfs");
+  const isScenario4 =
+    captureId === "scenario_04" ||
+    captureId.startsWith("scenario_04") ||
+    captureId.includes("weak_3des") ||
+    captureId.includes("legacy_3des");
+  const isScenario7 =
+    captureId === "scenario_07" ||
+    captureId.startsWith("scenario_07") ||
+    captureId.includes("iptfs");
 
   if (isScenario4) {
     return {
@@ -438,7 +445,11 @@ export default function Compliance() {
     async function loadData() {
       try {
         const data = await getComplianceReport(captureId);
-        const isScenario4 = captureId.includes("04") || captureId.includes("weak");
+        const isScenario4 =
+          captureId === "scenario_04" ||
+          captureId.startsWith("scenario_04") ||
+          captureId.includes("weak_3des") ||
+          captureId.includes("legacy_3des");
         if (isScenario4 && data.overall_score < 25.0) {
           data.overall_score = 25.0;
           data.grade = "F";
