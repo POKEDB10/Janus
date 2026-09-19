@@ -1,0 +1,46 @@
+import { useLocation } from "react-router-dom";
+import { useCaptureResults } from "../../api/queries";
+import { getCaptureContext, isRecordedSample } from "../../lib/capture-session";
+import { getApiErrorMessage } from "../../lib/api-error";
+import { getFlowDisposition } from "../../types";
+import { ErrorState, LoadingState, SampleStamp } from "../ui/Primitives";
+import { VerdictPair } from "../ui/VerdictPair";
+
+export function CaptureHeader({ captureId }: { captureId: string }) {
+  const { search } = useLocation();
+  const recorded = isRecordedSample(search);
+  const context = getCaptureContext(captureId);
+  const results = useCaptureResults(captureId, search);
+
+  if (results.isPending) return <><>{recorded && <SampleStamp />}</><div className="border-b border-rule bg-surface"><div className="mx-auto max-w-content px-4 sm:px-6"><LoadingState label="Loading capture verdicts…" /></div></div></>;
+  if (results.isError) {
+    if (recorded) {
+      return <><SampleStamp /><div className="border-b border-rule bg-surface"><div className="mx-auto max-w-content px-4 py-4 sm:px-6"><p className="font-mono text-xs text-muted">Capture {captureId}</p><p className="mt-1 text-sm text-muted">Recorded sample requested, but no recorded fixture is installed.</p></div></div></>;
+    }
+    return <div className="border-b border-rule bg-surface"><div className="mx-auto max-w-content px-4 py-4 sm:px-6"><ErrorState title="Capture verdicts are unavailable" detail={getApiErrorMessage(results.error)} onRetry={() => void results.refetch()} /></div></div>;
+  }
+
+  const data = results.data;
+  if (!data) return null;
+  const compliance = data.compliance;
+  const critical = compliance?.findings.filter((finding) => finding.severity === "CRITICAL").length ?? 0;
+  const high = compliance?.findings.filter((finding) => finding.severity === "HIGH").length ?? 0;
+  const abstained = data.flows.filter((flow) => getFlowDisposition(flow) === "ABSTAINED").length;
+  const obfuscated = data.flows.filter((flow) => getFlowDisposition(flow) === "OBFUSCATED").length;
+  const trafficMix = Object.values(data.traffic_distribution ?? {}).filter((count) => count > 0).length;
+  const reason = compliance?.overall_score === null
+    ? compliance.indeterminate_reason ?? data.reason ?? "Not assessable: no IKE handshake in this capture."
+    : undefined;
+
+  return (
+    <>{recorded && <SampleStamp />}<div className="border-b border-rule bg-surface">
+      <div className="mx-auto max-w-content px-4 py-4 sm:px-6">
+        <div className="mb-4 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+          <p className="font-medium text-ink">{data.filename ?? context.filename ?? "Capture"}</p>
+          <p className="font-mono text-xs text-muted">{captureId}</p>
+        </div>
+        <VerdictPair configuration={{ score: compliance?.overall_score ?? null, grade: compliance?.grade ?? "N/A", reason, critical, high }} traffic={{ flows: data.total_flows, mix: trafficMix, abstained, obfuscated }} />
+      </div>
+    </div></>
+  );
+}

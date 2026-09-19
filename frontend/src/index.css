@@ -1,59 +1,74 @@
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --color-navy: #1a2332;
-  --color-blue: #0066cc;
+  --color-canvas: 243 245 247;
+  --color-surface: 255 255 255;
+  --color-sunken: 235 238 241;
+  --color-rule: 213 219 225;
+  --color-ink: 16 20 26;
+  --color-muted: 79 91 104;
+  --color-accent: 43 90 122;
+  --color-accent-strong: 29 68 95;
+  --color-pass: 31 122 69;
+  --color-critical: 179 38 30;
+  --color-high: 194 65 12;
+  --color-medium: 161 98 7;
+  --color-low: 71 101 128;
+  --color-info: 71 101 128;
 }
 
-html, body, #root {
-  min-height: 100%;
-  width: 100%;
-}
-
-html {
-  overflow-y: auto;
-  overflow-x: hidden;
-  scrollbar-gutter: stable;
-}
+html { min-width: 320px; background: rgb(var(--color-canvas)); }
 
 body {
-  overflow-y: visible;
-  overflow-x: hidden;
-  @apply bg-janus-navy text-gray-100 font-sans antialiased;
+  margin: 0;
+  min-width: 320px;
+  min-height: 100dvh;
+  background: rgb(var(--color-canvas));
+  color: rgb(var(--color-ink));
+  font-family: "IBM Plex Sans", ui-sans-serif, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
 }
 
-/* Custom scrollbar for dark theme */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { @apply bg-janus-navy; }
-::-webkit-scrollbar-thumb { @apply bg-janus-blue rounded; }
+button, input, select, textarea { font: inherit; }
+button:not(:disabled), a { -webkit-tap-highlight-color: transparent; }
 
-/* Subtle modal scrollbar */
-.modal-scroll {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(59, 130, 246, 0.4) transparent;
-}
-.modal-scroll::-webkit-scrollbar {
-  width: 6px;
-}
-.modal-scroll::-webkit-scrollbar-track {
-  background: rgba(15, 23, 42, 0.6);
-  border-radius: 4px;
-}
-.modal-scroll::-webkit-scrollbar-thumb {
-  background: rgba(59, 130, 246, 0.4);
-  border-radius: 4px;
-}
-.modal-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(59, 130, 246, 0.7);
+:focus-visible {
+  outline: 2px solid rgb(var(--color-accent));
+  outline-offset: 2px;
 }
 
-@keyframes fadeIn {
-  from { opacity: 0.85; }
-  to { opacity: 1; }
+::selection { background: rgb(var(--color-accent) / 18%); }
+
+.skip-link {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  z-index: 50;
+  transform: translateY(-150%);
+  background: rgb(var(--color-ink));
+  color: rgb(var(--color-surface));
+  padding: 8px 12px;
+  border-radius: 2px;
+}
+.skip-link:focus { transform: translateY(0); }
+
+.data-number { font-variant-numeric: tabular-nums; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
 }
 
-.animate-fadeIn {
-  animation: fadeIn 0.15s ease-out forwards;
+@media (min-width: 1024px) {
+  html[data-present="true"] body { font-size: 18px; }
+  html[data-present="true"] [data-secondary-chrome="true"] { display: none; }
 }
