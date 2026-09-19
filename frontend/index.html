@@ -5,6 +5,19 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Janus analyzes IPsec captures: configuration evidence and ESP traffic evidence, side by side." />
     <meta name="theme-color" content="#F3F5F7" />
+    <script>
+      (() => {
+        try {
+          const saved = localStorage.getItem("janus.theme");
+          const theme = saved === "dark" || saved === "light"
+            ? saved
+            : window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+          document.documentElement.dataset.theme = theme;
+        } catch {
+          document.documentElement.dataset.theme = "light";
+        }
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="/janus.svg" />
     <title>Janus | IPsec capture analysis</title>
   </head>

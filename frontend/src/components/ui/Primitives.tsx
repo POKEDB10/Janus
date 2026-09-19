@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { AlertCircle, Check, CircleAlert, LoaderCircle, RotateCcw } from "lucide-react";
 import type { RiskLevel } from "../../types";
+import { cn } from "../../lib/cn";
 
 export function PageHeader({
   eyebrow,
@@ -14,7 +15,7 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <header className="grid gap-4 pb-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+    <header className="motion-enter grid gap-4 pb-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
       <div className="min-w-0">
         {eyebrow ? <p className="mb-1 font-mono text-xs text-muted">{eyebrow}</p> : null}
         <h1 className="text-balance text-[28px] font-semibold leading-tight text-ink">{title}</h1>
@@ -42,7 +43,7 @@ export function Section({
 }) {
   if (isEmpty) return null;
   return (
-    <section className={`border-t border-rule pt-4 ${className}`} aria-labelledby={title.replace(/\s+/g, "-").toLowerCase()}>
+    <section className={cn("motion-enter border-t border-rule pt-4", className)} aria-labelledby={title.replace(/\s+/g, "-").toLowerCase()}>
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 id={title.replace(/\s+/g, "-").toLowerCase()} className="text-base font-semibold text-ink">{title}</h2>
@@ -106,7 +107,7 @@ export function LoadingState({ label = "Loading analysis…" }: { label?: string
 
 export function EmptyState({ title, detail, action }: { title: string; detail: string; action?: ReactNode }) {
   return (
-    <div className="border-t border-rule py-8">
+    <div className="motion-feedback border-t border-rule py-8">
       <h2 className="text-base font-semibold text-ink">{title}</h2>
       <p className="mt-1 max-w-xl text-sm text-muted">{detail}</p>
       {action ? <div className="mt-4">{action}</div> : null}
@@ -116,7 +117,7 @@ export function EmptyState({ title, detail, action }: { title: string; detail: s
 
 export function ErrorState({ title = "Couldn’t load this analysis", detail, onRetry }: { title?: string; detail: string; onRetry?: () => void }) {
   return (
-    <div className="border-l-2 border-critical bg-surface px-4 py-4" role="alert">
+    <div className="motion-feedback border-l-2 border-critical bg-surface px-4 py-4" role="alert">
       <div className="flex gap-3">
         <CircleAlert aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-critical" />
         <div>
@@ -130,7 +131,7 @@ export function ErrorState({ title = "Couldn’t load this analysis", detail, on
 }
 
 export function InlineNotice({ children }: { children: ReactNode }) {
-  return <p className="flex items-start gap-2 text-sm text-muted"><AlertCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />{children}</p>;
+  return <p className="motion-feedback flex items-start gap-2 text-sm text-muted"><AlertCircle aria-hidden="true" className="mt-0.5 size-4 shrink-0" />{children}</p>;
 }
 
 export function CopyResult({ copied }: { copied: boolean }) {

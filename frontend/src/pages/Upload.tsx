@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
+import { FileCheck2, UploadCloud } from "lucide-react";
 import { Link } from "react-router-dom";
 import { getAnalysisStatus, streamAnalysisProgress, uploadPcap } from "../api/client";
 import { ErrorState, InlineNotice, LoadingState, PageHeader, Section } from "../components/ui/Primitives";
 import { getApiErrorMessage } from "../lib/api-error";
 import { saveCaptureContext } from "../lib/capture-session";
+import { cn } from "../lib/cn";
 import { formatBytes } from "../lib/format";
 import { recordedAnalysisPath, recordedSampleCaptures, sampleDownloadHref, useTestbedSamples } from "../lib/sample-captures";
 import type { AnalysisStatus, SamplePcap } from "../types";
@@ -27,6 +29,7 @@ export default function Upload() {
   const fileInput = useRef<HTMLInputElement>(null);
   const stream = useRef<EventSource | null>(null);
   const timer = useRef<number | null>(null);
+  const dragDepth = useRef(0);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -34,6 +37,7 @@ export default function Upload() {
   const [error, setError] = useState<string | null>(null);
   const [monitoringMode, setMonitoringMode] = useState<MonitoringMode>("idle");
   const [connectionNote, setConnectionNote] = useState<string | null>(null);
+  const [isDragActive, setIsDragActive] = useState(false);
   const samples = useTestbedSamples();
 
   const clearMonitoring = useCallback(() => {
@@ -97,8 +101,27 @@ export default function Upload() {
     setError(null);
   }
 
+  function dragEnter(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    dragDepth.current += 1;
+    setIsDragActive(true);
+  }
+
+  function dragLeave(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) setIsDragActive(false);
+  }
+
+  function dragOver(event: DragEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
+  }
+
   function drop(event: DragEvent<HTMLDivElement>) {
     event.preventDefault();
+    dragDepth.current = 0;
+    setIsDragActive(false);
     const next = event.dataTransfer.files.item(0);
     if (next) chooseFile(next);
   }
@@ -128,14 +151,17 @@ export default function Upload() {
 
   return (
     <div className="space-y-8">
-      <PageHeader eyebrow="Capture intake" title="Upload an IPsec capture." answer="Janus parses IKE where present, classifies ESP traffic, and audits the negotiated configuration." />
+      <PageHeader eyebrow="Capture intake" title="Upload an IPsec capture." answer="Drop a capture file to see its observed negotiation, traffic patterns, and configuration evidence. Technical details remain available when you need them." />
       <section className="border-y border-rule py-6" aria-labelledby="capture-file">
         <h2 id="capture-file" className="sr-only">Capture file</h2>
-        <div onDrop={drop} onDragOver={(event) => event.preventDefault()} className="grid min-h-48 place-items-center border border-dashed border-rule bg-surface p-6 text-center">
-          <div>
-            <p className="font-medium text-ink">{file ? file.name : "Drop a .pcap or .pcapng file here"}</p>
-            <p className="mt-1 text-sm text-muted">{file ? formatBytes(file.size) : "or choose a file from this device"}</p>
-            <input ref={fileInput} type="file" accept=".pcap,.pcapng" className="sr-only" onChange={(event) => { const next = event.currentTarget.files?.item(0); if (next) chooseFile(next); }} />
+        <div onDrop={drop} onDragEnter={dragEnter} onDragLeave={dragLeave} onDragOver={dragOver} data-drag-active={isDragActive} className={cn("drop-zone grid min-h-52 place-items-center border border-dashed bg-surface p-6 text-center", isDragActive ? "is-drag-active border-accent bg-sunken" : "border-rule")}>
+          <div aria-live="polite">
+            <div className="mx-auto grid size-10 place-items-center border border-rule bg-sunken text-accent">
+              {file ? <FileCheck2 aria-hidden="true" className="size-5" /> : <UploadCloud aria-hidden="true" className="size-5" />}
+            </div>
+            <p className="mt-3 font-medium text-ink">{file ? file.name : isDragActive ? "Release to add this capture" : "Drag a capture here"}</p>
+            <p className="mt-1 text-sm text-muted">{file ? `${formatBytes(file.size)} · ready to analyze` : "or choose a .pcap or .pcapng file from this device"}</p>
+            <input ref={fileInput} type="file" accept=".pcap,.pcapng" className="sr-only" tabIndex={-1} aria-hidden="true" onChange={(event) => { const next = event.currentTarget.files?.item(0); if (next) chooseFile(next); }} />
             <div className="mt-4 flex flex-wrap justify-center gap-3">
               <button type="button" onClick={() => fileInput.current?.click()} className="min-h-10 border border-rule px-4 text-sm font-medium text-ink hover:border-accent focus-visible:outline-none">Choose file</button>
               <button type="button" onClick={() => void submit()} disabled={!file || uploading} className="min-h-10 bg-accent px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-rule hover:bg-accent-strong focus-visible:outline-none">{uploading ? "Uploading…" : "Analyze capture"}</button>

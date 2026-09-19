@@ -12,13 +12,13 @@ export default function Dashboard() {
       <PageHeader
         eyebrow="IPsec protocol analysis"
         title="Start an analysis."
-        answer="Upload an IPsec capture to inspect its negotiated configuration, classify observed ESP traffic, and retain the evidence behind each verdict."
+        answer="Upload a network capture to see what protection was negotiated, what traffic was observed, and the evidence behind each result."
         actions={<><Link to="/upload" className="inline-flex min-h-10 items-center bg-accent px-4 text-sm font-medium text-white transition-colors hover:bg-accent-strong focus-visible:outline-none">Upload capture</Link><Link to={recordedAnalysisPath(recordedSample)} className="inline-flex min-h-10 items-center border border-rule px-4 text-sm font-medium text-ink hover:border-accent focus-visible:outline-none">Open recorded walkthrough</Link></>}
       />
       <section className="grid border-y border-rule md:grid-cols-3" aria-label="Analysis workflow">
-        <WorkflowStep number="01" title="Capture" detail="Upload a .pcap or .pcapng file. Janus retains the returned capture identity in this browser session." />
-        <WorkflowStep number="02" title="Evidence" detail="Inspect observed IKE negotiation, classified ESP flows, and the limits of the capture." />
-        <WorkflowStep number="03" title="Decision" detail="Review the configuration verdict, findings, and generated remediation evidence." />
+        <WorkflowStep number="01" title="Capture" detail="Upload a .pcap or .pcapng file. Your browser retains the returned capture identity for this session." />
+        <WorkflowStep number="02" title="Evidence" detail="Review the observed IKE negotiation, classified ESP flows, and what the capture cannot establish." />
+        <WorkflowStep number="03" title="Decision" detail="Read the configuration verdict, findings, and generated remediation evidence." />
       </section>
       <Section title="Recorded walkthrough" detail="A bundled, fixture-backed result. It is clearly separate from a live testbed capture.">
         <div className="grid gap-4 border border-rule bg-surface p-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">

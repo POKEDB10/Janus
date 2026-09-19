@@ -1,8 +1,42 @@
-@import "@fontsource/ibm-plex-sans/400.css";
-@import "@fontsource/ibm-plex-sans/500.css";
-@import "@fontsource/ibm-plex-sans/600.css";
-@import "@fontsource/ibm-plex-mono/400.css";
-@import "@fontsource/ibm-plex-mono/500.css";
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url("@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-500-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "IBM Plex Sans";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 600;
+  src: url("@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-600-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400;
+  src: url("@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-400-normal.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "IBM Plex Mono";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 500;
+  src: url("@fontsource/ibm-plex-mono/files/ibm-plex-mono-latin-500-normal.woff2") format("woff2");
+}
 
 @tailwind base;
 @tailwind components;
@@ -25,7 +59,25 @@
   --color-info: 71 101 128;
 }
 
-html { min-width: 320px; background: rgb(var(--color-canvas)); }
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --color-canvas: 15 19 25;
+  --color-surface: 22 29 38;
+  --color-sunken: 31 41 53;
+  --color-rule: 65 78 92;
+  --color-ink: 240 245 248;
+  --color-muted: 185 197 207;
+  --color-accent: 108 179 225;
+  --color-accent-strong: 148 205 239;
+  --color-pass: 101 204 139;
+  --color-critical: 255 132 124;
+  --color-high: 255 163 105;
+  --color-medium: 234 187 96;
+  --color-low: 148 187 221;
+  --color-info: 148 187 221;
+}
+
+html { min-width: 320px; background: rgb(var(--color-canvas)); scroll-behavior: smooth; }
 
 body {
   margin: 0;
@@ -41,6 +93,10 @@ body {
 
 button, input, select, textarea { font: inherit; }
 button:not(:disabled), a { -webkit-tap-highlight-color: transparent; }
+button:not(:disabled) { transition: transform 150ms ease-out, border-color 150ms ease-out, background-color 150ms ease-out, color 150ms ease-out; }
+button:not(:disabled):hover { transform: translateY(-1px); }
+button:not(:disabled):active { transform: translateY(0) scale(0.98); }
+input { transition: border-color 150ms ease-out, background-color 150ms ease-out; }
 
 :focus-visible {
   outline: 2px solid rgb(var(--color-accent));
@@ -64,8 +120,25 @@ button:not(:disabled), a { -webkit-tap-highlight-color: transparent; }
 
 .data-number { font-variant-numeric: tabular-nums; }
 
+.motion-enter { animation: janus-enter 180ms ease-out both; }
+.motion-feedback { animation: janus-feedback 150ms ease-out both; }
+
+.drop-zone { transition: transform 180ms ease-out, border-color 180ms ease-out, background-color 180ms ease-out; }
+.drop-zone.is-drag-active { transform: translateY(-2px); }
+
+@keyframes janus-enter {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes janus-feedback {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; }
+  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
+  .motion-enter, .motion-feedback { animation: none; }
 }
 
 @media (min-width: 1024px) {
