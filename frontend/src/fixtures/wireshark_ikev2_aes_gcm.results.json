@@ -1,0 +1,249 @@
+{
+  "capture_id": "wireshark_ikev2_aes_gcm",
+  "filename": "wireshark_ikev2_aes_gcm.pcap",
+  "total_flows": 4,
+  "traffic_distribution": {
+    "VoIP": 1,
+    "Video": 1,
+    "Web": 1,
+    "Email": 0,
+    "ICMP": 1,
+    "Obfuscated": 0
+  },
+  "overall_risk": "LOW",
+  "ike_sessions": [
+    {
+      "initiator_spi": "0x3a4f89b1c2d3e4f5",
+      "responder_spi": "0x7b8c9d0e1f2a3b4c",
+      "version": "IKEv2",
+      "auth_method": "PSK",
+      "sa_lifetime_seconds": 3600,
+      "pfs_enabled": true
+    }
+  ],
+  "flows": [
+    {
+      "flow_id": "flow_0001",
+      "spi": "0x0c9f1a2b",
+      "src_ip": "172.20.1.1",
+      "dst_ip": "172.20.1.2",
+      "src_port": 4500,
+      "dst_port": 4500,
+      "protocol": "ESP",
+      "dscp": 46,
+      "duration_s": 18.4,
+      "packet_count": 920,
+      "byte_count": 174800,
+      "risk_level": "LOW",
+      "is_obfuscated": false,
+      "classification": {
+        "traffic_type": "VoIP",
+        "label": "VoIP",
+        "confidence": 0.96,
+        "shap": {
+          "base_value": 0.2,
+          "output_value": 0.96,
+          "predicted_class": "VoIP",
+          "shap_values": {
+            "iat_mean": 0.35,
+            "pkt_len_iqr": 0.24,
+            "burst_len_mean": 0.18,
+            "pkt_len_mean": -0.05,
+            "byte_rate_bps": -0.04
+          },
+          "contributions": [
+            {
+              "feature_name": "iat_mean",
+              "feature_value": 0.02,
+              "shap_value": 0.35,
+              "contribution": "POSITIVE"
+            },
+            {
+              "feature_name": "pkt_len_iqr",
+              "feature_value": 0,
+              "shap_value": 0.24,
+              "contribution": "POSITIVE"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "flow_id": "flow_0002",
+      "spi": "0x3f4a8b1c",
+      "src_ip": "172.20.1.1",
+      "dst_ip": "172.20.1.2",
+      "src_port": 4500,
+      "dst_port": 4500,
+      "protocol": "ESP",
+      "dscp": 34,
+      "duration_s": 32.1,
+      "packet_count": 3840,
+      "byte_count": 4800000,
+      "risk_level": "LOW",
+      "is_obfuscated": false,
+      "classification": {
+        "traffic_type": "Video",
+        "label": "Video",
+        "confidence": 0.93,
+        "shap": {
+          "base_value": 0.2,
+          "output_value": 0.93,
+          "predicted_class": "Video",
+          "shap_values": {
+            "pkt_len_mean": 0.42,
+            "burst_len_max": 0.28,
+            "byte_rate_bps": 0.19,
+            "forward_byte_ratio": 0.12,
+            "iat_var": -0.08
+          },
+          "contributions": [
+            {
+              "feature_name": "pkt_len_mean",
+              "feature_value": 1250,
+              "shap_value": 0.42,
+              "contribution": "POSITIVE"
+            },
+            {
+              "feature_name": "burst_len_max",
+              "feature_value": 18,
+              "shap_value": 0.28,
+              "contribution": "POSITIVE"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "flow_id": "flow_0003",
+      "spi": "0x7e8d2c4b",
+      "src_ip": "172.20.1.1",
+      "dst_ip": "172.20.1.2",
+      "src_port": 4500,
+      "dst_port": 4500,
+      "protocol": "ESP",
+      "dscp": 0,
+      "duration_s": 12.6,
+      "packet_count": 240,
+      "byte_count": 145000,
+      "risk_level": "INFO",
+      "is_obfuscated": false,
+      "classification": {
+        "traffic_type": "Web",
+        "label": "Web",
+        "confidence": 0.88,
+        "shap": {
+          "base_value": 0.2,
+          "output_value": 0.88,
+          "predicted_class": "Web",
+          "shap_values": {
+            "pkt_len_iqr": 0.38,
+            "forward_packet_ratio": 0.22,
+            "iat_max": 0.15,
+            "burst_count": -0.07
+          },
+          "contributions": [
+            {
+              "feature_name": "pkt_len_iqr",
+              "feature_value": 520,
+              "shap_value": 0.38,
+              "contribution": "POSITIVE"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "flow_id": "flow_0004",
+      "spi": "0x9a8b7c6d",
+      "src_ip": "172.20.1.1",
+      "dst_ip": "172.20.1.2",
+      "src_port": 4500,
+      "dst_port": 4500,
+      "protocol": "ESP",
+      "dscp": 0,
+      "duration_s": 45,
+      "packet_count": 4500,
+      "byte_count": 6480000,
+      "risk_level": "LOW",
+      "is_obfuscated": false,
+      "classification": {
+        "traffic_type": "ICMP",
+        "label": "ICMP",
+        "confidence": 0.91,
+        "shap": {
+          "base_value": 0.2,
+          "output_value": 0.91,
+          "predicted_class": "ICMP",
+          "shap_values": {
+            "pkt_len_var": 0.65,
+            "iat_cv": 0.32
+          },
+          "contributions": [
+            {
+              "feature_name": "pkt_len_var",
+              "feature_value": 0,
+              "shap_value": 0.65,
+              "contribution": "POSITIVE"
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "compliance": {
+    "overall_score": 100,
+    "grade": "A",
+    "summary": "Excellent security posture. Fully compliant with modern RFC 8221, RFC 8247, and NIST recommendations.",
+    "findings": [],
+    "threat_matrix": [
+      {
+        "technique_id": "T1040",
+        "tactic": "Defense",
+        "technique_name": "Strong Cryptographic Protection",
+        "severity": "INFO",
+        "status": "SECURE",
+        "details": "Modern AEAD cipher AES-GCM (128/256-bit) with 16-octet ICV provides authenticated confidentiality.",
+        "affected_parameter": "esp_encryption"
+      },
+      {
+        "technique_id": "T1557",
+        "tactic": "Defense",
+        "technique_name": "Resistant Key Exchange",
+        "severity": "INFO",
+        "status": "SECURE",
+        "details": "DH Group 19 (256-bit ECP / NIST P-256) provides adequate security margin against discrete log attacks.",
+        "affected_parameter": "dh_group"
+      },
+      {
+        "technique_id": "T1584",
+        "tactic": "Defense",
+        "technique_name": "Forward Secrecy Guaranteed",
+        "severity": "INFO",
+        "status": "SECURE",
+        "details": "PFS is active. Each child SA derives independent session keys via fresh DH exchange.",
+        "affected_parameter": "pfs_enabled"
+      }
+    ],
+    "evaluated_parameters": {
+      "esp_encryption": "ENCR_AES_GCM_16",
+      "esp_auth": "AUTH_NONE",
+      "dh_group": 19,
+      "pfs_enabled": true,
+      "sa_lifetime_seconds": 3600,
+      "rsa_key_bits": 3072,
+      "ike_version": "IKEv2",
+      "ike_encryption": null,
+      "ike_auth": null,
+      "ike_dh_group": null,
+      "pqc_status": "CRQC_VULNERABLE",
+      "pqc_algorithm": null,
+      "pqc_hybrid": false
+    },
+    "remediation_config": "# =============================================================================\n# Janus Automated strongSwan Remediation Configuration\n# Generated based on RFC 8221 (ESP), RFC 8247 (IKEv2) & NIST SP 800-77 Rev. 1\n# =============================================================================\n# Status: Configuration already satisfies RFC 8221, RFC 8247 & NIST SP 800-77.\n\nconnections {\n    janus-remediated {\n        version = 2\n        local_addrs = %defaultroute\n        remote_addrs = %any\n\n        local {\n            auth = pubkey\n            certs = cert.pem\n            id = vpn-gateway-01.internal\n        }\n\n        remote {\n            auth = pubkey\n            id = %any\n        }\n\n        # Hardened IKEv2 Proposal: AES-256-GCM (AEAD) + SHA-256 PRF + DH Group 19 (ECP-256)\n        # Complies with RFC 8247 §2.4 (Replaces deprecated DH 1/2/5 & weak MD5/SHA-1)\n        proposals = aes256gcm16-prfsha256-ecp256\n\n        # Enforce 4-hour Phase 1 SA rotation (NIST SP 800-77 1h-8h recommended window)\n        rekey_time = 4h\n\n        children {\n            net-traffic {\n                local_ts = 0.0.0.0/0\n                remote_ts = 0.0.0.0/0\n                mode = tunnel\n\n                # Hardened ESP Proposal: AES-256-GCM-16 AEAD + DH Group 19 (PFS enabled)\n                # Complies with RFC 8221 §5 (Replaces SWEET32-vulnerable 3DES and non-AEAD CBC)\n                esp_proposals = aes256gcm16-ecp256\n\n                # Enforce Perfect Forward Secrecy (PFS) with modern ECP-256 curve\n                dpd_action = restart\n                close_action = restart\n                rekey_time = 4h\n\n                # Auto-labeling support for Janus traffic characterization\n                copy_dscp = out\n                copy_ecn = yes\n            }\n        }\n    }\n}",
+    "pqc_status": "CRQC_VULNERABLE",
+    "pqc_advisory": "Session key exchange relies exclusively on classical asymmetric mathematics (DH/ECDH/RSA). Subject to Harvest Now, Decrypt Later (HNDL) adversaries; vulnerable to polynomial-time factorisation and discrete logarithms via Shor's algorithm on a Cryptanalytically Relevant Quantum Computer (CRQC). NIST SP 800-77 & FIPS 203 recommend upgrading to RFC 9370 hybrid key exchange with ML-KEM.",
+    "generated_at": "2026-09-19T09:15:03.004529+00:00",
+    "capture_id": "wireshark_ikev2_aes_gcm"
+  }
+}

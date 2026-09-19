@@ -25,7 +25,7 @@ export interface SamplePcap { id: string; filename: string; title: string; categ
 export interface SHAPContribution { feature_name: string; feature_value: number; shap_value: number; contribution: "POSITIVE" | "NEGATIVE" | string; }
 export interface SHAPExplanation { base_value: number; predicted_class?: string; output_value?: number; shap_values?: Record<string, number>; contributions?: SHAPContribution[]; }
 export interface ObfuscationDetails { status?: GuardrailStatus | string; raw_prediction?: string; confidence?: number; detected_mechanism?: string; pkt_len_variance?: number; iat_cv?: number; entropy?: number; details?: string; }
-export interface ClassificationResult { label?: string; traffic_type?: string; confidence?: number; is_obfuscated?: boolean; obfuscation_details?: ObfuscationDetails | null; shap?: SHAPExplanation | null; }
+export interface ClassificationResult { label?: string; traffic_type?: string; confidence?: number; calibrated_confidence?: number; raw_confidence?: number; is_obfuscated?: boolean; obfuscation_details?: ObfuscationDetails | null; shap?: SHAPExplanation | null; }
 
 export interface FlowResult {
   flow_id: string; src_ip?: string; dst_ip?: string; spi: string; packet_count: number; duration_s: number;
