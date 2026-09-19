@@ -31,13 +31,13 @@ export default function Compliance() {
   const indeterminate = compliance.overall_score === null || compliance.grade === "N/A";
   const answer = indeterminate
     ? compliance.indeterminate_reason ?? "Not assessable: no IKE handshake in this capture."
-    : `Grade ${compliance.grade}. ${critical} critical, ${high} high findings.`;
+    : `Grade ${compliance.grade}. ${critical} critical, ${high} high findings.${compliance.remediation_config ? " A remediation config is available." : ""}`;
 
   return (
     <div className="space-y-8">
       <PageHeader
-        eyebrow="Configuration audit"
-        title={indeterminate ? "Configuration not assessable." : `Grade ${compliance.grade}.`}
+        eyebrow="Configuration verdict"
+        title={indeterminate ? "Not assessable." : `Grade ${compliance.grade}.`}
         answer={answer}
       />
 

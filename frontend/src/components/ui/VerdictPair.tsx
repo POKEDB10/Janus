@@ -17,11 +17,12 @@ export function VerdictPair({ configuration, traffic }: { configuration: Configu
       </div>
       <div className="grid gap-4 border-t border-rule py-5 lg:grid-cols-[auto_1fr] lg:border-l lg:border-t-0 lg:pl-6">
         <Waves aria-hidden="true" className="size-5 text-accent" />
-        <div className="grid gap-4 sm:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           <Stat label="Traffic verdict" value="ESP" detail="Statistical classifier" />
           <Stat label="Flows" value={traffic.flows} />
           <Stat label="Traffic mix" value={traffic.mix} />
-          <Stat label="Abstained / shaped" value={`${traffic.abstained} / ${traffic.obfuscated}`} />
+          <Stat label="Abstained" value={traffic.abstained} />
+          <Stat label="Traffic shaping" value={traffic.obfuscated ? "Detected" : "Not detected"} />
         </div>
       </div>
     </section>

@@ -1,10 +1,16 @@
-import { useLocation } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import { useCaptureResults } from "../../api/queries";
 import { getCaptureContext, isRecordedSample } from "../../lib/capture-session";
 import { getApiErrorMessage } from "../../lib/api-error";
 import { getFlowDisposition } from "../../types";
 import { ErrorState, LoadingState, SampleStamp } from "../ui/Primitives";
 import { VerdictPair } from "../ui/VerdictPair";
+
+const workspaceTabs = [
+  { segment: "analysis", label: "Flows" },
+  { segment: "compliance", label: "Compliance" },
+  { segment: "report", label: "Report" },
+];
 
 export function CaptureHeader({ captureId }: { captureId: string }) {
   const { search } = useLocation();
@@ -23,9 +29,12 @@ export function CaptureHeader({ captureId }: { captureId: string }) {
   const data = results.data;
   if (!data) return null;
   const compliance = data.compliance;
-  const critical = compliance?.findings.filter((finding) => finding.severity === "CRITICAL").length ?? 0;
-  const high = compliance?.findings.filter((finding) => finding.severity === "HIGH").length ?? 0;
-  const abstained = data.flows.filter((flow) => getFlowDisposition(flow) === "ABSTAINED").length;
+  const critical = compliance?.findings.filter((finding) => finding.severity.toUpperCase() === "CRITICAL").length ?? 0;
+  const high = compliance?.findings.filter((finding) => finding.severity.toUpperCase() === "HIGH").length ?? 0;
+  const abstained = data.flows.filter((flow) => {
+    const disposition = getFlowDisposition(flow);
+    return disposition === "ABSTAINED" || disposition === "LOW_CONFIDENCE";
+  }).length;
   const obfuscated = data.flows.filter((flow) => getFlowDisposition(flow) === "OBFUSCATED").length;
   const trafficMix = Object.values(data.traffic_distribution ?? {}).filter((count) => count > 0).length;
   const reason = compliance?.overall_score === null
@@ -40,6 +49,17 @@ export function CaptureHeader({ captureId }: { captureId: string }) {
           <p className="font-mono text-xs text-muted">{captureId}</p>
         </div>
         <VerdictPair configuration={{ score: compliance?.overall_score ?? null, grade: compliance?.grade ?? "N/A", reason, critical, high }} traffic={{ flows: data.total_flows, mix: trafficMix, abstained, obfuscated }} />
+        <nav className="mt-3 flex gap-4" aria-label="Capture workspace">
+          {workspaceTabs.map((tab) => (
+            <NavLink
+              key={tab.segment}
+              to={`/${tab.segment}/${encodeURIComponent(captureId)}${search}`}
+              className={({ isActive }) => `border-b-2 px-1 pb-2 text-sm font-medium ${isActive ? "border-accent text-ink" : "border-transparent text-muted hover:border-rule hover:text-ink"}`}
+            >
+              {tab.label}
+            </NavLink>
+          ))}
+        </nav>
       </div>
     </div></>
   );
