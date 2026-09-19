@@ -1,9 +1,8 @@
 import { NavLink, useLocation } from "react-router-dom";
 import { useCaptureResults } from "../../api/queries";
 import { getCaptureContext, isRecordedSample } from "../../lib/capture-session";
-import { getApiErrorMessage } from "../../lib/api-error";
 import { getFlowDisposition } from "../../types";
-import { ErrorState, LoadingState, SampleStamp } from "../ui/Primitives";
+import { LoadingState, SampleStamp } from "../ui/Primitives";
 import { VerdictPair } from "../ui/VerdictPair";
 
 const workspaceTabs = [
@@ -23,7 +22,7 @@ export function CaptureHeader({ captureId }: { captureId: string }) {
     if (recorded) {
       return <><SampleStamp /><div className="border-b border-rule bg-surface"><div className="mx-auto max-w-content px-4 py-4 sm:px-6"><p className="font-mono text-xs text-muted">Capture {captureId}</p><p className="mt-1 text-sm text-muted">Recorded sample requested, but no recorded fixture is installed.</p></div></div></>;
     }
-    return <div className="border-b border-rule bg-surface"><div className="mx-auto max-w-content px-4 py-4 sm:px-6"><ErrorState title="Capture verdicts are unavailable" detail={getApiErrorMessage(results.error)} onRetry={() => void results.refetch()} /></div></div>;
+    return null;
   }
 
   const data = results.data;
