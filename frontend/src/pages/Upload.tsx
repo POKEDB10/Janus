@@ -1,19 +1,26 @@
-import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
 import { Link } from "react-router-dom";
-import { API_BASE_URL, getAnalysisStatus, getSamplePcaps, streamAnalysisProgress, uploadPcap } from "../api/client";
+import { getAnalysisStatus, streamAnalysisProgress, uploadPcap } from "../api/client";
 import { ErrorState, InlineNotice, LoadingState, PageHeader, Section } from "../components/ui/Primitives";
 import { getApiErrorMessage } from "../lib/api-error";
 import { saveCaptureContext } from "../lib/capture-session";
 import { formatBytes } from "../lib/format";
+import { recordedAnalysisPath, recordedSampleCaptures, sampleDownloadHref, useTestbedSamples } from "../lib/sample-captures";
 import type { AnalysisStatus, SamplePcap } from "../types";
 
 const statusText: Record<AnalysisStatus["status"], string> = {
   INIT: "Queued", PARSING: "Parsing capture", CLASSIFYING: "Classifying ESP traffic", SCORING: "Auditing configuration", DONE: "Complete", ERROR: "Failed",
 };
 
-function downloadUrl(sample: SamplePcap) {
-  return `${API_BASE_URL}${sample.download_url}`;
+type MonitoringMode = "idle" | "streaming" | "polling";
+
+function mergeStreamStatus(
+  captureId: string,
+  current: AnalysisStatus | null,
+  next: Partial<AnalysisStatus>,
+): AnalysisStatus {
+  const initial: AnalysisStatus = { capture_id: captureId, status: "INIT", progress_pct: 0, logs: [], error: null };
+  return { ...initial, ...current, ...next, error: null };
 }
 
 export default function Upload() {
@@ -25,7 +32,9 @@ export default function Upload() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [status, setStatus] = useState<AnalysisStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const samples = useQuery({ queryKey: ["samples"], queryFn: getSamplePcaps, retry: false });
+  const [monitoringMode, setMonitoringMode] = useState<MonitoringMode>("idle");
+  const [connectionNote, setConnectionNote] = useState<string | null>(null);
+  const samples = useTestbedSamples();
 
   const clearMonitoring = useCallback(() => {
     stream.current?.close();
@@ -38,11 +47,20 @@ export default function Upload() {
     try {
       const next = await getAnalysisStatus(captureId, captureToken);
       setStatus(next);
-      if (next.status === "DONE" || next.status === "ERROR") return;
+      if (next.status === "ERROR") {
+        setError(next.error ?? next.message ?? "The analysis pipeline reported an error.");
+        setMonitoringMode("idle");
+        return;
+      }
+      if (next.status === "DONE") {
+        setMonitoringMode("idle");
+        return;
+      }
       timer.current = window.setTimeout(() => void poll(captureId, captureToken, Math.min(delay * 1.5, 4_000)), delay);
     } catch (pollError) {
       if (failures >= 3) {
-        setError(getApiErrorMessage(pollError));
+        setError(`Unable to retrieve pipeline status after four attempts: ${getApiErrorMessage(pollError)}`);
+        setMonitoringMode("idle");
         return;
       }
       timer.current = window.setTimeout(() => void poll(captureId, captureToken, Math.min(delay * 2, 6_000), failures + 1), delay);
@@ -51,10 +69,20 @@ export default function Upload() {
 
   const monitor = useCallback((captureId: string, captureToken: string | undefined) => {
     clearMonitoring();
+    setMonitoringMode("streaming");
+    setConnectionNote(null);
     stream.current = streamAnalysisProgress(captureId, captureToken, {
-      onProgress: (next) => setStatus((current) => ({ capture_id: captureId, error: null, ...current, ...next })),
-      onDone: (next) => setStatus((current) => ({ capture_id: captureId, error: null, ...current, ...next, status: "DONE", progress_pct: 100 })),
-      onFailure: () => { void poll(captureId, captureToken, 1_000); },
+      onProgress: (next) => setStatus((current) => mergeStreamStatus(captureId, current, next)),
+      onDone: (next) => {
+        setStatus((current) => ({ ...mergeStreamStatus(captureId, current, next), status: "DONE", progress_pct: 100 }));
+        setMonitoringMode("idle");
+      },
+      onFailure: (message) => {
+        clearMonitoring();
+        setMonitoringMode("polling");
+        setConnectionNote(`Live progress disconnected (${message}). Continuing with status polling.`);
+        void poll(captureId, captureToken, 1_000);
+      },
     });
   }, [clearMonitoring, poll]);
 
@@ -77,9 +105,13 @@ export default function Upload() {
 
   async function submit() {
     if (!file) return;
+    clearMonitoring();
     setUploading(true);
+    setUploadProgress(0);
     setError(null);
     setStatus(null);
+    setConnectionNote(null);
+    setMonitoringMode("idle");
     try {
       const response = await uploadPcap(file, setUploadProgress);
       saveCaptureContext(response);
@@ -92,7 +124,7 @@ export default function Upload() {
     }
   }
 
-  const analysisLink = status?.capture_id ? `/analysis/${encodeURIComponent(status.capture_id)}` : null;
+  const analysisLink = status?.status === "DONE" ? `/analysis/${encodeURIComponent(status.capture_id)}` : null;
 
   return (
     <div className="space-y-8">
@@ -114,19 +146,25 @@ export default function Upload() {
       </section>
       {error ? <ErrorState title="Upload or analysis failed" detail={error} onRetry={file ? () => void submit() : undefined} /> : null}
       {status ? (
-        <Section title="Pipeline" detail="Live status is delivered by the analysis service." action={analysisLink ? <Link className="text-sm font-medium text-accent underline underline-offset-4" to={analysisLink}>Open flows</Link> : null}>
+        <Section title="Pipeline" detail="Live status is delivered by the analysis service." action={analysisLink ? <Link className="text-sm font-medium text-accent underline underline-offset-4" to={analysisLink}>Open workspace</Link> : null}>
           <div className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-center"><p className="data-number font-mono text-2xl text-ink">{Math.round(status.progress_pct)}%</p><div><p className="font-medium text-ink">{statusText[status.status]}</p><p className="mt-1 text-sm text-muted">{status.message ?? "Waiting for pipeline status."}</p></div></div>
+          {monitoringMode === "streaming" ? <p className="mt-3 font-mono text-xs text-muted">Receiving live progress events.</p> : null}
+          {monitoringMode === "polling" ? <p className="mt-3 font-mono text-xs text-muted">Polling status while the live stream is unavailable.</p> : null}
+          {connectionNote ? <InlineNotice>{connectionNote}</InlineNotice> : null}
           {status.logs.length ? <pre className="mt-4 max-h-44 overflow-auto border-t border-rule pt-3 font-mono text-xs leading-5 text-muted" aria-live="polite">{status.logs.join("\n")}</pre> : null}
         </Section>
       ) : null}
       {samples.isPending ? <LoadingState label="Loading testbed captures…" /> : null}
       {samples.isError ? <InlineNotice>Sample captures are unavailable: {getApiErrorMessage(samples.error)}</InlineNotice> : null}
       {samples.data?.length === 0 ? <InlineNotice>No sample captures returned by the API.</InlineNotice> : null}
-      {samples.data?.length ? <Section title="Testbed captures" detail="Sample captures from the Janus testbed."><SampleTable samples={samples.data} /></Section> : null}
+      {samples.data?.length ? <Section title="Live testbed captures" detail="Published by the connected Janus service."><SampleTable samples={samples.data} /></Section> : null}
+      <Section title="Recorded walkthrough" detail="Fixture-backed evidence for reviewing the workspace without uploading a file.">
+        <div className="grid gap-px border border-rule bg-rule md:grid-cols-2">{recordedSampleCaptures.map((sample) => <article key={sample.id} className="bg-surface p-4"><p className="font-mono text-xs text-muted">{sample.category} · {sample.rfcStatus} · {sample.cipher}</p><h3 className="mt-2 font-medium text-ink">{sample.title}</h3><p className="mt-1 text-sm text-muted">{sample.description}</p><Link to={recordedAnalysisPath(sample)} className="mt-3 inline-flex text-sm font-medium text-accent underline underline-offset-4">Open recorded evidence</Link></article>)}</div>
+      </Section>
     </div>
   );
 }
 
 function SampleTable({ samples }: { samples: SamplePcap[] }) {
-  return <div className="overflow-x-auto"><table className="w-full min-w-[640px] border-collapse text-left text-sm"><caption className="sr-only">Testbed captures</caption><thead className="border-y border-rule font-mono text-xs text-muted"><tr><th className="px-2 py-2 font-medium">Capture</th><th className="px-2 py-2 font-medium">Category</th><th className="px-2 py-2 font-medium">Cipher</th><th className="px-2 py-2 font-medium">File</th></tr></thead><tbody>{samples.map((sample) => <tr key={sample.id} className="border-b border-rule/70"><td className="px-2 py-3 text-ink">{sample.title}</td><td className="px-2 py-3 text-muted">{sample.category}</td><td className="px-2 py-3 font-mono text-xs text-muted">{sample.cipher}</td><td className="px-2 py-3"><a className="text-accent underline underline-offset-4" href={downloadUrl(sample)} download={sample.filename}>Download .pcap</a></td></tr>)}</tbody></table></div>;
+  return <div className="overflow-x-auto"><table className="w-full min-w-[720px] border-collapse text-left text-sm"><caption className="sr-only">Live testbed captures</caption><thead className="border-y border-rule font-mono text-xs text-muted"><tr><th className="px-2 py-2 font-medium">Capture</th><th className="px-2 py-2 font-medium">Category</th><th className="px-2 py-2 font-medium">RFC status</th><th className="px-2 py-2 font-medium">Cipher</th><th className="px-2 py-2 font-medium">File</th></tr></thead><tbody>{samples.map((sample) => <tr key={sample.id} className="border-b border-rule/70"><td className="px-2 py-3 text-ink"><p>{sample.title}</p><p className="mt-1 text-xs text-muted">{sample.description}</p></td><td className="px-2 py-3 text-muted">{sample.category}</td><td className="px-2 py-3 text-muted">{sample.rfc_status}</td><td className="px-2 py-3 font-mono text-xs text-muted">{sample.cipher}</td><td className="px-2 py-3"><a className="text-accent underline underline-offset-4" href={sampleDownloadHref(sample)} download={sample.filename}>Download .pcap</a></td></tr>)}</tbody></table></div>;
 }

@@ -163,7 +163,7 @@ export async function getSamplePcaps(): Promise<SamplePcap[]> {
   return data;
 }
 
-export type StreamProgress = Pick<AnalysisStatus, "status" | "progress_pct" | "message" | "logs">;
+export type StreamProgress = Pick<AnalysisStatus, "status" | "progress_pct" | "message" | "logs"> & { error?: string | null };
 
 export function streamAnalysisProgress(
   captureId: string,
@@ -178,9 +178,16 @@ export function streamAnalysisProgress(
   if (captureToken) params.set("token", captureToken);
   const query = params.size ? `?${params.toString()}` : "";
   const stream = new EventSource(`${API_BASE_URL}/api/analysis/${encodeURIComponent(captureId)}/stream${query}`);
+  let failed = false;
 
   const parse = (event: MessageEvent<string>): StreamProgress | null => {
     try { return JSON.parse(event.data) as StreamProgress; } catch { return null; }
+  };
+  const fail = (message: string) => {
+    if (failed) return;
+    failed = true;
+    handlers.onFailure(message);
+    stream.close();
   };
 
   stream.addEventListener("progress", (event) => {
@@ -194,12 +201,10 @@ export function streamAnalysisProgress(
   });
   stream.addEventListener("error", (event) => {
     const data = parse(event as MessageEvent<string>);
-    handlers.onFailure(data?.message ?? "The live progress stream disconnected.");
-    stream.close();
+    fail(data?.error ?? data?.message ?? "The live progress stream disconnected.");
   });
   stream.onerror = () => {
-    handlers.onFailure("The live progress stream disconnected.");
-    stream.close();
+    fail("The live progress stream disconnected.");
   };
   return stream;
 }
