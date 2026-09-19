@@ -27,24 +27,11 @@ async def get_compliance_report(capture_id: str) -> ComplianceReportResponse:
         entry = _state_store[capture_id]
         results = entry.get("results") or {}
         comp = results.get("compliance")
-        if comp:
-            score = float(comp.get("overall_score", 0.0))
-            grade = str(comp.get("grade", "F"))
-            cid = capture_id.lower()
-            encr = str(comp.get("evaluated_parameters", {}).get("esp_encryption", "")).lower()
-            is_s4 = (
-                cid == "scenario_04"
-                or cid.startswith("scenario_04")
-                or "weak_3des" in cid
-                or "3des" in encr
-            )
-            if is_s4 and score < 25.0:
-                score = 25.0
-                grade = "F"
+        if comp and comp.get("overall_score") is not None:
             return ComplianceReportResponse(
                 capture_id=capture_id,
-                overall_score=score,
-                grade=grade,
+                overall_score=comp["overall_score"],
+                grade=comp["grade"],
                 summary=comp["summary"],
                 findings=comp.get("findings", []),
                 threat_matrix=comp.get("threat_matrix", []),
@@ -53,19 +40,9 @@ async def get_compliance_report(capture_id: str) -> ComplianceReportResponse:
                 generated_at=comp.get("generated_at", ""),
             )
 
-    # Seamless evaluation for sample scenarios (scenario_01 .. scenario_12)
-    from sample_data import get_sample_compliance_data
-    comp = get_sample_compliance_data(capture_id)
-    return ComplianceReportResponse(
-        capture_id=capture_id,
-        overall_score=comp["overall_score"],
-        grade=comp["grade"],
-        summary=comp["summary"],
-        findings=comp.get("findings", []),
-        threat_matrix=comp.get("threat_matrix", []),
-        evaluated_parameters=comp.get("evaluated_parameters", {}),
-        remediation_config=comp.get("remediation_config", ""),
-        generated_at=comp.get("generated_at", ""),
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=f"Completed compliance report for capture session '{capture_id}' not found.",
     )
 
 

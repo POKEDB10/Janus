@@ -144,8 +144,10 @@ async def get_analysis_results(capture_id: str) -> dict[str, Any]:
     if capture_id in _state_store and _state_store[capture_id].get("status") == "DONE":
         return _state_store[capture_id].get("results", {})
 
-    from sample_data import get_sample_analysis_data
-    return get_sample_analysis_data(capture_id)
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail=f"Completed analysis for capture session '{capture_id}' not found.",
+    )
 
 
 @router.get(

@@ -173,8 +173,6 @@ async def run_analysis_pipeline(
         state_store[capture_id]["message"] = "Evaluating RFC 8221, RFC 8247 & NIST SP 800-77 compliance..."
 
         primary_session = ike_sessions[0] if ike_sessions else None
-        cid = capture_id.lower()
-        fn = str(filename).lower()
 
         # Sensible defaults
         esp_encr = "ENCR_AES_GCM_16"
@@ -205,37 +203,54 @@ async def run_analysis_pipeline(
             sa_lifetime = primary_session.sa_lifetime_seconds
             rsa_bits = primary_session.rsa_key_bits
         else:
-            # Check filename / captureId hints if no direct IKE packet exists
-            is_s4_hint = (
-                cid == "scenario_04"
-                or cid.startswith("scenario_04")
-                or "scenario_04" in fn
-                or "weak_3des" in fn
-                or "legacy_3des" in fn
-                or "3des" in fn
+            # No IKE handshake packets found in capture.
+            # We cannot audit what was never negotiated — mark as INDETERMINATE.
+            # Do NOT infer cipher from filename; that produces false compliance grades.
+            add_log(
+                "WARNING: No IKE_SA_INIT or IKE_AUTH packets found in capture. "
+                "Compliance audit cannot determine negotiated cipher suite. "
+                "Capture may contain only ESP data (key exchange happened off-capture). "
+                "Reporting as INDETERMINATE — upload a full session capture including handshake."
             )
-            is_s7_hint = (
-                cid == "scenario_07"
-                or cid.startswith("scenario_07")
-                or "scenario_07" in fn
-                or "iptfs" in cid
-                or "iptfs" in fn
-                or "obfuscated" in fn
+            state_store[capture_id]["results"] = {
+                "capture_id": capture_id,
+                "status": "INDETERMINATE",
+                "reason": (
+                    "No IKE key-exchange packets found. The PCAP contains ESP payload "
+                    "data but does not include the IKE_SA_INIT / IKE_AUTH handshake. "
+                    "Janus cannot determine which cipher suite was negotiated without "
+                    "observing the handshake. Capture a full session (from first packet) "
+                    "to obtain a valid compliance audit."
+                ),
+                "total_flows": len(classified_flows),
+                "traffic_distribution": {
+                    "VoIP": sum(1 for f in classified_flows if f.get("classification", {}).get("traffic_type") == "VoIP"),
+                    "Video": sum(1 for f in classified_flows if f.get("classification", {}).get("traffic_type") == "Video"),
+                    "Web": sum(1 for f in classified_flows if f.get("classification", {}).get("traffic_type") == "Web"),
+                    "Email": sum(1 for f in classified_flows if f.get("classification", {}).get("traffic_type") == "Email"),
+                    "ICMP": sum(1 for f in classified_flows if f.get("classification", {}).get("traffic_type") == "ICMP"),
+                    "Obfuscated": sum(1 for f in classified_flows if f.get("classification", {}).get("is_obfuscated")),
+                },
+                "flows": classified_flows,
+                "compliance": {
+                    "overall_score": None,
+                    "grade": "N/A",
+                    "status": "INDETERMINATE",
+                    "findings": [],
+                    "indeterminate_reason": "IKE handshake not present in capture.",
+                },
+                "ike_sessions": [],
+                "reports": {},
+            }
+            state_store[capture_id]["status"] = "DONE"
+            state_store[capture_id]["progress_pct"] = 100.0
+            state_store[capture_id]["message"] = (
+                "Analysis complete — traffic classified, but compliance audit is INDETERMINATE "
+                "(no IKE handshake in capture)."
             )
-            if is_s4_hint:
-                esp_encr = "ENCR_3DES"
-                esp_auth = "AUTH_HMAC_MD5_96"
-                dh_group = 2
-                pfs_enabled = False
-                sa_lifetime = 86400
-                rsa_bits = 1024
-            elif is_s7_hint:
-                esp_encr = "ENCR_AES_GCM_16"
-                esp_auth = "AUTH_NONE"
-                dh_group = 20
-                pfs_enabled = True
-                sa_lifetime = 3600
-                rsa_bits = 3072
+            add_log("Pipeline complete: INDETERMINATE compliance (ESP-only capture, no IKE handshake observed).")
+            log.info("Pipeline finished INDETERMINATE for capture_id=%s (no IKE session)", capture_id)
+            return
 
         add_log(f"Cryptographic Audit: Evaluated ESP Cipher={esp_encr}, Auth={esp_auth}, DH Group={dh_group}, PFS={pfs_enabled}")
         await asyncio.sleep(1.0)
@@ -250,17 +265,6 @@ async def run_analysis_pipeline(
             ike_version=primary_session.version if primary_session else "IKEv2",
         )
         compliance_dict = compliance_report.to_dict()
-
-        is_s4_suite = (
-            cid == "scenario_04"
-            or cid.startswith("scenario_04")
-            or "scenario_04" in fn
-            or "weak_3des" in fn
-            or "3des" in str(esp_encr).lower()
-        )
-        if is_s4_suite and compliance_dict.get("overall_score", 0.0) < 25.0:
-            compliance_dict["overall_score"] = 25.0
-            compliance_dict["grade"] = "F"
 
         score = compliance_dict.get("overall_score", 0.0)
         grade = compliance_dict.get("grade", "A")
