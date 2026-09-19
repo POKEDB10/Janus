@@ -173,7 +173,7 @@ export default function Upload() {
       {error ? <ErrorState title="Upload or analysis failed" detail={error} onRetry={file ? () => void submit() : undefined} /> : null}
       {status ? (
         <Section title="Pipeline" detail="Live status is delivered by the analysis service." action={analysisLink ? <Link className="text-sm font-medium text-accent underline underline-offset-4" to={analysisLink}>Open workspace</Link> : null}>
-          <div className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-center"><p className="data-number font-mono text-2xl text-ink">{Math.round(status.progress_pct)}%</p><div><p className="font-medium text-ink">{statusText[status.status]}</p><p className="mt-1 text-sm text-muted">{status.message ?? "Waiting for pipeline status."}</p></div></div>
+          <div className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-center" role="status" aria-live="polite" aria-atomic="true"><p className="data-number font-mono text-2xl text-ink">{Math.round(status.progress_pct)}%</p><div><p className="font-medium text-ink">{statusText[status.status]}</p><p className="mt-1 text-sm text-muted">{status.message ?? "Waiting for pipeline status."}</p></div></div>
           {monitoringMode === "streaming" ? <p className="mt-3 font-mono text-xs text-muted">Receiving live progress events.</p> : null}
           {monitoringMode === "polling" ? <p className="mt-3 font-mono text-xs text-muted">Polling status while the live stream is unavailable.</p> : null}
           {connectionNote ? <InlineNotice>{connectionNote}</InlineNotice> : null}
