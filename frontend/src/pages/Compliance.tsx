@@ -5,6 +5,7 @@ import { ErrorState, InlineNotice, LoadingState, PageHeader } from "../component
 import { FindingsPanel } from "./compliance/FindingsPanel";
 import { PqcPanel } from "./compliance/PqcPanel";
 import { RemediationPanel } from "./compliance/RemediationPanel";
+import { ThreatMatrix } from "./compliance/ThreatMatrix";
 
 export default function Compliance() {
   const { captureId = "" } = useParams();
@@ -52,6 +53,7 @@ export default function Compliance() {
 
       {compliance.findings.length ? <FindingsPanel findings={compliance.findings} /> : <InlineNotice>No findings returned by the API.</InlineNotice>}
       <PqcPanel compliance={compliance} />
+      <ThreatMatrix items={compliance.threat_matrix ?? []} />
     </div>
   );
 }
