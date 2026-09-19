@@ -2,6 +2,7 @@ import { useLocation, useParams } from "react-router-dom";
 import { useCaptureResults } from "../api/queries";
 import { getApiErrorMessage } from "../lib/api-error";
 import { ErrorState, InlineNotice, LoadingState, PageHeader, Section, SeverityBadge } from "../components/ui/Primitives";
+import { RemediationPanel } from "./compliance/RemediationPanel";
 
 export default function Compliance() {
   const { captureId = "" } = useParams();
@@ -44,6 +45,8 @@ export default function Compliance() {
       {indeterminate ? (
         <InlineNotice>{compliance.indeterminate_reason ?? "Not assessable: no IKE handshake in this capture."}</InlineNotice>
       ) : null}
+
+      <RemediationPanel compliance={compliance} />
 
       {compliance.findings.length === 0 ? <InlineNotice>No findings returned by the API.</InlineNotice> : (
         <Section title="Findings" detail="Reported directly by the completed analysis.">

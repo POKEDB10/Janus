@@ -45,7 +45,7 @@ export function CodeBlock({
           <button type="button" onClick={download} className="inline-flex items-center gap-1.5 text-xs font-medium text-accent hover:text-accent-strong"><Download aria-hidden="true" className="size-3.5" />Download</button>
         </div>
       </div>
-      <pre className="max-h-96 overflow-auto p-3 text-xs leading-5 text-ink"><code>{code.split("\n").map((line, index) => <span key={`${index}-${line}`} className={`block ${marked.has(index + 1) ? "bg-medium/15" : ""}`}><span className="mr-4 inline-block w-5 select-none text-right text-muted">{index + 1}</span>{line || " "}</span>)}</code></pre>
+      <pre className="max-h-96 overflow-auto p-3 text-xs leading-5 text-ink"><code>{code.split("\n").map((line, index) => <span key={`${index}-${line}`} className={`block ${marked.has(index + 1) ? "border-l-2 border-accent bg-accent/10 pl-2" : ""}`}><span className="mr-4 inline-block w-5 select-none text-right text-muted">{index + 1}</span>{line || " "}</span>)}</code></pre>
     </div>
   );
 }
