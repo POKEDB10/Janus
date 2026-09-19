@@ -9,7 +9,7 @@ export function ThreatMatrix({ items }: { items: ThreatMatrixItem[] }) {
         <table className="w-full min-w-[760px] border-collapse text-left text-sm">
           <caption className="sr-only">MITRE ATT&CK threat matrix</caption>
           <thead className="border-y border-rule font-mono text-xs text-muted">
-            <tr><th className="px-2 py-2 font-medium">Tactic</th><th className="px-2 py-2 font-medium">Technique</th><th className="px-2 py-2 font-medium">Affected parameter</th><th className="px-2 py-2 font-medium">Status</th><th className="px-2 py-2 font-medium">Detail</th></tr>
+            <tr><th scope="col" className="px-2 py-2 font-medium">Tactic</th><th scope="col" className="px-2 py-2 font-medium">Technique</th><th scope="col" className="px-2 py-2 font-medium">Affected parameter</th><th scope="col" className="px-2 py-2 font-medium">Status</th><th scope="col" className="px-2 py-2 font-medium">Detail</th></tr>
           </thead>
           <tbody>
             {items.map((item) => (

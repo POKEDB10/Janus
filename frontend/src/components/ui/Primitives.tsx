@@ -80,9 +80,9 @@ export function SeverityBadge({ level }: { level: RiskLevel | string }) {
 }
 
 export function GradeMark({ score, grade, label = "Configuration verdict" }: { score: number | null; grade: string; label?: string }) {
-  const state = score === null || grade === "N/A" ? "indeterminate" : score >= 80 ? "pass" : score >= 50 ? "medium" : "critical";
-  const color = state === "pass" ? "text-pass" : state === "medium" ? "text-medium" : state === "critical" ? "text-critical" : "text-muted";
-  const text = state === "indeterminate" ? "Not assessable" : `Grade ${grade}`;
+  const indeterminate = score === null;
+  const color = indeterminate ? "text-muted" : "text-ink";
+  const text = indeterminate ? "Not assessable" : `Grade ${grade}`;
   return (
     <div className="min-w-0">
       <p className="text-xs text-muted">{label}</p>

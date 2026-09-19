@@ -36,7 +36,7 @@ export default function Compliance() {
 
   const critical = compliance.findings.filter((finding) => finding.severity.toUpperCase() === "CRITICAL").length;
   const high = compliance.findings.filter((finding) => finding.severity.toUpperCase() === "HIGH").length;
-  const indeterminate = compliance.overall_score === null || compliance.grade === "N/A";
+  const indeterminate = compliance.overall_score === null;
   const answer = indeterminate
     ? compliance.indeterminate_reason ?? "Not assessable: no IKE handshake in this capture."
     : `Grade ${compliance.grade}. ${critical} critical, ${high} high findings.${compliance.remediation_config ? " A remediation config is available." : ""}`;

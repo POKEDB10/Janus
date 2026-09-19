@@ -13,14 +13,12 @@ export function DataTable<Row>({
   columns,
   rows,
   getRowKey,
-  onRowClick,
   sort,
 }: {
   caption: string;
   columns: DataColumn<Row>[];
   rows: Row[];
   getRowKey: (row: Row, index: number) => string;
-  onRowClick?: (row: Row) => void;
   sort?: { columnId: string; direction: "asc" | "desc"; onChange: (columnId: string) => void };
 }) {
   return (
@@ -39,7 +37,7 @@ export function DataTable<Row>({
         </thead>
         <tbody className="divide-y divide-rule">
           {rows.map((row, index) => (
-            <tr key={getRowKey(row, index)} className={onRowClick ? "cursor-pointer hover:bg-sunken focus-within:bg-sunken" : ""} onClick={() => onRowClick?.(row)}>
+            <tr key={getRowKey(row, index)}>
               {columns.map((column) => <td key={column.id} className={`px-3 py-3 align-top text-ink ${column.className ?? ""}`}>{column.render(row)}</td>)}
             </tr>
           ))}

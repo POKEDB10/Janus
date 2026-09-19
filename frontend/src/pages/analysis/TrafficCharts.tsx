@@ -13,13 +13,15 @@ export function TrafficCharts({ distribution, flows }: { distribution?: Record<s
     const confidence = flow.classification?.calibrated_confidence ?? flow.classification?.confidence;
     return confidence === undefined ? [] : [{ flow: `Flow ${index + 1}`, confidence: Number((confidence * 100).toFixed(1)) }];
   });
+  const distributionSummary = distributionData.map(({ name, count }) => `${name}: ${count}`).join(", ");
+  const confidenceSummary = confidenceData.map(({ flow, confidence }) => `${flow}: ${confidence}%`).join(", ");
 
   if (!distributionData.length && !confidenceData.length) return null;
 
   return (
     <div className="grid gap-8 lg:grid-cols-2">
       <Section title="Traffic distribution" detail="Classified ESP flows by returned traffic type." isEmpty={!distributionData.length}>
-        <div className="h-60" aria-label="Traffic distribution chart">
+        <div className="h-60" role="img" aria-label={`Traffic distribution chart. ${distributionSummary}`}>
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={distributionData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
               <CartesianGrid stroke="rgb(var(--color-rule))" vertical={false} />
@@ -32,7 +34,7 @@ export function TrafficCharts({ distribution, flows }: { distribution?: Record<s
         </div>
       </Section>
       <Section title="Confidence per flow" detail="Returned classifier confidence, shown by flow order." isEmpty={!confidenceData.length}>
-        <div className="h-60" aria-label="Confidence per flow chart">
+        <div className="h-60" role="img" aria-label={`Confidence per flow chart. ${confidenceSummary}`}>
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={confidenceData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
               <CartesianGrid stroke="rgb(var(--color-rule))" vertical={false} />

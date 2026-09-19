@@ -98,9 +98,9 @@ button:not(:disabled):hover { transform: translateY(-1px); }
 button:not(:disabled):active { transform: translateY(0) scale(0.98); }
 input { transition: border-color 150ms ease-out, background-color 150ms ease-out; }
 
-:focus-visible {
-  outline: 2px solid rgb(var(--color-accent));
-  outline-offset: 2px;
+:where(a, button, input, select, textarea, summary):focus-visible {
+  outline: 2px solid rgb(var(--color-accent)) !important;
+  outline-offset: 2px !important;
 }
 
 ::selection { background: rgb(var(--color-accent) / 18%); }
@@ -137,8 +137,7 @@ input { transition: border-color 150ms ease-out, background-color 150ms ease-out
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; }
-  .motion-enter, .motion-feedback { animation: none; }
+  *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
 }
 
 @media (min-width: 1024px) {

@@ -16,7 +16,7 @@ export function RemediationPanel({ compliance }: { compliance: ComplianceReport 
             <table className="w-full min-w-[540px] border-collapse text-left text-sm">
               <caption className="sr-only">Detected cryptographic parameters and required remediation</caption>
               <thead className="border-y border-rule font-mono text-xs text-muted">
-                <tr><th className="px-2 py-2 font-medium">Parameter</th><th className="px-2 py-2 font-medium">Detected</th><th className="px-2 py-2 font-medium">Required</th></tr>
+                <tr><th scope="col" className="px-2 py-2 font-medium">Parameter</th><th scope="col" className="px-2 py-2 font-medium">Detected</th><th scope="col" className="px-2 py-2 font-medium">Required</th></tr>
               </thead>
               <tbody>
                 {comparisons.map((comparison) => (

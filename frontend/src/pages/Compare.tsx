@@ -18,7 +18,7 @@ function dispositionSummary(data: AnalysisResults): string {
 function verdict(data: AnalysisResults): string {
   const compliance = data.compliance;
   if (!compliance) return "Not returned";
-  if (compliance.overall_score === null || compliance.grade === "N/A") return "Not assessable";
+  if (compliance.overall_score === null) return "Not assessable";
   return `Grade ${compliance.grade} · ${compliance.overall_score.toFixed(0)} / 100`;
 }
 
@@ -39,7 +39,7 @@ function ComparisonTable({ left, right, leftId, rightId }: { left: AnalysisResul
     ["Traffic distribution", trafficMix(left), trafficMix(right)],
     ["Flow dispositions", dispositionSummary(left), dispositionSummary(right)],
   ];
-  return <div className="overflow-x-auto"><table className="w-full min-w-[700px] border-collapse text-left"><caption className="sr-only">Completed capture comparison</caption><thead className="border-y border-rule font-mono text-xs text-muted"><tr><th className="px-3 py-2 font-medium">Evidence</th><th className="px-3 py-2 font-medium">{leftId}</th><th className="px-3 py-2 font-medium">{rightId}</th></tr></thead><tbody>{rows.map(([label, leftValue, rightValue]) => <tr key={label} className="border-b border-rule/70"><th scope="row" className="w-44 px-3 py-3 text-sm font-medium text-muted">{label}</th><ComparisonCell>{leftValue}</ComparisonCell><ComparisonCell>{rightValue}</ComparisonCell></tr>)}</tbody></table></div>;
+  return <div className="overflow-x-auto"><table className="w-full min-w-[700px] border-collapse text-left"><caption className="sr-only">Completed capture comparison</caption><thead className="border-y border-rule font-mono text-xs text-muted"><tr><th scope="col" className="px-3 py-2 font-medium">Evidence</th><th scope="col" className="px-3 py-2 font-medium">{leftId}</th><th scope="col" className="px-3 py-2 font-medium">{rightId}</th></tr></thead><tbody>{rows.map(([label, leftValue, rightValue]) => <tr key={label} className="border-b border-rule/70"><th scope="row" className="w-44 px-3 py-3 text-sm font-medium text-muted">{label}</th><ComparisonCell>{leftValue}</ComparisonCell><ComparisonCell>{rightValue}</ComparisonCell></tr>)}</tbody></table></div>;
 }
 
 export default function Compare() {

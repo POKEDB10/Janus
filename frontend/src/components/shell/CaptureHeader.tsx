@@ -47,7 +47,7 @@ export function CaptureHeader({ captureId }: { captureId: string }) {
           <p className="font-medium text-ink">{data.filename ?? context.filename ?? "Capture"}</p>
           <p className="font-mono text-xs text-muted">{captureId}</p>
         </div>
-        <VerdictPair configuration={{ score: compliance?.overall_score ?? null, grade: compliance?.grade ?? "N/A", reason, critical, high }} traffic={{ flows: data.total_flows, mix: trafficMix, abstained, obfuscated }} />
+        <VerdictPair configuration={{ score: compliance?.overall_score ?? null, grade: compliance?.grade ?? "—", reason, critical, high }} traffic={{ flows: data.total_flows, mix: trafficMix, abstained, obfuscated }} />
         <nav className="mt-3 flex gap-4" aria-label="Capture workspace">
           {workspaceTabs.map((tab) => (
             <NavLink
