@@ -7,11 +7,13 @@ import { PqcPanel } from "./compliance/PqcPanel";
 import { RemediationPanel } from "./compliance/RemediationPanel";
 import { ParameterSandbox } from "./compliance/ParameterSandbox";
 import { ThreatMatrix } from "./compliance/ThreatMatrix";
+import { useExplainerDrawer } from "./compliance/ExplainerDrawer";
 
 export default function Compliance() {
   const { captureId = "" } = useParams();
   const { search } = useLocation();
   const results = useCaptureResults(captureId, search);
+  const explainer = useExplainerDrawer();
 
   if (results.isPending) {
     return <LoadingState label="Loading configuration audit…" />;
@@ -52,10 +54,11 @@ export default function Compliance() {
 
       <RemediationPanel compliance={compliance} />
 
-      {compliance.findings.length ? <FindingsPanel findings={compliance.findings} /> : <InlineNotice>No findings returned by the API.</InlineNotice>}
+      {compliance.findings.length ? <FindingsPanel findings={compliance.findings} onExplain={explainer.open} /> : <InlineNotice>No findings returned by the API.</InlineNotice>}
       <PqcPanel compliance={compliance} />
       <ThreatMatrix items={compliance.threat_matrix ?? []} />
       <ParameterSandbox />
+      {explainer.drawer}
     </div>
   );
 }

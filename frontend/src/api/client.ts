@@ -4,6 +4,7 @@ import type {
   AnalysisStatus,
   ComplianceReport,
   ExplainerResponse,
+  Finding,
   FlowResult,
   GenerateReportResponse,
   HealthResponse,
@@ -145,7 +146,7 @@ export function getFlowsCsvUrl(captureId: string): string {
   return `${API_BASE_URL}/api/analysis/${encodeURIComponent(captureId)}/export/csv`;
 }
 
-export async function explainFinding(finding: Record<string, unknown>, topK = 3): Promise<ExplainerResponse> {
+export async function explainFinding(finding: Finding, topK = 3): Promise<ExplainerResponse> {
   const { data } = await apiClient.post<ExplainerResponse>("/api/compliance/explain", { finding, top_k: topK });
   return data;
 }
