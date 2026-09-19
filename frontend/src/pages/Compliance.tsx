@@ -45,10 +45,8 @@ export default function Compliance() {
         <InlineNotice>{compliance.indeterminate_reason ?? "Not assessable: no IKE handshake in this capture."}</InlineNotice>
       ) : null}
 
-      <Section title="Findings" detail="Reported directly by the completed analysis.">
-        {compliance.findings.length === 0 ? (
-          <p className="text-sm text-muted">No findings returned by the API.</p>
-        ) : (
+      {compliance.findings.length === 0 ? <InlineNotice>No findings returned by the API.</InlineNotice> : (
+        <Section title="Findings" detail="Reported directly by the completed analysis.">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[680px] border-collapse text-left text-sm">
               <thead className="border-b border-rule font-mono text-xs text-muted">
@@ -66,8 +64,8 @@ export default function Compliance() {
               </tbody>
             </table>
           </div>
-        )}
-      </Section>
+        </Section>
+      )}
 
       {compliance.pqc_status ? (
         <Section title="Post-quantum readiness">

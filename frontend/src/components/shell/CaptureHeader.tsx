@@ -33,7 +33,7 @@ export function CaptureHeader({ captureId }: { captureId: string }) {
     : undefined;
 
   return (
-    <>{recorded && <SampleStamp />}<div className="border-b border-rule bg-surface">
+    <>{recorded && <SampleStamp />}<div className="bg-surface">
       <div className="mx-auto max-w-content px-4 py-4 sm:px-6">
         <div className="mb-4 flex flex-wrap items-baseline gap-x-4 gap-y-1">
           <p className="font-medium text-ink">{data.filename ?? context.filename ?? "Capture"}</p>

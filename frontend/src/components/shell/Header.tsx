@@ -16,7 +16,16 @@ function StatusCluster() {
   const recorded = isRecordedSample(search);
   const backendLabel = backend.isPending ? "Backend checking" : backend.isSuccess ? "Backend reachable" : "Backend unavailable";
   const modelLabel = backend.isSuccess ? model.isPending ? "Model checking" : model.isSuccess ? "Model metadata loaded" : "Model unavailable" : "Model unknown";
-  return <div className="hidden items-center gap-3 font-mono text-[11px] text-muted lg:flex" aria-label="System status"><span>{backendLabel}</span><span className="h-3 border-l border-rule" /><span>{modelLabel}</span><span className="h-3 border-l border-rule" /><span>{recorded ? "Recorded" : "Live"}</span></div>;
+  const dotColor = backend.isSuccess ? "bg-pass" : backend.isError ? "bg-critical" : "bg-muted";
+  return (
+    <div className="hidden items-center gap-3 font-mono text-xs font-medium text-muted lg:flex" role="status" aria-live="polite" aria-label="System status">
+      <span className="inline-flex items-center gap-1.5"><span aria-hidden="true" className={`size-1.5 rounded-full ${dotColor}`} />{backendLabel}</span>
+      <span className="h-3 border-l border-rule" />
+      <span>{modelLabel}</span>
+      <span className="h-3 border-l border-rule" />
+      <span>{recorded ? "Recorded" : "Live"}</span>
+    </div>
+  );
 }
 
 const linkClass = ({ isActive }: { isActive: boolean }) => `border-b-2 px-1 py-4 text-sm font-medium transition-colors duration-150 ${isActive ? "border-accent text-ink" : "border-transparent text-muted hover:border-rule hover:text-ink"}`;

@@ -34,16 +34,14 @@ export default function Report() {
     <div className="space-y-8">
       <PageHeader eyebrow="Analysis report" title="Report files." answer="Download files only when the analysis service reports that they are ready." />
       {status.isError ? <InlineNotice>Report status is unavailable: {getApiErrorMessage(status.error)}</InlineNotice> : null}
-      <Section title="Downloads">
-        {executive || technical ? (
+      {executive || technical ? (
+        <Section title="Downloads">
           <div className="flex flex-wrap gap-3">
             {executive ? <ReportLink href={executive}>Download executive PDF</ReportLink> : null}
             {technical ? <ReportLink href={technical}>Download technical PDF</ReportLink> : null}
           </div>
-        ) : (
-          <p className="text-sm text-muted">Not returned by the API</p>
-        )}
-      </Section>
+        </Section>
+      ) : <InlineNotice>Not returned by the API</InlineNotice>}
     </div>
   );
 }

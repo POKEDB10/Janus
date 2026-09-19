@@ -119,12 +119,10 @@ export default function Upload() {
           {status.logs.length ? <pre className="mt-4 max-h-44 overflow-auto border-t border-rule pt-3 font-mono text-xs leading-5 text-muted" aria-live="polite">{status.logs.join("\n")}</pre> : null}
         </Section>
       ) : null}
-      <Section title="Testbed captures" detail="Available directly from the configured analysis service.">
-        {samples.isPending ? <LoadingState label="Loading testbed captures…" /> : null}
-        {samples.isError ? <InlineNotice>Sample captures are unavailable: {getApiErrorMessage(samples.error)}</InlineNotice> : null}
-        {samples.data?.length === 0 ? <p className="text-sm text-muted">No samples returned by the API.</p> : null}
-        {samples.data?.length ? <SampleTable samples={samples.data} /> : null}
-      </Section>
+      {samples.isPending ? <LoadingState label="Loading testbed captures…" /> : null}
+      {samples.isError ? <InlineNotice>Sample captures are unavailable: {getApiErrorMessage(samples.error)}</InlineNotice> : null}
+      {samples.data?.length === 0 ? <InlineNotice>No sample captures returned by the API.</InlineNotice> : null}
+      {samples.data?.length ? <Section title="Testbed captures" detail="Sample captures from the Janus testbed."><SampleTable samples={samples.data} /></Section> : null}
     </div>
   );
 }

@@ -14,7 +14,7 @@ export function PageHeader({
   actions?: ReactNode;
 }) {
   return (
-    <header className="grid gap-4 border-b border-rule pb-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+    <header className="grid gap-4 pb-5 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
       <div className="min-w-0">
         {eyebrow ? <p className="mb-1 font-mono text-xs text-muted">{eyebrow}</p> : null}
         <h1 className="text-balance text-[28px] font-semibold leading-tight text-ink">{title}</h1>
@@ -30,14 +30,17 @@ export function Section({
   detail,
   action,
   children,
+  isEmpty = false,
   className = "",
 }: {
   title: string;
   detail?: string;
   action?: ReactNode;
   children: ReactNode;
+  isEmpty?: boolean;
   className?: string;
 }) {
+  if (isEmpty) return null;
   return (
     <section className={`border-t border-rule pt-4 ${className}`} aria-labelledby={title.replace(/\s+/g, "-").toLowerCase()}>
       <div className="mb-4 flex flex-wrap items-start justify-between gap-3">

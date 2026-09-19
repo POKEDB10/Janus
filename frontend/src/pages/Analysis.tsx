@@ -1,7 +1,7 @@
 import { useLocation, useParams } from "react-router-dom";
 import { useCaptureResults } from "../api/queries";
 import { DataTable } from "../components/ui/DataTable";
-import { ErrorState, LoadingState, PageHeader, Section, SeverityBadge } from "../components/ui/Primitives";
+import { EmptyState, ErrorState, LoadingState, PageHeader, Section, SeverityBadge } from "../components/ui/Primitives";
 import { getApiErrorMessage } from "../lib/api-error";
 import { getFlowDisposition, getFlowLabel, type FlowResult } from "../types";
 
@@ -33,8 +33,8 @@ export default function Analysis() {
         title={`${data.total_flows} ESP flows analyzed.`}
         answer={`${abstained} abstained, ${shaped} with traffic shaping detected. Review the classifier decision for each flow below.`}
       />
-      <Section title="Flows" detail="Results returned by the statistical ESP classifier.">
-        {data.flows.length === 0 ? <p className="text-sm text-muted">No flows returned by the API.</p> : (
+      {data.flows.length === 0 ? <EmptyState title="No flows returned" detail="The analysis result did not include ESP flow classifications." /> : (
+        <Section title="Flows" detail="Results returned by the statistical ESP classifier.">
           <DataTable
             caption="Classified ESP flows"
             rows={data.flows}
@@ -48,8 +48,8 @@ export default function Analysis() {
               { id: "risk", label: "Risk", render: (flow) => <SeverityBadge level={flow.risk_level ?? "INFO"} /> },
             ]}
           />
-        )}
-      </Section>
+        </Section>
+      )}
     </div>
   );
 }

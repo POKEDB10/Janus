@@ -16,7 +16,7 @@ const Method = lazy(() => import("./pages/Method"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 function Footer() {
-  return <footer data-secondary-chrome="true" className="border-t border-rule px-4 py-4 sm:px-6"><p className="mx-auto max-w-content text-xs text-muted">SIH26160 · Cipher Ops</p></footer>;
+  return <footer data-secondary-chrome="true" className="border-t border-rule"><p className="mx-auto max-w-content px-4 py-4 text-xs text-muted sm:px-6">SIH26160 · Cipher Ops</p></footer>;
 }
 
 function AppFrame({ children, captureId }: { children: ReactNode; captureId?: string }) {
