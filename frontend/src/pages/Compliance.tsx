@@ -1,7 +1,9 @@
 import { useLocation, useParams } from "react-router-dom";
 import { useCaptureResults } from "../api/queries";
 import { getApiErrorMessage } from "../lib/api-error";
-import { ErrorState, InlineNotice, LoadingState, PageHeader, Section, SeverityBadge } from "../components/ui/Primitives";
+import { ErrorState, InlineNotice, LoadingState, PageHeader } from "../components/ui/Primitives";
+import { FindingsPanel } from "./compliance/FindingsPanel";
+import { PqcPanel } from "./compliance/PqcPanel";
 import { RemediationPanel } from "./compliance/RemediationPanel";
 
 export default function Compliance() {
@@ -48,34 +50,8 @@ export default function Compliance() {
 
       <RemediationPanel compliance={compliance} />
 
-      {compliance.findings.length === 0 ? <InlineNotice>No findings returned by the API.</InlineNotice> : (
-        <Section title="Findings" detail="Reported directly by the completed analysis.">
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[680px] border-collapse text-left text-sm">
-              <thead className="border-b border-rule font-mono text-xs text-muted">
-                <tr><th className="px-2 py-2 font-medium">Severity</th><th className="px-2 py-2 font-medium">Rule</th><th className="px-2 py-2 font-medium">Parameter</th><th className="px-2 py-2 font-medium">Finding</th></tr>
-              </thead>
-              <tbody>
-                {compliance.findings.map((finding) => (
-                  <tr key={`${finding.rule_id}-${finding.parameter}`} className="border-b border-rule/70 align-top">
-                    <td className="px-2 py-3"><SeverityBadge level={finding.severity} /></td>
-                    <td className="px-2 py-3 font-mono text-xs text-ink">{finding.rule_id}</td>
-                    <td className="px-2 py-3 font-mono text-xs text-ink">{finding.parameter}</td>
-                    <td className="px-2 py-3 text-muted">{finding.description}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Section>
-      )}
-
-      {compliance.pqc_status ? (
-        <Section title="Post-quantum readiness">
-          <p className="text-sm text-ink">{compliance.pqc_status}</p>
-          {compliance.pqc_advisory ? <p className="mt-1 text-sm text-muted">{compliance.pqc_advisory}</p> : null}
-        </Section>
-      ) : null}
+      {compliance.findings.length ? <FindingsPanel findings={compliance.findings} /> : <InlineNotice>No findings returned by the API.</InlineNotice>}
+      <PqcPanel compliance={compliance} />
     </div>
   );
 }
