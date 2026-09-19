@@ -11,8 +11,8 @@ const option = (name) => {
 const options = (name) => args.flatMap((value, index) => value === name && args[index + 1] ? [args[index + 1]] : []);
 
 if (args.includes("--help")) {
-  console.log("Usage: node scripts/record-fixtures.mjs --capture <capture-id> [--capture <capture-id>] [--base-url <url>]");
-  console.log("       node scripts/record-fixtures.mjs --all-samples [--base-url <url>]");
+  console.log("Usage: node scripts/record-fixtures.mjs --capture <capture-id> [--capture <capture-id>] [--base-url <url>] [--include-scenario-04]");
+  console.log("       node scripts/record-fixtures.mjs --all-samples [--base-url <url>] [--include-scenario-04]");
   console.log("Reads JANUS_API_KEY or VITE_API_KEY when the backend requires authentication.");
   process.exit(0);
 }
@@ -20,6 +20,7 @@ if (args.includes("--help")) {
 const requestedCaptureIds = options("--capture");
 const baseUrl = (option("--base-url") ?? "http://127.0.0.1:8000").replace(/\/$/, "");
 const apiKey = process.env.JANUS_API_KEY ?? process.env.VITE_API_KEY;
+const includeScenario04 = args.includes("--include-scenario-04");
 
 if (!requestedCaptureIds.length && !args.includes("--all-samples")) {
   console.error("Pass --capture <capture-id> or --all-samples.");
@@ -59,8 +60,8 @@ if (args.includes("--all-samples")) {
 }
 
 for (const captureId of captureIds) {
-  if (captureId.toLowerCase().includes("scenario_04")) {
-    console.warn(`Skipping ${captureId}: scenario_04 may not be recorded until its backend score override is removed and verified.`);
+  if (captureId.toLowerCase().includes("scenario_04") && !includeScenario04) {
+    console.warn(`Skipping ${captureId}: pass --include-scenario-04 after verifying the backend override is removed.`);
     continue;
   }
   await record(captureId, "results", `/api/analysis/${encodeURIComponent(captureId)}/results`);

@@ -8,6 +8,7 @@ import { RemediationPanel } from "./compliance/RemediationPanel";
 import { ParameterSandbox } from "./compliance/ParameterSandbox";
 import { ThreatMatrix } from "./compliance/ThreatMatrix";
 import { useExplainerDrawer } from "./compliance/ExplainerDrawer";
+import { JsonExport } from "./compliance/JsonExport";
 
 export default function Compliance() {
   const { captureId = "" } = useParams();
@@ -46,6 +47,7 @@ export default function Compliance() {
         eyebrow="Configuration verdict"
         title={indeterminate ? "Not assessable." : `Grade ${compliance.grade}.`}
         answer={answer}
+        actions={<JsonExport captureId={captureId} compliance={compliance} />}
       />
 
       {indeterminate ? (
