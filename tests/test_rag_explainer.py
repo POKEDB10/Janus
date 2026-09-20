@@ -21,11 +21,12 @@ from rag.engine.citation_verifier import verifier, CitationVerifier
 from rag.engine.explainer import explainer
 from rag.engine.narrative_writer import narrative_writer
 from rag.index.hybrid_indexer import retriever
+from tests.conftest import TEST_API_KEY
 
 
 @pytest.fixture(scope="module")
 def client():
-    return TestClient(app)
+    return TestClient(app, headers={"X-API-Key": TEST_API_KEY})
 
 
 def test_standards_chunking_and_sanitization():
@@ -198,9 +199,35 @@ def test_backend_explainer_endpoints(client):
     assert len(data["citations"]) > 0
 
     # 2. POST /api/report/{capture_id}/draft-narrative
-    resp_narr = client.post("/api/report/test_session/draft-narrative")
-    assert resp_narr.status_code == 200
-    narr_data = resp_narr.json()
-    assert "executive_narrative" in narr_data
-    assert "technical_narrative" in narr_data
-    assert narr_data["is_grounded"] is True
+    from routes.analysis import _state_store
+
+    _state_store["test_session"] = {
+        "status": "DONE",
+        "results": {
+            "compliance": {
+                "overall_score": 25.0,
+                "grade": "F",
+                "summary": "SWEET32 and Logjam vulnerabilities detected.",
+                "findings": [
+                    {
+                        "rule_id": "RFC8221-ENCR_3DES",
+                        "severity": "HIGH",
+                        "parameter": "ESP Encryption",
+                        "description": "3DES block size is vulnerable to SWEET32.",
+                        "recommendation": "Migrate to AES-256-GCM.",
+                    }
+                ],
+                "threat_matrix": [{"status": "VULNERABLE"}],
+                "evaluated_parameters": {"esp_encryption": "ENCR_3DES"},
+            }
+        },
+    }
+    try:
+        resp_narr = client.post("/api/report/test_session/draft-narrative")
+        assert resp_narr.status_code == 200
+        narr_data = resp_narr.json()
+        assert "executive_narrative" in narr_data
+        assert "technical_narrative" in narr_data
+        assert narr_data["is_grounded"] is True
+    finally:
+        _state_store.pop("test_session", None)

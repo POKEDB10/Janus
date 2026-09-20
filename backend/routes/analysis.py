@@ -13,12 +13,13 @@ import io
 import json
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from fastapi.responses import Response, StreamingResponse
 
 from models import AnalysisResults, AnalysisStatus, FlowResult, PaginatedFlowsResponse, PipelineStatus
+from security import verify_auth_or_token
 
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(verify_auth_or_token)])
 
 # In-memory session store shared across API workers
 _state_store: dict[str, dict[str, Any]] = {}

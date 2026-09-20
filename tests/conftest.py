@@ -18,12 +18,29 @@ async_client                 – httpx.AsyncClient wired to the Janus FastAPI ap
 from __future__ import annotations
 
 import io
+import os
 import struct
 from typing import Any, Dict, List
 
 import numpy as np
 import pytest
 import pytest_asyncio
+
+TEST_API_KEY = "test-only-janus-api-key-42"
+TEST_TOKEN_SECRET = "test-only-janus-token-secret-salt-42"
+
+# Ensure environment variables exist before any test modules import backend.security
+os.environ.setdefault("JANUS_API_KEY", TEST_API_KEY)
+os.environ.setdefault("JANUS_TOKEN_SECRET", TEST_TOKEN_SECRET)
+os.environ.setdefault("JANUS_REQUIRE_AUTH", "true")
+
+
+@pytest.fixture(autouse=True)
+def test_auth_environment(monkeypatch):
+    """Autouse fixture setting test-only auth credentials for all tests."""
+    monkeypatch.setenv("JANUS_API_KEY", TEST_API_KEY)
+    monkeypatch.setenv("JANUS_TOKEN_SECRET", TEST_TOKEN_SECRET)
+    monkeypatch.setenv("JANUS_REQUIRE_AUTH", "true")
 
 
 # ---------------------------------------------------------------------------

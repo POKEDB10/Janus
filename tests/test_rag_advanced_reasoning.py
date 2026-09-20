@@ -22,11 +22,12 @@ from rag.engine.citation_verifier import verifier
 from rag.engine.explainer import explainer
 from rag.engine.serving import server
 from rag.index.hybrid_indexer import retriever
+from tests.conftest import TEST_API_KEY
 
 
 @pytest.fixture(scope="module")
 def client():
-    return TestClient(app)
+    return TestClient(app, headers={"X-API-Key": TEST_API_KEY})
 
 
 def test_expanded_standards_corpus():

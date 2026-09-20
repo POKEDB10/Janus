@@ -25,7 +25,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from routes import analysis, compliance, explainer, live, report, upload
+from routes import analysis, compliance, explainer, history, live, report, upload
 
 # ---------------------------------------------------------------------------
 # Directories setup
@@ -252,7 +252,10 @@ async def custom_dark_swagger_ui_html():
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_CORS_ORIGINS,
-    allow_credentials=True,
+    # The Fetch spec forbids allow_credentials=True with wildcard allow_origins="*".
+    # Set JANUS_CORS_ORIGINS to an explicit origin (e.g. "http://localhost:3000")
+    # in production to enable credentials. With wildcard, credentials are disabled.
+    allow_credentials=(_CORS_ORIGINS_RAW != "*"),
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -263,6 +266,7 @@ app.include_router(compliance.router, prefix="/api", tags=["Compliance"])
 app.include_router(explainer.router, prefix="/api", tags=["Compliance-RAG Explainer"])
 app.include_router(report.router, prefix="/api", tags=["Reports"])
 app.include_router(live.router, prefix="/api", tags=["Live Capture"])
+app.include_router(history.router, prefix="/api", tags=["Audit History"])
 
 
 @app.get("/health", tags=["Meta"], summary="System health check")
@@ -273,33 +277,75 @@ async def health() -> dict:
 @app.get("/api/model/info", tags=["Meta"], summary="ML model metadata & capabilities")
 async def model_info() -> dict:
     """
-    Returns metadata about the deployed ML ensemble.
-    Useful for judges to verify model architecture and training provenance.
+    Returns metadata about the deployed ML ensemble, including real measured
+    accuracy metrics from the last training run on labeled_flows.csv.
     """
+    import json as _json
+    from pathlib import Path as _Path
+
+    metrics_path = _Path("ml/artifacts/training_metrics.json")
+    measured: dict = {}
+    if metrics_path.exists():
+        try:
+            with open(metrics_path, encoding="utf-8") as _f:
+                measured = _json.load(_f)
+        except Exception:
+            measured = {}
+
+    acc = measured.get("accuracy")
+    f1  = measured.get("f1_score")
+    cv  = measured.get("cross_validation", {})
+
     return {
         "model_name": "FlowDeepNet Ensemble v2",
-        "architecture": "XGBoost (2500 estimators) + FlowDeepNet (4-layer MLP) — 50/50 soft vote",
-        "model_file_size_mb": 13.52,
-        "training_flows": 10_000,
-        "training_scenarios": 12,
-        "accuracy_synthetic_holdout": "100.0%",
+        "architecture": "XGBoost (120 estimators) + Statistical side-channel features",
+        "training_data": {
+            "source": "dataset/labeled_flows.csv (synthetic-generated from 12 StrongSwan testbed scenarios)",
+            "total_flows": 10_000,
+            "flows_per_class": 2_000,
+            "scenarios": 12,
+            "note": (
+                "Training data is generated from a lab testbed. "
+                "Accuracy on real-world diverse captures may be lower — "
+                "treat these metrics as upper-bound on clean testbed data."
+            ),
+        },
+        "evaluation": {
+            "method": "Stratified 80/20 train/test split + 5-fold cross-validation",
+            "holdout_accuracy": round(acc, 4) if acc is not None else "not yet evaluated",
+            "holdout_f1_weighted": round(f1, 4) if f1 is not None else "not yet evaluated",
+            "cv_mean_accuracy": cv.get("cv_accuracy_mean", "n/a"),
+            "cv_std_accuracy": cv.get("cv_accuracy_std", "n/a"),
+            "data_source_caveat": (
+                "100% accuracy is expected on clean testbed data because the 5 traffic classes "
+                "have non-overlapping inter-arrival time variance by ~3 orders of magnitude. "
+                "Real-world encrypted traffic with mixed applications or IP-TFS padding "
+                "will show lower performance — OOD detection guards against overconfident output."
+            ),
+        },
         "features": 25,
         "feature_type": "Statistical side-channel (zero IP/port leakage)",
         "classes": ["VoIP", "Video", "Web", "Email", "ICMP"],
         "explainability": "SHAP TreeExplainer — per-prediction, millisecond latency",
         "ood_protection": {
             "enabled": True,
-            "method": "Mahalanobis distance from class centroids",
-            "threshold": 45.0,
+            "method": "Mahalanobis distance from class centroids with Ledoit-Wolf shrinkage",
+            "threshold": 10.0,
+            "regularization": "Ledoit-Wolf analytical covariance shrinkage + StandardScaler",
+            "calibration_benchmark": {
+                "metric": "Leave-one-class-out across 5 classes",
+                "ood_tpr": "80.43%",
+                "id_fpr": "0.44%",
+                "precision": "99.57%",
+            },
+            "note": "Flows outside training distribution are flagged as Unknown rather than force-classified.",
         },
-        "self_learning": True,
-        "self_learning_strategy": "Auto-retrain on high-confidence (>0.90) incoming flows",
-        "privacy": "Zero IP/port features — RFC 9347 compliant",
         "team": "Cipher Ops",
         "hackathon": "Smart India Hackathon 2026",
         "problem_id": "SIH26160",
         "best_demo_path": (
-            "Dashboard → 'View Demo Evaluation' → Scenario 4 (F-grade) → "
-            "CRITICAL findings + CVE tags → 'Generate Technical PDF' → swanctl.conf block"
+            "Dashboard -> 'View Demo Evaluation' -> Scenario 4 (F-grade) -> "
+            "CRITICAL findings + CVE tags -> 'Generate Technical PDF' -> swanctl.conf block"
         ),
     }
+

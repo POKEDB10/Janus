@@ -7,11 +7,12 @@ Endpoints for retrieving capture compliance reports and running ad-hoc parameter
 from __future__ import annotations
 
 from typing import Any
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from compliance.score import evaluator
 from models import AdHocComplianceRequest, ComplianceReportResponse
 from routes.analysis import _state_store
+from security import verify_auth_or_token
 
 router = APIRouter()
 
@@ -20,6 +21,7 @@ router = APIRouter()
     "/compliance/{capture_id}",
     response_model=ComplianceReportResponse,
     summary="Get compliance report for a capture",
+    dependencies=[Depends(verify_auth_or_token)],
 )
 async def get_compliance_report(capture_id: str) -> ComplianceReportResponse:
     """Retrieve full RFC 8221 / RFC 8247 compliance audit and threat matrix for a capture."""

@@ -13,6 +13,7 @@ from fastapi.testclient import TestClient
 from backend.main import app
 from backend.pipeline import run_analysis_pipeline
 from routes.analysis import _state_store
+from tests.conftest import TEST_API_KEY
 
 
 async def _no_delay(_: float) -> None:
@@ -70,7 +71,7 @@ def test_pipeline_results_do_not_depend_on_capture_filename(
 def test_results_route_returns_404_without_completed_session(capture_id: str) -> None:
     """Arbitrary and legacy sample IDs cannot return generated result data."""
     _state_store.pop(capture_id, None)
-    client = TestClient(app, headers={"X-API-Key": "janus-soc-internal-2026"})
+    client = TestClient(app, headers={"X-API-Key": TEST_API_KEY})
 
     response = client.get(f"/api/analysis/{capture_id}/results")
 

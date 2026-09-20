@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
 from models import (
     ExplainFindingRequest,
@@ -26,6 +26,7 @@ from models import (
 from rag.engine.explainer import explainer
 from rag.engine.narrative_writer import narrative_writer
 from routes.analysis import _state_store
+from security import verify_auth_or_token
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,7 @@ async def explain_finding_endpoint(
     "/compliance/{capture_id}/explain-finding/{rule_id}",
     response_model=ExplainerResponseModel,
     summary="Explain a specific session finding by rule ID",
+    dependencies=[Depends(verify_auth_or_token)],
 )
 async def explain_session_finding_endpoint(
     capture_id: str,
@@ -96,6 +98,7 @@ async def explain_session_finding_endpoint(
     "/compliance/{capture_id}/explain-compound",
     response_model=CompoundExplainerResponseModel,
     summary="Explain compound blast-radius for multiple concurrent session findings",
+    dependencies=[Depends(verify_auth_or_token)],
 )
 async def explain_compound_endpoint(
     capture_id: str,
@@ -150,6 +153,7 @@ async def explain_compound_endpoint(
     "/report/{capture_id}/draft-narrative",
     response_model=ReportNarrativeResponseModel,
     summary="Draft executive and technical report narrative prose",
+    dependencies=[Depends(verify_auth_or_token)],
 )
 async def draft_report_narrative_endpoint(
     capture_id: str,
@@ -158,7 +162,7 @@ async def draft_report_narrative_endpoint(
     Draft grounded executive summary narrative and technical assessment prose around
     the deterministic findings table.
     """
-    # Look up session compliance data, or use demo baseline if not yet analyzed
+    # Narratives must be grounded in a completed capture analysis.
     comp_data = None
     analysis_data = None
 
@@ -169,31 +173,10 @@ async def draft_report_narrative_endpoint(
         analysis_data = results
 
     if not comp_data:
-        try:
-            from sample_data import get_sample_compliance_data, get_sample_analysis_data
-            comp_data = get_sample_compliance_data(capture_id)
-            analysis_data = get_sample_analysis_data(capture_id)
-        except Exception:
-            # Fallback to representative demo baseline if ad-hoc
-            comp_data = {
-                "overall_score": 88.0,
-                "grade": "B",
-                "summary": "Baseline IPsec configuration with minor legacy cipher parameters.",
-                "findings": [
-                    {
-                        "rule_id": "RFC8221-ENCR_AES_CBC",
-                        "severity": "LOW",
-                        "parameter": "ESP Encryption",
-                        "description": "AES-CBC lacks AEAD authenticated encryption.",
-                        "recommendation": "Upgrade to AES-256-GCM AEAD.",
-                    }
-                ],
-                "evaluated_parameters": {
-                    "esp_encryption": "ENCR_AES_CBC",
-                    "esp_auth": "AUTH_HMAC_SHA2_256_128",
-                    "dh_group": 19,
-                },
-            }
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Completed analysis for capture session '{capture_id}' not found.",
+        )
 
     res = narrative_writer.draft_narrative(
         capture_id=capture_id,

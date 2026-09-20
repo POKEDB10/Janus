@@ -22,6 +22,11 @@ from parsing.esp_features import ESPFeatureExtractor
 from parsing.ike_parser import IKEParser
 from reports.generator import generate_all_reports
 
+try:
+    from database import record_audit
+except ImportError:
+    from backend.database import record_audit
+
 log = logging.getLogger(__name__)
 
 
@@ -249,6 +254,11 @@ async def run_analysis_pipeline(
                 "(no IKE handshake in capture)."
             )
             add_log("Pipeline complete: INDETERMINATE compliance (ESP-only capture, no IKE handshake observed).")
+            try:
+                fn = state_store.get(capture_id, {}).get("filename") or Path(pcap_path).name
+                record_audit(capture_id, fn, state_store[capture_id]["results"])
+            except Exception as db_exc:
+                log.warning("Failed to record audit in database for %s: %s", capture_id, db_exc)
             log.info("Pipeline finished INDETERMINATE for capture_id=%s (no IKE session)", capture_id)
             return
 
@@ -329,6 +339,11 @@ async def run_analysis_pipeline(
         state_store[capture_id]["status"] = "DONE"
         state_store[capture_id]["progress_pct"] = 100.0
         state_store[capture_id]["message"] = "Analysis complete — all results ready."
+        try:
+            fn = state_store.get(capture_id, {}).get("filename") or Path(pcap_path).name
+            record_audit(capture_id, fn, state_store[capture_id]["results"])
+        except Exception as db_exc:
+            log.warning("Failed to record audit in database for %s: %s", capture_id, db_exc)
         add_log("Pipeline Execution Succeeded: All cryptographic scores, AI attributions, and artifacts ready.")
         log.info("Janus analysis pipeline completed successfully for capture_id=%s", capture_id)
 
