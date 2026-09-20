@@ -42,6 +42,10 @@ class Finding:
     recommendation: str
     references: list[str]
     vulnerability_tag: Optional[str] = None
+    cve_id: Optional[str] = None
+    cwe_id: Optional[str] = None
+    cvss_score: Optional[float] = None
+    nvd_url: Optional[str] = None
 
 
 @dataclass
@@ -68,6 +72,8 @@ class ComplianceReport:
     threat_matrix: list[ThreatMatrixItem] = field(default_factory=list)
     evaluated_parameters: dict[str, Any] = field(default_factory=dict)
     remediation_config: str = ""
+    pqc_status: str = "CRQC_VULNERABLE"  # "CRQC_VULNERABLE", "TRANSITIONAL_HYBRID", "POST_QUANTUM_RESISTANT"
+    pqc_advisory: str = ""
     generated_at: str = field(
         default_factory=lambda: datetime.datetime.now(datetime.timezone.utc).isoformat()
     )
@@ -112,12 +118,35 @@ class ComplianceEvaluator:
         ike_encryption: Optional[str] = None,
         ike_auth: Optional[str] = None,
         ike_dh_group: Optional[int] = None,
+        pqc_hybrid: bool = False,
+        pqc_algorithm: Optional[str] = None,
     ) -> ComplianceReport:
         """
         Evaluate complete IPsec session configuration and compute compliance metrics.
         """
         findings: list[Finding] = []
         threats: list[ThreatMatrixItem] = []
+
+        # Determine Post-Quantum Readiness (RFC 9370 & NIST FIPS 203)
+        if pqc_hybrid and (dh_group is not None or rsa_key_bits is not None):
+            pqc_status = "TRANSITIONAL_HYBRID"
+            alg_label = pqc_algorithm or "ML-KEM-768"
+            pqc_advisory = f"Hybrid post-quantum key exchange active ({alg_label} + Classical DH/ECDH per RFC 9370). Immune to Harvest Now, Decrypt Later (HNDL) attacks."
+        elif pqc_algorithm and not (dh_group is not None or rsa_key_bits is not None):
+            pqc_status = "POST_QUANTUM_RESISTANT"
+            pqc_advisory = f"Pure post-quantum key encapsulation active ({pqc_algorithm}). FIPS 203 / ML-KEM compliant."
+        elif pqc_hybrid:
+            pqc_status = "TRANSITIONAL_HYBRID"
+            pqc_advisory = "Hybrid post-quantum key exchange enabled per RFC 9370."
+        else:
+            pqc_status = "CRQC_VULNERABLE"
+            pqc_advisory = (
+                "Session key exchange relies exclusively on classical asymmetric mathematics (DH/ECDH/RSA). "
+                "Subject to Harvest Now, Decrypt Later (HNDL) adversaries; vulnerable to polynomial-time "
+                "factorisation and discrete logarithms via Shor's algorithm on a Cryptanalytically Relevant Quantum Computer (CRQC). "
+                "NIST SP 800-77 & FIPS 203 recommend upgrading to RFC 9370 hybrid key exchange with ML-KEM."
+            )
+
         evaluated_params: dict[str, Any] = {
             "esp_encryption": esp_encryption,
             "esp_auth": esp_auth,
@@ -129,6 +158,9 @@ class ComplianceEvaluator:
             "ike_encryption": ike_encryption,
             "ike_auth": ike_auth,
             "ike_dh_group": ike_dh_group,
+            "pqc_status": pqc_status,
+            "pqc_algorithm": pqc_algorithm,
+            "pqc_hybrid": pqc_hybrid,
         }
 
         # 1. Evaluate ESP Encryption
@@ -172,6 +204,10 @@ class ComplianceEvaluator:
                         recommendation=encr_rule.remediation,
                         references=[encr_rule.rfc_reference],
                         vulnerability_tag=encr_rule.vulnerability_tag,
+                        cve_id=encr_rule.cve_id,
+                        cwe_id=encr_rule.cwe_id,
+                        cvss_score=encr_rule.cvss_score,
+                        nvd_url=encr_rule.nvd_url,
                     )
                 )
                 threats.append(
@@ -197,6 +233,10 @@ class ComplianceEvaluator:
                         description=encr_rule.description,
                         recommendation=encr_rule.remediation,
                         references=[encr_rule.rfc_reference],
+                        cve_id=encr_rule.cve_id,
+                        cwe_id=encr_rule.cwe_id,
+                        cvss_score=encr_rule.cvss_score,
+                        nvd_url=encr_rule.nvd_url,
                     )
                 )
                 threats.append(
@@ -294,6 +334,10 @@ class ComplianceEvaluator:
                             recommendation=auth_rule.remediation,
                             references=[auth_rule.rfc_reference],
                             vulnerability_tag=auth_rule.vulnerability_tag,
+                            cve_id=auth_rule.cve_id,
+                            cwe_id=auth_rule.cwe_id,
+                            cvss_score=auth_rule.cvss_score,
+                            nvd_url=auth_rule.nvd_url,
                         )
                     )
                     threats.append(
@@ -349,6 +393,10 @@ class ComplianceEvaluator:
                         recommendation=dh_rule.remediation,
                         references=[dh_rule.rfc_reference],
                         vulnerability_tag=dh_rule.vulnerability_tag,
+                        cve_id=dh_rule.cve_id,
+                        cwe_id=dh_rule.cwe_id,
+                        cvss_score=dh_rule.cvss_score,
+                        nvd_url=dh_rule.nvd_url,
                     )
                 )
                 threats.append(
@@ -388,6 +436,9 @@ class ComplianceEvaluator:
                     recommendation="Enable PFS on all Child SA connections by configuring a DH group during rekeying.",
                     references=["NIST SP 800-77 Rev. 1 §4.1", "RFC 7296 §1.3"],
                     vulnerability_tag="Retrospective Decryption Risk",
+                    cwe_id="CWE-655",
+                    cvss_score=5.3,
+                    nvd_url="https://cwe.mitre.org/data/definitions/655.html",
                 )
             )
             threats.append(
@@ -431,6 +482,9 @@ class ComplianceEvaluator:
                         recommendation="Configure Phase 1 (IKE) lifetime to 28800s (8h) and Phase 2 (Child SA) lifetime to 3600s (1h).",
                         references=["NIST SP 800-77 Rev. 1 §4.2"],
                         vulnerability_tag="Key Material Exposure Window",
+                        cwe_id="CWE-326",
+                        cvss_score=4.3,
+                        nvd_url="https://cwe.mitre.org/data/definitions/326.html",
                     )
                 )
                 threats.append(
@@ -459,6 +513,9 @@ class ComplianceEvaluator:
                         recommendation="Upgrade RSA certificates to 2048-bit or 3072-bit minimum, or migrate to ECDSA (P-256 / P-384).",
                         references=["NIST SP 800-77 Rev. 1 §3.2", "NIST SP 800-57 Part 1"],
                         vulnerability_tag="RSA Factorization Vulnerability",
+                        cwe_id="CWE-326",
+                        cvss_score=7.5,
+                        nvd_url="https://cwe.mitre.org/data/definitions/326.html",
                     )
                 )
                 threats.append(
@@ -472,6 +529,9 @@ class ComplianceEvaluator:
                         affected_parameter="rsa_key_bits",
                     )
                 )
+
+        # 7. Post-Quantum Readiness is evaluated in prose via pqc_status and pqc_advisory
+        # (MITRE ATT&CK has no curated technique ID for quantum cryptanalysis / HNDL; do not invent IDs).
 
         # Calculate Overall Compliance Score (0 - 100)
         total_deduction = sum(self.SEVERITY_DEDUCTIONS.get(f.severity, 0.0) for f in findings)
@@ -504,6 +564,8 @@ class ComplianceEvaluator:
             threat_matrix=threats,
             evaluated_parameters=evaluated_params,
             remediation_config=remediation_config,
+            pqc_status=pqc_status,
+            pqc_advisory=pqc_advisory,
         )
 
     def generate_swanctl_remediation(

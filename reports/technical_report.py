@@ -16,6 +16,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from reports.utils import clean_reportlab_text, get_font_names
+
 try:
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import letter
@@ -62,6 +64,8 @@ def generate_technical_pdf(
     )
 
     styles = getSampleStyleSheet()
+    font_regular, font_bold = get_font_names()
+
     primary_color = colors.HexColor("#0f172a")  # Slate 900
     accent_blue = colors.HexColor("#2563eb")    # Blue 600
     bg_light = colors.HexColor("#f8fafc")       # Slate 50
@@ -69,16 +73,16 @@ def generate_technical_pdf(
     title_style = ParagraphStyle(
         "DocTitle",
         parent=styles["Heading1"],
-        fontName="Helvetica-Bold",
-        fontSize=18,
-        leading=22,
+        fontName=font_bold,
+        fontSize=16,
+        leading=20,
         textColor=primary_color,
-        spaceAfter=4,
+        spaceAfter=3,
     )
     subtitle_style = ParagraphStyle(
         "DocSubtitle",
         parent=styles["Normal"],
-        fontName="Helvetica",
+        fontName=font_regular,
         fontSize=9,
         leading=13,
         textColor=colors.HexColor("#64748b"),
@@ -87,7 +91,7 @@ def generate_technical_pdf(
     section_heading = ParagraphStyle(
         "SectionHeading",
         parent=styles["Heading2"],
-        fontName="Helvetica-Bold",
+        fontName=font_bold,
         fontSize=12,
         leading=15,
         textColor=primary_color,
@@ -97,7 +101,7 @@ def generate_technical_pdf(
     body_style = ParagraphStyle(
         "Body",
         parent=styles["Normal"],
-        fontName="Helvetica",
+        fontName=font_regular,
         fontSize=8.5,
         leading=12,
         textColor=colors.HexColor("#334155"),
@@ -127,25 +131,12 @@ def generate_technical_pdf(
     story.append(HRFlowable(width="100%", thickness=1.5, color=accent_blue, spaceBefore=0, spaceAfter=8))
 
     story.append(Paragraph("IPsec VPN Protocol Security & Traffic Analysis Report", title_style))
-    story.append(Paragraph(f"Capture ID: {analysis_data.get('capture_id', 'session_01')}", subtitle_style))
+    safe_cid = clean_reportlab_text(analysis_data.get('capture_id', 'session_01'))
+    story.append(Paragraph(f"Capture ID: {safe_cid}", subtitle_style))
 
     # 1b. Cryptographic Compliance Score & Grade Summary
-    score = float(compliance_data.get("overall_score", 0.0))
-    grade = str(compliance_data.get("grade", "F"))
-    cid = str(analysis_data.get("capture_id", "")).lower()
-    fn = str(analysis_data.get("filename", "")).lower()
-    eval_p = compliance_data.get("evaluated_parameters", {})
-    is_s4 = (
-        cid == "scenario_04"
-        or cid.startswith("scenario_04")
-        or "scenario_04" in fn
-        or "weak_3des" in cid
-        or "weak_3des" in fn
-        or "3des" in str(eval_p.get("esp_encryption", "")).lower()
-    )
-    if is_s4 and score < 25.0:
-        score = 25.0
-        grade = "F"
+    score = float(compliance_data.get("overall_score", 0.0) or 0.0)
+    grade = str(compliance_data.get("grade", "N/A"))
 
     score_color = colors.HexColor("#16a34a") if score >= 80 else (colors.HexColor("#ea580c") if score >= 60 else colors.HexColor("#dc2626"))
 
@@ -277,8 +268,67 @@ def generate_technical_pdf(
 
     story.append(Spacer(1, 10))
 
-    # 3. Section 2: MITRE ATT&CK Threat Matrix
-    story.append(Paragraph("2. Threat Matrix (MITRE ATT&CK Mapping)", section_heading))
+    # 3. Section 2: Cryptographic Findings & CVE / CWE Vulnerability Advisory
+    story.append(Paragraph("2. Cryptographic Compliance Findings & Vulnerability Advisory", section_heading))
+    findings = compliance_data.get("findings", [])
+    if not findings:
+        story.append(Paragraph("[PASS] No compliance violations or cryptographic vulnerabilities detected.", body_style))
+    else:
+        vuln_table_data = [["Rule ID / Parameter", "Severity", "CVE / CWE", "CVSS", "Remediation & Advisory Link"]]
+        for f in findings[:8]:
+            sev = f.get("severity", "MEDIUM")
+            sev_color = "#dc2626" if sev == "CRITICAL" else ("#ea580c" if sev == "HIGH" else ("#d97706" if sev == "MEDIUM" else "#16a34a"))
+
+            cve = f.get("cve_id")
+            cwe = f.get("cwe_id")
+            if cve and cwe:
+                cve_cwe_text = f"<b>{clean_reportlab_text(cve)}</b><br/>{clean_reportlab_text(cwe)}"
+            elif cve:
+                cve_cwe_text = f"<b>{clean_reportlab_text(cve)}</b>"
+            elif cwe:
+                cve_cwe_text = f"<b>{clean_reportlab_text(cwe)}</b>"
+            else:
+                cve_cwe_text = "N/A"
+
+            cvss = f.get("cvss_score")
+            cvss_text = f"{cvss:.1f}" if cvss is not None else "N/A"
+
+            recom = clean_reportlab_text(f.get("recommendation", ""))
+            nvd_url = f.get("nvd_url")
+            url_part = f"<br/><font color='#2563eb'><u>{clean_reportlab_text(nvd_url)}</u></font>" if nvd_url else ""
+
+            rule_id = clean_reportlab_text(f.get("rule_id", "N/A"))
+            param = clean_reportlab_text(f.get("parameter", "N/A"))
+
+            vuln_table_data.append(
+                [
+                    Paragraph(f"<b>{rule_id}</b><br/><font color='#64748b'>{param}</font>", body_style),
+                    Paragraph(f"<font color='{sev_color}'><b>{sev}</b></font>", body_style),
+                    Paragraph(cve_cwe_text, body_style),
+                    Paragraph(cvss_text, body_style),
+                    Paragraph(f"{recom}{url_part}", body_style),
+                ]
+            )
+        vuln_table = Table(vuln_table_data, colWidths=[120, 55, 80, 45, 240])
+        vuln_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, 0), primary_color),
+                    ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("FONTSIZE", (0, 0), (-1, -1), 7.5),
+                    ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#cbd5e1")),
+                    ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, bg_light]),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]
+            )
+        )
+        story.append(vuln_table)
+
+    story.append(Spacer(1, 10))
+
+    # 4. Section 3: MITRE ATT&CK Threat Matrix
+    story.append(Paragraph("3. Threat Matrix (MITRE ATT&CK Mapping)", section_heading))
     threats = compliance_data.get("threat_matrix", [])
     if threats:
         threat_table_data = [["ID", "Tactic / Technique", "Severity", "Status", "Technical Details"]]
@@ -290,8 +340,8 @@ def generate_technical_pdf(
                     Paragraph(t.get("technique_id", "T1040"), code_style),
                     Paragraph(f"<b>{t.get('technique_name', '')}</b><br/><font color='#64748b'>{t.get('tactic', '')}</font>", body_style),
                     Paragraph(f"<font color='{color}'><b>{sev}</b></font>", body_style),
-                    Paragraph(t.get("status", "SECURE"), body_style),
-                    Paragraph(t.get("details", ""), body_style),
+                    Paragraph(clean_reportlab_text(t.get("status", "SECURE")), body_style),
+                    Paragraph(clean_reportlab_text(t.get("details", "")), body_style),
                 ]
             )
         threat_table = Table(threat_table_data, colWidths=[50, 150, 60, 65, 215])
@@ -312,8 +362,8 @@ def generate_technical_pdf(
 
     story.append(Spacer(1, 10))
 
-    # 4. Section 3: ML Traffic Side-Channel Classifier & SHAP
-    story.append(Paragraph("3. ML Traffic Classification & Side-Channel Analysis", section_heading))
+    # 5. Section 4: ML Traffic Side-Channel Classifier & SHAP
+    story.append(Paragraph("4. ML Traffic Classification & Side-Channel Analysis", section_heading))
     flows = analysis_data.get("flows", [])
     if flows:
         flow_table_data = [["Flow ID", "SPI", "Packets", "Predicted Class", "Confidence", "Side-Channel Heuristic"]]
@@ -351,8 +401,8 @@ def generate_technical_pdf(
 
     story.append(Spacer(1, 10))
 
-    # 5. Section 4: strongSwan swanctl.conf Remediation Config
-    story.append(Paragraph("4. Recommended strongSwan Remediation Configuration", section_heading))
+    # 6. Section 5: strongSwan swanctl.conf Remediation Config
+    story.append(Paragraph("5. Recommended strongSwan Remediation Configuration", section_heading))
     config_snippet = compliance_data.get("remediation_config") or (
         "# Recommended hardened swanctl.conf configuration (RFC 8221 & RFC 8247 compliant)\n"
         "connections {\n"
@@ -371,7 +421,7 @@ def generate_technical_pdf(
         "    }\n"
         "}\n"
     )
-    story.append(Preformatted(config_snippet, code_style))
+    story.append(Preformatted(clean_reportlab_text(config_snippet), code_style))
 
     doc.build(story)
     return out_file

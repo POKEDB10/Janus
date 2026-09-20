@@ -16,6 +16,8 @@ import io
 from pathlib import Path
 from typing import Any, Optional
 
+from reports.utils import clean_reportlab_text, get_font_names
+
 try:
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import letter
@@ -62,6 +64,8 @@ def generate_executive_pdf(
     )
 
     styles = getSampleStyleSheet()
+    font_regular, font_bold = get_font_names()
+
     primary_color = colors.HexColor("#0f172a")  # Slate 900
     accent_blue = colors.HexColor("#2563eb")    # Blue 600
     risk_red = colors.HexColor("#dc2626")       # Red 600
@@ -71,16 +75,16 @@ def generate_executive_pdf(
     title_style = ParagraphStyle(
         "DocTitle",
         parent=styles["Heading1"],
-        fontName="Helvetica-Bold",
-        fontSize=20,
-        leading=24,
+        fontName=font_bold,
+        fontSize=18,
+        leading=22,
         textColor=primary_color,
         spaceAfter=4,
     )
     subtitle_style = ParagraphStyle(
         "DocSubtitle",
         parent=styles["Normal"],
-        fontName="Helvetica",
+        fontName=font_regular,
         fontSize=10,
         leading=14,
         textColor=colors.HexColor("#64748b"),
@@ -89,7 +93,7 @@ def generate_executive_pdf(
     section_heading = ParagraphStyle(
         "SectionHeading",
         parent=styles["Heading2"],
-        fontName="Helvetica-Bold",
+        fontName=font_bold,
         fontSize=13,
         leading=16,
         textColor=primary_color,
@@ -99,7 +103,7 @@ def generate_executive_pdf(
     body_style = ParagraphStyle(
         "Body",
         parent=styles["Normal"],
-        fontName="Helvetica",
+        fontName=font_regular,
         fontSize=9,
         leading=13,
         textColor=colors.HexColor("#334155"),
@@ -107,7 +111,7 @@ def generate_executive_pdf(
     bold_body = ParagraphStyle(
         "BoldBody",
         parent=body_style,
-        fontName="Helvetica-Bold",
+        fontName=font_bold,
     )
 
     story = []
@@ -125,29 +129,17 @@ def generate_executive_pdf(
     story.append(HRFlowable(width="100%", thickness=1.5, color=accent_blue, spaceBefore=0, spaceAfter=8))
 
     # 2. Title & Score Highlights
-    score = float(compliance_data.get("overall_score", 0.0))
-    grade = str(compliance_data.get("grade", "F"))
-    cid = str(capture_metadata.get("capture_id", "")).lower()
-    fn = str(capture_metadata.get("filename", "")).lower()
-    eval_p = compliance_data.get("evaluated_parameters", {})
-    is_s4 = (
-        cid == "scenario_04"
-        or cid.startswith("scenario_04")
-        or "scenario_04" in fn
-        or "weak_3des" in cid
-        or "weak_3des" in fn
-        or "3des" in str(eval_p.get("esp_encryption", "")).lower()
-    )
-    if is_s4 and score < 25.0:
-        score = 25.0
-        grade = "F"
+    score = float(compliance_data.get("overall_score", 0.0) or 0.0)
+    grade = str(compliance_data.get("grade", "N/A"))
 
     score_color = risk_green if score >= 80 else (colors.HexColor("#ea580c") if score >= 60 else risk_red)
 
     story.append(Paragraph("Executive Security Evaluation Briefing", title_style))
+    safe_fn = clean_reportlab_text(capture_metadata.get('filename', 'input.pcap'))
+    safe_cid = clean_reportlab_text(capture_metadata.get('capture_id', 'N/A'))
     story.append(
         Paragraph(
-            f"Target Capture: <b>{capture_metadata.get('filename', 'input.pcap')}</b> (Scenario ID: <b>{capture_metadata.get('capture_id', 'N/A')}</b>)",
+            f"Target Capture: <b>{safe_fn}</b> (Scenario ID: <b>{safe_cid}</b>)",
             subtitle_style,
         )
     )
@@ -207,8 +199,7 @@ def generate_executive_pdf(
         alignment=1,
     )
 
-    verdict_summary = compliance_data.get("summary", "Evaluation complete.")
-    verdict_summary = verdict_summary.replace("✓", "").replace("§", "Sec.").replace("—", "-")
+    verdict_summary = clean_reportlab_text(compliance_data.get("summary", "Evaluation complete."))
 
     # Score Box: 3-row layout guarantees F is strictly ABOVE GRADE and 25.0 is strictly ABOVE / 100
     score_box_data = [
@@ -255,13 +246,18 @@ def generate_executive_pdf(
     story.append(Paragraph("Standards Baseline Compliance", section_heading))
     eval_params = compliance_data.get("evaluated_parameters", {})
 
+    pqc_st = compliance_data.get("pqc_status", "CRQC_VULNERABLE")
+    pqc_label = "HYBRID / PQC" if pqc_st in ("POST_QUANTUM_RESISTANT", "TRANSITIONAL_HYBRID") else "Classical Only (CRQC Vulnerable)"
+    pqc_compliance = "SECURE" if pqc_st in ("POST_QUANTUM_RESISTANT", "TRANSITIONAL_HYBRID") else "TRANSITION NEEDED"
+
     matrix_data = [
         ["Standard", "Evaluated Parameter", "Configured Value", "Compliance Status"],
-        ["RFC 8221", "ESP Confidentiality (Cipher)", str(eval_params.get("esp_encryption", "N/A")), "MUST / SHOULD" if "GCM" in str(eval_params.get("esp_encryption", "")) else "REVIEW"],
-        ["RFC 8221", "ESP Integrity (Authentication)", str(eval_params.get("esp_auth", "AEAD Built-in")), "Compliant"],
-        ["RFC 8247", "Diffie-Hellman Key Exchange", f"Group {eval_params.get('dh_group', 'N/A')}", "RECOMMENDED" if str(eval_params.get("dh_group")) in ("19", "20") else "REVIEW"],
+        ["RFC 8221", "ESP Confidentiality (Cipher)", clean_reportlab_text(str(eval_params.get("esp_encryption", "N/A"))), "MUST / SHOULD" if "GCM" in str(eval_params.get("esp_encryption", "")) else "REVIEW"],
+        ["RFC 8221", "ESP Integrity (Authentication)", clean_reportlab_text(str(eval_params.get("esp_auth", "AEAD Built-in"))), "Compliant"],
+        ["RFC 8247", "Diffie-Hellman Key Exchange", clean_reportlab_text(f"Group {eval_params.get('dh_group', 'N/A')}"), "RECOMMENDED" if str(eval_params.get("dh_group")) in ("19", "20") else "REVIEW"],
         ["NIST SP 800-77", "Perfect Forward Secrecy (PFS)", "Enabled" if eval_params.get("pfs_enabled", True) else "DISABLED", "PASS" if eval_params.get("pfs_enabled", True) else "FAIL"],
-        ["NIST SP 800-77", "SA Rotation Lifetime", f"{eval_params.get('sa_lifetime_seconds', 3600)}s", "Compliant (1-8h Window)"],
+        ["NIST SP 800-77", "SA Rotation Lifetime", clean_reportlab_text(f"{eval_params.get('sa_lifetime_seconds', 3600)}s"), "Compliant (1-8h Window)"],
+        ["RFC 9370 / FIPS 203", "Post-Quantum Readiness", clean_reportlab_text(pqc_label), pqc_compliance],
     ]
 
     matrix_table = Table(matrix_data, colWidths=[90, 170, 160, 120])
@@ -297,31 +293,46 @@ def generate_executive_pdf(
             leading=9.5,
             textColor=colors.HexColor("#0f172a"),
         )
-        findings_table_data = [["Severity", "Rule ID", "Parameter", "Description & Risk"]]
+        findings_table_data = [["Severity", "Rule ID", "CVE / CWE", "Parameter", "Description & Remediation"]]
         for f in findings[:6]:  # Show top findings
             sev = f.get("severity", "MEDIUM")
             sev_color = "#dc2626" if sev == "CRITICAL" else ("#ea580c" if sev == "HIGH" else "#475569")
-            desc = f.get("description", "").replace("§", "Sec.").replace("—", "-")
-            recom = f.get("recommendation", "").replace("§", "Sec.").replace("—", "-")
+            desc = clean_reportlab_text(f.get("description", ""))
+            recom = clean_reportlab_text(f.get("recommendation", ""))
+            rule_id_clean = clean_reportlab_text(f.get("rule_id", "N/A"))
+            param_clean = clean_reportlab_text(f.get("parameter", "N/A"))
+
+            cve = f.get("cve_id")
+            cwe = f.get("cwe_id")
+            if cve and cwe:
+                cve_cwe_text = f"<b>{clean_reportlab_text(cve)}</b><br/>{clean_reportlab_text(cwe)}"
+            elif cve:
+                cve_cwe_text = f"<b>{clean_reportlab_text(cve)}</b>"
+            elif cwe:
+                cve_cwe_text = clean_reportlab_text(cwe)
+            else:
+                cve_cwe_text = "N/A"
+
             findings_table_data.append(
                 [
                     Paragraph(f"<font color='{sev_color}'><b>{sev}</b></font>", body_style),
-                    Paragraph(f.get("rule_id", "N/A"), rule_id_style),
-                    Paragraph(f.get("parameter", "N/A"), body_style),
+                    Paragraph(rule_id_clean, rule_id_style),
+                    Paragraph(cve_cwe_text, body_style),
+                    Paragraph(param_clean, body_style),
                     Paragraph(f"<b>{desc}</b><br/><font color='#64748b'>{recom}</font>", body_style),
                 ]
             )
-        findings_table = Table(findings_table_data, colWidths=[60, 130, 100, 250])
+        findings_table = Table(findings_table_data, colWidths=[55, 110, 80, 85, 210])
         findings_table.setStyle(
             TableStyle(
                 [
                     ("BACKGROUND", (0, 0), (-1, 0), primary_color),
                     ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
                     ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                    ("FONTSIZE", (0, 0), (-1, 0), 9),
+                    ("FONTSIZE", (0, 0), (-1, 0), 8.5),
                     ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#e2e8f0")),
                     ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, bg_light]),
-                    ("FONTSIZE", (0, 1), (-1, -1), 8),
+                    ("FONTSIZE", (0, 1), (-1, -1), 7.5),
                     ("VALIGN", (0, 0), (-1, -1), "TOP"),
                 ]
             )

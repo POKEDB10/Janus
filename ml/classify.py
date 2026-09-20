@@ -25,6 +25,7 @@ import numpy as np
 
 from ml.confidence_calibrator import AntiHallucinationCalibrator
 from ml.deep_ensemble import DeepEnsembleClassifier
+from ml.flow_trace_net import FlowTraceClassifier
 from ml.obfuscation_detect import ObfuscationResult, detector
 from ml.train import (
     ARTIFACTS_DIR,
@@ -100,6 +101,7 @@ class FlowClassifier:
         self.feature_names = FEATURE_NAMES
         self.calibrator = AntiHallucinationCalibrator()
         self.deep_ensemble = DeepEnsembleClassifier()
+        self.trace_classifier = FlowTraceClassifier()
         self._load_or_init_model()
         self._fit_calibrator()
 
@@ -157,9 +159,15 @@ class FlowClassifier:
             }
         return {name: 1.0 / len(self.feature_names) for name in self.feature_names}
 
-    def classify_flow(self, features: dict[str, Any]) -> FlowClassification:
+    def classify_flow(
+        self,
+        features: dict[str, Any],
+        packet_trace: Optional[list[list[float]] | np.ndarray] = None,
+        skip_shap: bool = False,
+    ) -> FlowClassification:
         """
         Classify a single flow dictionary and calculate local SHAP explanation.
+        Fuses tabular deep ensemble (XGBoost + FlowDeepNet) with 1D-CNN sequence model (FlowTraceNet).
         """
         # 1. Check for RFC 9347 IP-TFS or traffic shaping obfuscation
         obf_result: ObfuscationResult = detector.evaluate_features(features)
@@ -177,16 +185,30 @@ class FlowClassifier:
         feature_vector = [float(features.get(k, 0.0)) for k in self.feature_names]
         X = np.array([feature_vector], dtype=np.float32)
 
-        # 3. Model Inference (Ensemble Fusion: Fast XGBoost + High-Capacity FlowDeepNet)
+        # 3. Model Inference (Ensemble Fusion: Tabular FlowDeepNet + Sequence FlowTraceNet)
         xgb_probs = self.model.predict_proba(X)[0]
         if self.deep_ensemble.model is not None:
             try:
                 deep_probs = self.deep_ensemble.predict_proba(X)[0]
-                probs = 0.5 * xgb_probs + 0.5 * deep_probs
+                tabular_probs = 0.5 * xgb_probs + 0.5 * deep_probs
             except Exception:
-                probs = xgb_probs
+                tabular_probs = xgb_probs
         else:
-            probs = xgb_probs
+            tabular_probs = xgb_probs
+
+        # Sequence trace probability fusion
+        trace_data = packet_trace if packet_trace is not None else features.get("packet_trace")
+        if trace_data is not None and self.trace_classifier.model is not None:
+            try:
+                trace_probs = self.trace_classifier.predict_proba(trace_data)
+                # Empirically tuned soft voting fusion: 70% Tabular Deep Ensemble + 30% 1D-CNN Sequence Model
+                # (Validated via ml/eval_fusion_ablation.py across clean and network-jitter stress regimes)
+                probs = 0.70 * tabular_probs + 0.30 * trace_probs
+            except Exception as exc:
+                log.debug("Trace classifier fallback to tabular: %s", exc)
+                probs = tabular_probs
+        else:
+            probs = tabular_probs
 
         pred_idx = int(np.argmax(probs))
         raw_pred_label = TARGET_CLASSES[pred_idx] if pred_idx < len(TARGET_CLASSES) else "Unknown"
@@ -220,7 +242,7 @@ class FlowClassifier:
         }
 
         # 4. SHAP Local Explanation
-        shap_exp = self._compute_shap_explanation(X, feature_vector, pred_idx, pred_label)
+        shap_exp = None if skip_shap else self._compute_shap_explanation(X, feature_vector, pred_idx, pred_label)
 
         return FlowClassification(
             predicted_label=pred_label,

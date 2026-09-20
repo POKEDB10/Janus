@@ -1,0 +1,50 @@
+{
+  "benchmark_name": "Janus Adversarial RFC 9347 IP-TFS Robustness Evaluation",
+  "generated_at": "2026-09-18 17:59:21Z",
+  "num_eval_samples": 200,
+  "clean_baseline_accuracy": 0.815,
+  "full_iptfs_obfuscation_tpr": 1.0,
+  "full_iptfs_mahalanobis_distance": 48.46,
+  "levels": [
+    {
+      "padding_ratio": 0.0,
+      "side_channel_accuracy": 0.815,
+      "obfuscation_detector_tpr": 0.185,
+      "mean_mahalanobis_distance": 4.11,
+      "mean_confidence": 0.9953
+    },
+    {
+      "padding_ratio": 0.25,
+      "side_channel_accuracy": 0.74,
+      "obfuscation_detector_tpr": 0.185,
+      "mean_mahalanobis_distance": 15.06,
+      "mean_confidence": 0.5838
+    },
+    {
+      "padding_ratio": 0.5,
+      "side_channel_accuracy": 0.54,
+      "obfuscation_detector_tpr": 0.185,
+      "mean_mahalanobis_distance": 25.11,
+      "mean_confidence": 0.5319
+    },
+    {
+      "padding_ratio": 0.75,
+      "side_channel_accuracy": 0.305,
+      "obfuscation_detector_tpr": 0.295,
+      "mean_mahalanobis_distance": 36.51,
+      "mean_confidence": 0.496
+    },
+    {
+      "padding_ratio": 1.0,
+      "side_channel_accuracy": 0.0,
+      "obfuscation_detector_tpr": 1.0,
+      "mean_mahalanobis_distance": 48.46,
+      "mean_confidence": 0.4212
+    }
+  ],
+  "defense_verdict": {
+    "side_channel_suppression_observed": true,
+    "evasion_detection_successful": true,
+    "conclusion": "PASS: At 100% RFC 9347 shaping, side-channel accuracy drops to 0.0%, while Obfuscation Detector achieves 100.0% TPR and Mahalanobis distance surges to 48.5, proving active evasion detection."
+  }
+}

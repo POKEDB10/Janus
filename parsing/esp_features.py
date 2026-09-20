@@ -1,4 +1,4 @@
-﻿"""
+"""
 Janus Parsing Engine — ESP Flow Feature Extractor
 =================================================
 High-throughput, low-memory ESP packet parsing and side-channel statistical feature
@@ -91,6 +91,38 @@ class ESPFlow:
         if len(self.packets) <= 1:
             return 0.0
         return max(0.0, self.end_time - self.start_time)
+
+    def get_packet_trace(self, max_packets: int = 64) -> list[list[float]]:
+        """
+        Extract raw packet sequence representation as a (3, max_packets) matrix.
+        Channels:
+          0: signed_norm_length (direction * payload_length / 1500.0, forward=+1.0, reverse=-1.0)
+          1: norm_length (payload_length / 1500.0)
+          2: log_iat (log1p(delta_t * 1000.0) normalized)
+        Padded with zeros if flow has fewer than max_packets packets.
+        """
+        trace = [[0.0] * max_packets, [0.0] * max_packets, [0.0] * max_packets]
+        if not self.packets:
+            return trace
+
+        forward_src = self.packets[0].src_ip
+        n = min(len(self.packets), max_packets)
+
+        for i in range(n):
+            pkt = self.packets[i]
+            direction = 1.0 if pkt.src_ip == forward_src else -1.0
+            norm_len = min(1.0, float(pkt.payload_length) / 1500.0)
+            trace[0][i] = round(direction * norm_len, 4)
+            trace[1][i] = round(norm_len, 4)
+
+            if i > 0:
+                delta = max(0.0, pkt.timestamp - self.packets[i - 1].timestamp)
+                log_iat = min(10.0, math.log1p(delta * 1000.0))
+                trace[2][i] = round(log_iat, 4)
+            else:
+                trace[2][i] = 0.0
+
+        return trace
 
 
 @dataclass
@@ -288,8 +320,9 @@ class ESPFeatureExtractor:
     High-performance PCAP parser for ESP traffic using dpkt.
     """
 
-    def __init__(self, pcap_path: str | Path) -> None:
+    def __init__(self, pcap_path: str | Path, include_all_ip: bool = False) -> None:
         self.pcap_path = Path(pcap_path)
+        self.include_all_ip = include_all_ip
 
     def parse_esp_packets(self) -> list[RawESPPacket]:
         """Parse raw ESP packets from PCAP file."""
@@ -364,7 +397,22 @@ class ESPFeatureExtractor:
                                             is_natt=True,
                                         )
                                     )
-                except Exception as e:
+                    # 3. Generic IP traffic (for external generalization benchmarking across heterogenous pcaps)
+                    elif self.include_all_ip:
+                        payload = bytes(ip_layer.data)
+                        packets.append(
+                            RawESPPacket(
+                                timestamp=float(ts),
+                                src_ip=src_ip,
+                                dst_ip=dst_ip,
+                                spi=int(ip_layer.p),
+                                seq_num=0,
+                                wire_length=wire_len,
+                                payload_length=len(payload),
+                                is_natt=False,
+                            )
+                        )
+                except Exception:
                     # Skip malformed packet
                     continue
 
@@ -418,6 +466,7 @@ class ESPFeatureExtractor:
                     "packet_count": len(f.packets),
                     "duration_s": round(f.duration, 4),
                     "features": features.to_dict(),
+                    "packet_trace": f.get_packet_trace(max_packets=64),
                 }
             )
 
