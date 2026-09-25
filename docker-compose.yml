@@ -1,88 +1,78 @@
-version: "3.8"
-
-# ==============================================================================
-# Janus Testbed — Full Stack Docker Compose
-# Runs the FastAPI backend + React frontend alongside the testbed infrastructure
-# ==============================================================================
-
 services:
-  # ============================================================
-  # BACKEND — FastAPI async API server
-  # ============================================================
-  backend:
+  # ============================================================================
+  # JANUS — Unified Production Container (FastAPI + React/Vite SPA + ML Ensemble)
+  # ============================================================================
+  janus:
     build:
       context: .
-      dockerfile: backend/Dockerfile
-    container_name: janus-backend
+      dockerfile: Dockerfile
+    container_name: janus-app
+    restart: unless-stopped
+    # Expose to localhost only (local verification or LAN WireGuard admin)
     ports:
-      - "8000:8000"
-    volumes:
-      - ./dataset:/dataset
-      - ./captures:/captures
-      - ./reports/output:/reports
-      - ./ml/models:/app/ml/models
-      # Mount source for development hot-reload
-      - ./backend:/app/backend
-      - ./parsing:/app/parsing
-      - ./ml:/app/ml
-      - ./compliance:/app/compliance
-      - ./rag:/app/rag
-      - ./reports:/app/reports
-      - ./labeling:/app/labeling
+      - "127.0.0.1:7860:7860"
     environment:
-      - JANUS_CAPTURE_DIR=/captures
-      - JANUS_DATASET_DIR=/dataset
-      - JANUS_REPORTS_DIR=/reports
-      - JANUS_MODEL_DIR=/app/ml/models
-      - JANUS_TSHARK_PATH=/usr/bin/tshark
-      - JANUS_LOG_LEVEL=INFO
+      - PORT=7860
+      - HOST=0.0.0.0
+      - JANUS_REQUIRE_AUTH=${JANUS_REQUIRE_AUTH:-true}
+      - JANUS_API_KEY=${JANUS_API_KEY}
+      - JANUS_TOKEN_SECRET=${JANUS_TOKEN_SECRET}
+      - JANUS_MAX_CONCURRENT_ANALYSES=${JANUS_MAX_CONCURRENT_ANALYSES:-1}
+      - JANUS_LOG_LEVEL=${JANUS_LOG_LEVEL:-INFO}
       - JANUS_MAX_UPLOAD_MB=100
-    # tshark/tcpdump needs packet capture capability for live capture (stub for now)
-    cap_add:
-      - NET_ADMIN
-      - NET_RAW
-    networks:
-      - janus-net
+      - JANUS_DB_PATH=/app/data/janus_audit.db
+    volumes:
+      - janus_captures:/app/captures
+      - janus_reports:/app/reports/output
+      - janus_data:/app/data
+    # Resource limits to protect 4GB host RAM and keep WireGuard alive
+    mem_limit: 2800m
+    mem_reservation: 1500m
+    cpus: 1.5
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 2800M
+        reservations:
+          memory: 1500M
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:7860/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 15s
-    restart: unless-stopped
-
-  # ============================================================
-  # FRONTEND — React dev server (Vite)
-  # In production, build and serve via nginx instead
-  # ============================================================
-  frontend:
-    image: node:20-alpine
-    container_name: janus-frontend
-    working_dir: /app
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
-    ports:
-      - "5173:5173"
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules   # anonymous volume to avoid overwriting container node_modules
-    environment:
-      - VITE_API_URL=http://localhost:8000
-    depends_on:
-      backend:
-        condition: service_healthy
+      start_period: 30s
     networks:
       - janus-net
+
+  # ============================================================================
+  # CLOUDFLARE TUNNEL — Secure outbound edge connector (no public IP / NAT)
+  # ============================================================================
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: janus-tunnel
     restart: unless-stopped
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      janus:
+        condition: service_healthy
+    mem_limit: 128m
+    deploy:
+      resources:
+        limits:
+          cpus: "0.2"
+          memory: 128M
+    networks:
+      - janus-net
 
 networks:
   janus-net:
     driver: bridge
-    ipam:
-      config:
-        - subnet: 172.21.0.0/24
 
 volumes:
-  dataset:
+  janus_captures:
     driver: local
-  captures:
+  janus_reports:
+    driver: local
+  janus_data:
     driver: local

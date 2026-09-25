@@ -17,11 +17,11 @@ from pipeline import run_analysis_pipeline
 from routes.analysis import _state_store
 
 try:
-    from security import verify_auth_or_token
+    from security import verify_admin_api_key
 except ImportError:
-    from backend.security import verify_auth_or_token
+    from backend.security import verify_admin_api_key
 
-router = APIRouter(dependencies=[Depends(verify_auth_or_token)])
+router = APIRouter(dependencies=[Depends(verify_admin_api_key)])
 
 # In-memory live session tracker
 _live_sessions: dict[str, dict[str, Any]] = {}

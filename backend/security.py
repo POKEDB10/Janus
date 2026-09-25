@@ -91,3 +91,35 @@ async def verify_auth_or_token(
         ),
         headers={"WWW-Authenticate": "ApiKey"},
     )
+
+
+async def verify_admin_api_key(
+    request: Request,
+    api_key_h: Optional[str] = Security(api_key_header),
+    api_key_q: Optional[str] = Security(api_key_query),
+) -> None:
+    """
+    Unconditional Admin Route Guard:
+    Enforces master JANUS_API_KEY authentication on privileged routes (/api/live/*, /api/history/*).
+    
+    This function intentionally DOES NOT check JANUS_REQUIRE_AUTH and DOES NOT accept
+    capture ownership tokens. Setting JANUS_REQUIRE_AUTH=false globally CANNOT bypass this guard.
+    """
+    if not JANUS_API_KEY:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Server misconfiguration: JANUS_API_KEY environment variable is not configured.",
+        )
+
+    provided_key = api_key_h or api_key_q
+    auth_header = request.headers.get("authorization", "")
+    if auth_header.lower().startswith("bearer "):
+        provided_key = auth_header[7:].strip()
+
+    if not provided_key or not hmac.compare_digest(provided_key, JANUS_API_KEY):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Admin access denied: valid master 'X-API-Key' or 'Authorization: Bearer <key>' required.",
+            headers={"WWW-Authenticate": "ApiKey"},
+        )
+

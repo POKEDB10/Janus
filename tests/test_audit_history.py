@@ -214,3 +214,27 @@ def test_pipeline_persists_to_database(monkeypatch, temp_db):
     finally:
         Path(tmp_pcap).unlink(missing_ok=True)
 
+
+def test_admin_routes_reject_unauthenticated_even_when_auth_disabled_globally(monkeypatch):
+    """
+    SECURITY TEST:
+    Verify that admin routes (/api/history/* and /api/live/*) strictly enforce JANUS_API_KEY
+    and CANNOT be reopened by setting JANUS_REQUIRE_AUTH=false.
+    """
+    monkeypatch.setenv("JANUS_REQUIRE_AUTH", "false")
+    client = TestClient(app)
+
+    # 1. Unauthenticated request to /api/history must be rejected with 401
+    resp_history = client.get("/api/history")
+    assert resp_history.status_code == 401, f"Expected 401, got {resp_history.status_code}"
+    assert "Admin access denied" in resp_history.json()["detail"] or "Unauthorized" in resp_history.json()["detail"]
+
+    # 2. Unauthenticated request to /api/live/interfaces must be rejected with 401
+    resp_live = client.get("/api/live/interfaces")
+    assert resp_live.status_code == 401, f"Expected 401, got {resp_live.status_code}"
+
+    # 3. Request with valid master API key succeeds
+    resp_authed = client.get("/api/history", headers={"X-API-Key": TEST_API_KEY})
+    assert resp_authed.status_code == 200
+
+

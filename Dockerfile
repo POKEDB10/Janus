@@ -50,18 +50,22 @@ COPY dataset/ ./dataset/
 COPY --from=frontend-builder /build/frontend/dist /app/frontend/dist
 
 # Create runtime directories for captures, database, and generated PDF reports
-RUN mkdir -p /app/captures /app/reports/output /app/dataset
+RUN mkdir -p /app/captures /app/reports/output /app/dataset /app/data
 
 # Non-root user required by Hugging Face Spaces (UID 1000)
 RUN useradd -m -u 1000 user && \
     chown -R user:user /app
 USER user
 
-# Hugging Face Spaces routes inbound traffic to port 7860
+# Service port and runtime defaults
 EXPOSE 7860
 ENV PORT=7860
 ENV HOST=0.0.0.0
-ENV JANUS_REQUIRE_AUTH=false
+ENV JANUS_REQUIRE_AUTH=true
 
-# Start FastAPI serving both backend API and compiled frontend
+# Health check to ensure service readiness before Cloudflare tunnel routing
+HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 \
+    CMD curl -f http://localhost:${PORT:-7860}/health || exit 1
+
+# Start FastAPI serving both backend API and compiled frontend (single worker to bound memory/CPU)
 CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-7860} --workers 1"]

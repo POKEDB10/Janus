@@ -14,12 +14,15 @@ File size limit: 100 MB
 from __future__ import annotations
 
 import logging
+import os
 import struct
+import time
 import uuid
+from collections import defaultdict
 from pathlib import Path
 
 import aiofiles
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, UploadFile, status
 from fastapi.responses import FileResponse
 
 from models import PipelineStatus, UploadResponse
@@ -37,7 +40,8 @@ router = APIRouter()
 # Constants
 # ---------------------------------------------------------------------------
 
-_MAX_UPLOAD_BYTES: int = 100 * 1024 * 1024  # 100 MB
+_MAX_UPLOAD_MB: int = int(os.getenv("JANUS_MAX_UPLOAD_MB", "100"))
+_MAX_UPLOAD_BYTES: int = _MAX_UPLOAD_MB * 1024 * 1024  # Defaults to 100 MB
 
 # PCAP magic bytes (little-endian and big-endian variants, microsecond and nanosecond).
 _PCAP_MAGICS: tuple[bytes, ...] = (
@@ -88,6 +92,32 @@ def _validate_magic(header: bytes, filename: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# In-App Rate Limiting Guard (Sliding Window per IP)
+# ---------------------------------------------------------------------------
+
+_upload_rate_tracker: dict[str, list[float]] = defaultdict(list)
+_MAX_UPLOADS_PER_WINDOW: int = 5
+_RATE_WINDOW_SECONDS: float = 300.0  # 5 uploads per 5 minutes per IP
+
+
+def _enforce_upload_rate_limit(client_ip: str) -> None:
+    """Enforces sliding-window rate limit per client IP to mitigate unauthenticated upload floods."""
+    now = time.time()
+    cutoff = now - _RATE_WINDOW_SECONDS
+    # Evict timestamps older than the sliding window
+    _upload_rate_tracker[client_ip] = [t for t in _upload_rate_tracker[client_ip] if t > cutoff]
+    if len(_upload_rate_tracker[client_ip]) >= _MAX_UPLOADS_PER_WINDOW:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=(
+                f"Rate limit exceeded: maximum {_MAX_UPLOADS_PER_WINDOW} uploads per "
+                f"{int(_RATE_WINDOW_SECONDS // 60)} minutes. Please wait before retrying."
+            ),
+        )
+    _upload_rate_tracker[client_ip].append(now)
+
+
+# ---------------------------------------------------------------------------
 # Upload endpoint
 # ---------------------------------------------------------------------------
 
@@ -107,6 +137,7 @@ def _validate_magic(header: bytes, filename: str) -> None:
 async def upload_pcap(
     file: UploadFile,
     background_tasks: BackgroundTasks,
+    request: Request,
 ) -> UploadResponse:
     """
     Accept a PCAP / PCAPng file upload and enqueue it for analysis.
@@ -125,6 +156,14 @@ async def upload_pcap(
         HTTPException 400: Invalid file extension or magic bytes.
         HTTPException 413: File exceeds the 100 MB limit.
     """
+    # --- Rate limiting guard (respects Cloudflare CF-Connecting-IP) ---
+    client_ip = (
+        request.headers.get("cf-connecting-ip")
+        or request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+        or (request.client.host if request.client else "127.0.0.1")
+    )
+    _enforce_upload_rate_limit(client_ip)
+
     filename = file.filename or "unknown.pcap"
     ext = Path(filename).suffix.lower()
 

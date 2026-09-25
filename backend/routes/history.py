@@ -17,11 +17,11 @@ except ImportError:
     from backend.database import get_audit_by_id, get_audit_history, get_compliance_trend
 
 try:
-    from security import verify_auth_or_token
+    from security import verify_admin_api_key
 except ImportError:
-    from backend.security import verify_auth_or_token
+    from backend.security import verify_admin_api_key
 
-router = APIRouter(dependencies=[Depends(verify_auth_or_token)])
+router = APIRouter(dependencies=[Depends(verify_admin_api_key)])
 
 
 @router.get(
