@@ -18,6 +18,12 @@ if str(_ROOT) not in sys.path:
 if str(_BACKEND) not in sys.path:
     sys.path.insert(0, str(_BACKEND))
 
+# Safe default environment settings for cloud demo execution
+os.environ.setdefault("JANUS_REQUIRE_AUTH", "false")
+os.environ.setdefault("JANUS_API_KEY", "janus-demo-key-2026")
+os.environ.setdefault("JANUS_TOKEN_SECRET", "janus-token-secret-salt-2026")
+os.environ.setdefault("JANUS_CORS_ORIGINS", "*")
+
 import uvicorn
 from backend.main import app
 
