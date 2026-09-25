@@ -6,6 +6,7 @@ import { cn } from "../../lib/cn";
 import { ThemeToggle } from "../ui/ThemeToggle";
 
 const navItems = [
+  { to: "/", label: "Dashboard" },
   { to: "/upload", label: "Analyze" },
   { to: "/compare", label: "Compare" },
   { to: "/method", label: "Method" },
@@ -18,23 +19,34 @@ function StatusCluster() {
   const recorded = isRecordedSample(search);
   const backendLabel = backend.isPending ? "Backend checking" : backend.isSuccess ? "Backend reachable" : "Backend unavailable";
   const modelLabel = backend.isSuccess ? model.isPending ? "Model checking" : model.isSuccess ? "Model metadata loaded" : "Model unavailable" : "Model unknown";
-  const dotColor = backend.isSuccess ? "bg-pass" : backend.isError ? "bg-critical" : "bg-muted";
+  const dotColor = backend.isSuccess ? "bg-pass text-pass" : backend.isError ? "bg-critical text-critical" : "bg-muted text-muted";
   return (
     <div className="hidden items-center gap-3 font-mono text-xs font-medium text-muted lg:flex" role="status" aria-live="polite" aria-label="System status">
-      <span className="inline-flex items-center gap-1.5"><span aria-hidden="true" className={`size-1.5 rounded-full ${dotColor}`} />{backendLabel}</span>
+      <span className="inline-flex items-center gap-2">
+        <span className={cn("size-2 rounded-full transition-colors", dotColor, backend.isSuccess && "live-beacon")} aria-hidden="true" />
+        <span>{backendLabel}</span>
+      </span>
       <span className="h-3 border-l border-rule" />
       <span>{modelLabel}</span>
       <span className="h-3 border-l border-rule" />
-      <span>{recorded ? "Recorded" : "Live"}</span>
+      <span className={cn("px-1.5 py-0.5 rounded text-[11px]", recorded ? "bg-sunken text-muted border border-rule/60" : "bg-pass/10 text-pass border border-pass/30 font-semibold")}>
+        {recorded ? "Recorded" : "Live"}
+      </span>
     </div>
   );
 }
 
-const linkClass = ({ isActive }: { isActive: boolean }) => cn("border-b-2 px-1 py-4 text-sm font-medium transition-colors duration-150", isActive ? "border-accent text-ink" : "border-transparent text-muted hover:border-rule hover:text-ink");
+const linkClass = ({ isActive }: { isActive: boolean }) =>
+  cn(
+    "relative border-b-2 px-1 py-4 text-sm font-medium transition-all duration-200 cursor-pointer",
+    isActive
+      ? "border-accent text-ink font-semibold"
+      : "border-transparent text-muted hover:border-rule hover:text-ink"
+  );
 
 export function Header() {
   return (
-    <header className="sticky top-0 z-header border-b border-rule bg-surface motion-enter">
+    <header className="sticky top-0 z-header border-b border-rule bg-surface/90 backdrop-blur-md transition-colors">
       <nav className="mx-auto flex min-h-14 max-w-content items-center justify-between gap-5 px-4 sm:px-6" aria-label="Primary navigation">
         <NavLink to="/" className="flex shrink-0 items-center gap-2.5 text-ink" aria-label="Janus home">
           <img src="/janus.svg" className="size-5" alt="" />

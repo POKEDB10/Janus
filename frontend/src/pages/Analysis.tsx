@@ -23,7 +23,7 @@ export default function Analysis() {
   const shaped = data.flows.filter((flow) => getFlowDisposition(flow) === "OBFUSCATED").length;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 motion-enter">
       <PageHeader
         eyebrow="Traffic classification"
         title={`${data.total_flows} ESP flows analyzed.`}

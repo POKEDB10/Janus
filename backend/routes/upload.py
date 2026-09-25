@@ -19,11 +19,12 @@ import uuid
 from pathlib import Path
 
 import aiofiles
-from fastapi import APIRouter, BackgroundTasks, HTTPException, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 
-from models import UploadResponse
+from models import PipelineStatus, UploadResponse
 from pipeline import run_analysis_pipeline
+from security import generate_capture_token, verify_auth_or_token
 
 # Shared in-memory state store imported from analysis module.
 from routes.analysis import _state_store
@@ -38,13 +39,23 @@ router = APIRouter()
 
 _MAX_UPLOAD_BYTES: int = 100 * 1024 * 1024  # 100 MB
 
-# PCAP magic bytes (little-endian and big-endian variants).
-_PCAP_MAGIC_LE: bytes = struct.pack("<I", 0xA1B2C3D4)
-_PCAP_MAGIC_BE: bytes = struct.pack(">I", 0xA1B2C3D4)
-# PCAPng section header block magic.
-_PCAPNG_MAGIC: bytes = struct.pack("<I", 0x0A0D0D0A)
+# PCAP magic bytes (little-endian and big-endian variants, microsecond and nanosecond).
+_PCAP_MAGICS: tuple[bytes, ...] = (
+    struct.pack("<I", 0xA1B2C3D4),  # Standard microsecond LE (d4 c3 b2 a1)
+    struct.pack(">I", 0xA1B2C3D4),  # Standard microsecond BE (a1 b2 c3 d4)
+    struct.pack("<I", 0xA1B23C4D),  # Nanosecond LE (4d 3c b2 a1)
+    struct.pack(">I", 0xA1B23C4D),  # Nanosecond BE (a1 b2 3c 4d)
+    struct.pack("<I", 0xA1B2CD34),  # Modified libpcap LE (34 cd b2 a1)
+    struct.pack(">I", 0xA1B2CD34),  # Modified libpcap BE (a1 b2 cd 34)
+    struct.pack("<I", 0x0A0D0D0A),  # PCAPng Section Header (0a 0d 0d 0a)
+    struct.pack(">I", 0x0A0D0D0A),  # PCAPng BE
+    b"\x0a\x0d\x41\x0a",            # PCAPng variation
+    b"\x1f\x8b",                    # Gzip compressed PCAP (.pcap.gz)
+)
 
-_ALLOWED_EXTENSIONS: frozenset[str] = frozenset({".pcap", ".pcapng"})
+_ALLOWED_EXTENSIONS: frozenset[str] = frozenset({
+    ".pcap", ".pcapng", ".cap", ".dmp", ".dump", ".gz"
+})
 
 _CAPTURES_DIR = Path("captures")
 
@@ -65,13 +76,13 @@ def _validate_magic(header: bytes, filename: str) -> None:
     Raises:
         HTTPException: 400 if the magic bytes are not recognised.
     """
-    if header[:4] in (_PCAP_MAGIC_LE, _PCAP_MAGIC_BE, _PCAPNG_MAGIC):
+    if any(header.startswith(m) for m in _PCAP_MAGICS):
         return
     raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
         detail=(
             f"File '{filename}' does not appear to be a valid PCAP or PCAPng file "
-            f"(unrecognised magic bytes: {header[:4].hex()})."
+            f"(unrecognised magic bytes: {header[:4].hex()}). Supported: standard PCAP, nanosecond PCAP, PCAPng, and compressed captures."
         ),
     )
 
@@ -187,11 +198,14 @@ async def upload_pcap(
         state_store=_state_store,
     )
 
+    capture_token = generate_capture_token(capture_id)
+
     return UploadResponse(
         capture_id=capture_id,
         filename=filename,
         size_bytes=total_bytes,
         status="uploaded",
+        capture_token=capture_token,
     )
 
 
@@ -248,7 +262,7 @@ SAMPLE_PCAPS: dict[str, dict] = {
         "description": "Legacy Sweet32-vulnerable capture demonstrating CVE-2016-2183 64-bit block collision risks and Logjam-vulnerable DH group 2.",
         "relative_path": "samples/scenario_04_weak_3des.pcap",
         "external_url": "https://wiki.wireshark.org/SampleCaptures#ipsec",
-        "size_bytes": 41624,
+        "size_bytes": 3616,
     },
     "scenario_01_hardened": {
         "id": "scenario_01_hardened",
@@ -329,4 +343,73 @@ def download_sample_pcap(sample_id: str):
         media_type="application/vnd.tcpdump.pcap",
         headers={"Content-Disposition": f'attachment; filename="{meta["filename"]}"'},
     )
+
+
+@router.post(
+    "/samples/{sample_id}/analyze",
+    response_model=UploadResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Directly enqueue a sample PCAP for live analysis without manual upload",
+    dependencies=[Depends(verify_auth_or_token)],
+)
+@router.post(
+    "/captures/samples/{sample_id}/analyze",
+    response_model=UploadResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Directly enqueue a sample PCAP for live analysis (alias)",
+    dependencies=[Depends(verify_auth_or_token)],
+)
+async def analyze_sample_pcap(
+    sample_id: str,
+    background_tasks: BackgroundTasks,
+) -> UploadResponse:
+    """Load a sample capture from disk and launch the full analysis pipeline immediately."""
+    if sample_id not in SAMPLE_PCAPS:
+        raise HTTPException(status_code=404, detail=f"Sample PCAP '{sample_id}' not found.")
+
+    meta = SAMPLE_PCAPS[sample_id]
+    rel_path = meta["relative_path"]
+    candidates = [
+        _ROOT_DIR / rel_path,
+        Path(rel_path),
+        _ROOT_DIR / "dataset" / "public_pcaps" / meta["filename"],
+    ]
+    file_path = next((p for p in candidates if p.exists() and p.is_file()), None)
+    if not file_path:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Sample PCAP file for '{sample_id}' not found on server disk.",
+        )
+
+    raw_content = file_path.read_bytes()
+    capture_id = str(uuid.uuid4())
+    capture_dir = _CAPTURES_DIR / capture_id
+    capture_dir.mkdir(parents=True, exist_ok=True)
+    pcap_path = capture_dir / "input.pcap"
+    pcap_path.write_bytes(raw_content)
+
+    _state_store[capture_id] = {
+        "status": "INIT",
+        "filename": meta["filename"],
+        "size_bytes": len(raw_content),
+        "results": None,
+        "error": None,
+    }
+
+    background_tasks.add_task(
+        run_analysis_pipeline,
+        capture_id=capture_id,
+        pcap_path=str(pcap_path),
+        state_store=_state_store,
+    )
+
+    capture_token = generate_capture_token(capture_id)
+    return UploadResponse(
+        capture_id=capture_id,
+        filename=meta["filename"],
+        size_bytes=len(raw_content),
+        status=PipelineStatus.INIT,
+        capture_token=capture_token,
+    )
+
 

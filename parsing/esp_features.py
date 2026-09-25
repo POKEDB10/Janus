@@ -28,6 +28,8 @@ try:
 except ImportError:
     dpkt = None  # Handled with friendly error on execution
 
+from parsing.ike_parser import _extract_ip_layer
+
 log = logging.getLogger(__name__)
 
 # Protocol Constants
@@ -345,13 +347,14 @@ class ESPFeatureExtractor:
                     log.error("Failed to open PCAP/PCAPNG with dpkt: %s", exc)
                     raise
 
+            datalink = pcap.datalink() if hasattr(pcap, "datalink") and callable(pcap.datalink) else 1
+
             for ts, buf in pcap:
                 try:
-                    eth = dpkt.ethernet.Ethernet(buf)
-                    if not isinstance(eth.data, (dpkt.ip.IP, dpkt.ip6.IP6)):
+                    ip_layer = _extract_ip_layer(buf, datalink)
+                    if ip_layer is None or not isinstance(ip_layer, (dpkt.ip.IP, dpkt.ip6.IP6)):
                         continue
 
-                    ip_layer = eth.data
                     src_ip = ".".join(map(str, ip_layer.src)) if isinstance(ip_layer, dpkt.ip.IP) else str(ip_layer.src)
                     dst_ip = ".".join(map(str, ip_layer.dst)) if isinstance(ip_layer, dpkt.ip.IP) else str(ip_layer.dst)
                     wire_len = len(buf)

@@ -26,7 +26,7 @@ export default {
       borderRadius: { instrument: "4px", detail: "2px" },
       maxWidth: { content: "1200px" },
       boxShadow: { menu: "0 8px 24px rgb(16 20 26 / 12%)" },
-      zIndex: { header: "20", drawer: "30", dialog: "40" },
+      zIndex: { header: "80", drawer: "70", dialog: "60" },
     },
   },
   plugins: [],

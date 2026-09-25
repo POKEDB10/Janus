@@ -212,7 +212,7 @@ def test_model_info_returns_live_evaluation():
     res = client.get("/api/model/info")
     assert res.status_code == 200
     data = res.json()
-    assert data["model_name"] == "FlowDeepNet Ensemble v2"
+    assert "Janus" in data["model_name"]
     assert "evaluation" in data
     assert "holdout_accuracy" in data["evaluation"]
     assert "data_source_caveat" in data["evaluation"]

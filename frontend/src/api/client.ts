@@ -16,8 +16,11 @@ import type {
   UploadResponse,
 } from "../types";
 
-export const API_BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000";
-const API_KEY = import.meta.env.VITE_API_KEY;
+export const API_BASE_URL = import.meta.env.VITE_API_URL !== undefined 
+  ? import.meta.env.VITE_API_URL 
+  : (import.meta.env.PROD ? "" : "http://127.0.0.1:9000");
+
+export const API_KEY = import.meta.env.VITE_API_KEY ?? "";
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -25,7 +28,7 @@ export const apiClient = axios.create({
     "Content-Type": "application/json",
     ...(API_KEY ? { "X-API-Key": API_KEY } : {}),
   },
-  timeout: 10_000,
+  timeout: 15_000,
 });
 
 function captureHeaders(captureToken?: string): Record<string, string> {
@@ -33,12 +36,12 @@ function captureHeaders(captureToken?: string): Record<string, string> {
 }
 
 export async function getHealth(): Promise<HealthResponse> {
-  const { data } = await apiClient.get<HealthResponse>("/health");
+  const { data } = await apiClient.get<HealthResponse>("/health", { timeout: 10_000 });
   return data;
 }
 
 export async function getModelInfo(): Promise<ModelInfo> {
-  const { data } = await apiClient.get<ModelInfo>("/api/model/info");
+  const { data } = await apiClient.get<ModelInfo>("/api/model/info", { timeout: 10_000 });
   return data;
 }
 
@@ -160,6 +163,13 @@ export async function draftReportNarrative(captureId: string): Promise<ReportNar
 
 export async function getSamplePcaps(): Promise<SamplePcap[]> {
   const { data } = await apiClient.get<SamplePcap[]>("/api/samples");
+  return data;
+}
+
+export async function analyzeSample(sampleId: string): Promise<UploadResponse> {
+  const { data } = await apiClient.post<UploadResponse>(
+    `/api/samples/${encodeURIComponent(sampleId)}/analyze`,
+  );
   return data;
 }
 

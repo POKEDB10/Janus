@@ -1,3 +1,12 @@
+---
+title: Janus IPsec Protocol Analyzer
+emoji: 🛡️
+colorFrom: blue
+colorTo: indigo
+sdk: gradio
+app_file: app.py
+---
+
 # Janus — AI-Powered IPsec Protocol Analyzer & Security Assessment Framework
 
 [![Tests](https://img.shields.io/badge/pytest-47%20passed-emerald)](STATUS.md)

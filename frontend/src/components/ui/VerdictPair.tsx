@@ -2,9 +2,12 @@ import { ShieldCheck, Waves } from "lucide-react";
 import { GradeMark, Stat } from "./Primitives";
 
 export interface ConfigurationVerdict { score: number | null; grade: string; reason?: string; critical: number; high: number; }
-export interface TrafficVerdict { flows: number; mix: number; abstained: number; obfuscated: number; }
+export interface TrafficVerdict { flows: number; mix: number; abstained: number; obfuscated: number; trafficType?: string; detail?: string; }
 
 export function VerdictPair({ configuration, traffic }: { configuration: ConfigurationVerdict; traffic: TrafficVerdict }) {
+  const trafficValue = traffic.trafficType ?? "ESP";
+  const trafficDetail = traffic.detail ?? (trafficValue === "Cleartext IP" ? "Unprotected payload" : "Statistical classifier");
+
   return (
     <section className="grid border-y border-rule lg:grid-cols-2">
       <div className="grid gap-4 py-5 lg:grid-cols-[auto_1fr] lg:pr-6">
@@ -18,7 +21,7 @@ export function VerdictPair({ configuration, traffic }: { configuration: Configu
       <div className="grid gap-4 border-t border-rule py-5 lg:grid-cols-[auto_1fr] lg:border-l lg:border-t-0 lg:pl-6">
         <Waves aria-hidden="true" className="size-5 text-accent" />
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <Stat label="Traffic verdict" value="ESP" detail="Statistical classifier" />
+          <Stat label="Traffic verdict" value={trafficValue} detail={trafficDetail} />
           <Stat label="Flows" value={traffic.flows} />
           <Stat label="Traffic mix" value={traffic.mix} />
           <Stat label="Abstained" value={traffic.abstained} />

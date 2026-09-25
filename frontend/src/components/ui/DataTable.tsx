@@ -37,7 +37,7 @@ export function DataTable<Row>({
         </thead>
         <tbody className="divide-y divide-rule">
           {rows.map((row, index) => (
-            <tr key={getRowKey(row, index)}>
+            <tr key={getRowKey(row, index)} className="hover:bg-sunken/40 transition-colors duration-150">
               {columns.map((column) => <td key={column.id} className={`px-3 py-3 align-top text-ink ${column.className ?? ""}`}>{column.render(row)}</td>)}
             </tr>
           ))}

@@ -43,6 +43,7 @@ COPY __init__.py ./
 COPY backend/ ./backend/
 COPY ml/ ./ml/
 COPY compliance/ ./compliance/
+COPY rag/ ./rag/
 COPY parsing/ ./parsing/
 COPY reports/ ./reports/
 COPY labeling/ ./labeling/

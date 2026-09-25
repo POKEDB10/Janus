@@ -32,6 +32,7 @@ class UploadResponse(BaseModel):
     filename: str = Field(..., description="Original filename as uploaded by client.")
     size_bytes: int = Field(..., description="Size of uploaded file in bytes.")
     status: str = Field(default="uploaded", description="Upload status.")
+    capture_token: Optional[str] = Field(default=None, description="Ownership token for BOLA protection.")
 
 
 class AnalysisStatus(BaseModel):

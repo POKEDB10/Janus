@@ -1,4 +1,4 @@
-﻿/**
+/**
  * main.tsx — React application entry point.
  * Mounts the app with React Query and React Router providers.
  */
@@ -13,8 +13,9 @@ import "./index.css";
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 10_000,       // 10 s — data stays fresh before background re-fetch
-      retry: 2,                // retry failed requests twice before surfacing error
+      staleTime: 15_000,
+      retry: 1,
+      retryDelay: 1_000,
       refetchOnWindowFocus: false,
     },
   },

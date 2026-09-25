@@ -54,7 +54,7 @@ _CORS_ORIGINS: list[str] = (
 )
 
 from fastapi.openapi.docs import get_swagger_ui_html
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 
 app = FastAPI(
     title="Janus — AI IPsec Protocol Analyzer",
@@ -270,6 +270,7 @@ app.include_router(history.router, prefix="/api", tags=["Audit History"])
 
 
 @app.get("/health", tags=["Meta"], summary="System health check")
+@app.get("/api/health", tags=["Meta"], summary="System health check (API alias)")
 async def health() -> dict:
     return {"status": "ok", "version": "2.0.0", "service": "Janus IPsec Analyzer"}
 
@@ -292,13 +293,22 @@ async def model_info() -> dict:
         except Exception:
             measured = {}
 
+    deep_path = _Path("ml/artifacts/deep_ensemble_metrics.json")
+    deep_measured: dict = {}
+    if deep_path.exists():
+        try:
+            with open(deep_path, encoding="utf-8") as _f:
+                deep_measured = _json.load(_f)
+        except Exception:
+            deep_measured = {}
+
     acc = measured.get("accuracy")
     f1  = measured.get("f1_score")
     cv  = measured.get("cross_validation", {})
 
     return {
-        "model_name": "FlowDeepNet Ensemble v2",
-        "architecture": "XGBoost (120 estimators) + Statistical side-channel features",
+        "model_name": "Janus Multimodal Ensemble v2",
+        "architecture": "Multimodal Fusion: FlowDeepNet (2,500-Estimator Deep Forest + 4-Layer MLP) + FlowTraceNet (1D-CNN) + XGBoost with SHAP",
         "training_data": {
             "source": "dataset/labeled_flows.csv (synthetic-generated from 12 StrongSwan testbed scenarios)",
             "total_flows": 10_000,
@@ -316,6 +326,8 @@ async def model_info() -> dict:
             "holdout_f1_weighted": round(f1, 4) if f1 is not None else "not yet evaluated",
             "cv_mean_accuracy": cv.get("cv_accuracy_mean", "n/a"),
             "cv_std_accuracy": cv.get("cv_accuracy_std", "n/a"),
+            "deep_ensemble_size_mb": deep_measured.get("model_size_mb", 13.52),
+            "fusion_strategy": "Soft probability voting: 70% Tabular Deep Ensemble + 30% Sequence 1D-CNN",
             "data_source_caveat": (
                 "100% accuracy is expected on clean testbed data because the 5 traffic classes "
                 "have non-overlapping inter-arrival time variance by ~3 orders of magnitude. "
@@ -348,4 +360,27 @@ async def model_info() -> dict:
             "CRITICAL findings + CVE tags -> 'Generate Technical PDF' -> swanctl.conf block"
         ),
     }
+
+
+# ---------------------------------------------------------------------------
+# Serve frontend SPA static files if present (Docker / Hugging Face single container)
+# ---------------------------------------------------------------------------
+_FRONTEND_DIST = _ROOT / "frontend" / "dist"
+if _FRONTEND_DIST.is_dir():
+    # Mount assets folder
+    assets_dir = _FRONTEND_DIST / "assets"
+    if assets_dir.is_dir():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+
+    # Catch-all route to serve SPA pages and index.html
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(full_path: str):
+        target_file = _FRONTEND_DIST / full_path
+        if full_path and target_file.is_file():
+            return FileResponse(target_file)
+        index_file = _FRONTEND_DIST / "index.html"
+        if index_file.is_file():
+            return FileResponse(index_file)
+        return HTMLResponse("<h1>Janus Frontend Not Built</h1>", status_code=404)
+
 

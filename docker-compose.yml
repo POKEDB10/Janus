@@ -26,6 +26,7 @@ services:
       - ./parsing:/app/parsing
       - ./ml:/app/ml
       - ./compliance:/app/compliance
+      - ./rag:/app/rag
       - ./reports:/app/reports
       - ./labeling:/app/labeling
     environment:

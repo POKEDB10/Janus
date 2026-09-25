@@ -34,8 +34,10 @@ def get_db_path(custom_path: Optional[str | Path] = None) -> Path:
 def get_connection(db_path: Optional[str | Path] = None) -> sqlite3.Connection:
     """Create a new SQLite connection with row factory configured."""
     path = get_db_path(db_path)
-    conn = sqlite3.connect(str(path))
+    conn = sqlite3.connect(str(path), timeout=30.0)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL;")
+    conn.execute("PRAGMA synchronous=NORMAL;")
     return conn
 
 

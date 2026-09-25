@@ -12,7 +12,6 @@ htmlcov/
 # Node / Frontend
 node_modules/
 frontend/node_modules/
-frontend/dist/
 .npm/
 
 # Runtime capture uploads & generated reports
@@ -25,7 +24,9 @@ ml/artifacts/learner_buffer/*
 
 # Environments & Secrets
 .env
+*.env.local
 .venv
+.venv-fresh/
 env/
 venv/
 
@@ -36,3 +37,9 @@ write_tests.py
 .DS_Store
 Thumbs.db
 desktop.ini
+
+.venv-311/
+.venv-ml/
+.venv-ml312/
+scratch/
+

@@ -6,7 +6,7 @@ import ScrollToTop from "./components/ScrollToTop";
 import { LoadingState } from "./components/ui/Primitives";
 import { isPresentationMode } from "./lib/capture-session";
 
-const Dashboard = lazy(() => import("./pages/Dashboard"));
+import Dashboard from "./pages/Dashboard";
 const Upload = lazy(() => import("./pages/Upload"));
 const Analysis = lazy(() => import("./pages/Analysis"));
 const Compliance = lazy(() => import("./pages/Compliance"));
@@ -20,14 +20,18 @@ function Footer() {
 }
 
 function AppFrame({ children, captureId }: { children: ReactNode; captureId?: string }) {
-  const { search } = useLocation();
+  const { pathname, search } = useLocation();
   useEffect(() => { document.documentElement.dataset.present = String(isPresentationMode(search)); }, [search]);
   return (
     <div className="flex min-h-dvh flex-col">
       <a className="skip-link" href="#main-content">Skip to content</a>
       <Header />
       {captureId ? <CaptureHeader captureId={captureId} /> : null}
-      <main id="main-content" className="mx-auto w-full max-w-content flex-1 px-4 py-6 sm:px-6 sm:py-8"><Suspense fallback={<LoadingState label="Loading page…" />}>{children}</Suspense></main>
+      <main id="main-content" className="mx-auto w-full max-w-content flex-1 px-4 py-6 sm:px-6 sm:py-8">
+        <div key={pathname} className="page-enter">
+          <Suspense fallback={<LoadingState label="Loading page…" />}>{children}</Suspense>
+        </div>
+      </main>
       <Footer />
     </div>
   );

@@ -21,8 +21,48 @@ from security import verify_auth_or_token
 
 router = APIRouter(dependencies=[Depends(verify_auth_or_token)])
 
-# In-memory session store shared across API workers
+# In-memory session store shared across API workers (bounded to prevent leaks)
 _state_store: dict[str, dict[str, Any]] = {}
+_MAX_STORED_SESSIONS: int = 100
+
+
+def _prune_state_store() -> None:
+    """Evict oldest completed sessions if store exceeds capacity, freeing RAM."""
+    if len(_state_store) > _MAX_STORED_SESSIONS:
+        # Prioritize evicting completed or failed sessions first
+        removable = [k for k, v in _state_store.items() if v.get("status") in ("DONE", "ERROR")]
+        excess = len(_state_store) - _MAX_STORED_SESSIONS
+        for k in removable[:excess]:
+            _state_store.pop(k, None)
+
+
+def _get_entry(capture_id: str) -> dict[str, Any] | None:
+    """Retrieve session entry from memory or restore it from the SQLite audit database."""
+    if capture_id in _state_store:
+        return _state_store[capture_id]
+    try:
+        try:
+            from database import get_audit_by_id
+        except ImportError:
+            from backend.database import get_audit_by_id
+        audit = get_audit_by_id(capture_id)
+        if audit and audit.get("results"):
+            entry = {
+                "status": "DONE",
+                "progress_pct": 100.0,
+                "message": "Analysis complete (restored from audit database).",
+                "logs": ["Analysis restored from persistent audit ledger."],
+                "filename": audit.get("filename", "capture.pcap"),
+                "size_bytes": 0,
+                "results": audit["results"],
+                "error": None,
+            }
+            _prune_state_store()
+            _state_store[capture_id] = entry
+            return entry
+    except Exception:
+        pass
+    return None
 
 
 @router.get(
@@ -32,13 +72,13 @@ _state_store: dict[str, dict[str, Any]] = {}
 )
 async def get_analysis_status(capture_id: str) -> AnalysisStatus:
     """Retrieve progress and current stage of the background analysis pipeline."""
-    if capture_id not in _state_store:
+    entry = _get_entry(capture_id)
+    if not entry:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Capture session '{capture_id}' not found.",
         )
 
-    entry = _state_store[capture_id]
     return AnalysisStatus(
         capture_id=capture_id,
         status=PipelineStatus(entry.get("status", "INIT")),
@@ -142,8 +182,9 @@ async def stream_analysis_progress(capture_id: str) -> StreamingResponse:
 )
 async def get_analysis_results(capture_id: str) -> dict[str, Any]:
     """Retrieve complete analysis results including IKE sessions, flows, and compliance."""
-    if capture_id in _state_store and _state_store[capture_id].get("status") == "DONE":
-        return _state_store[capture_id].get("results", {})
+    entry = _get_entry(capture_id)
+    if entry and entry.get("status") == "DONE":
+        return entry.get("results", {})
 
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,
@@ -160,13 +201,13 @@ async def export_flows_csv(capture_id: str) -> StreamingResponse:
     Download all classified flows as a CSV file.
     Judges can open this in Excel to verify AI predictions independently.
     """
-    if capture_id not in _state_store:
+    entry = _get_entry(capture_id)
+    if not entry:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Capture session '{capture_id}' not found.",
         )
 
-    entry = _state_store[capture_id]
     results = entry.get("results") or {}
     flows = results.get("flows", [])
 
@@ -235,13 +276,13 @@ async def get_flows(
     page_size: int = Query(default=20, ge=1, le=100, description="Items per page"),
 ) -> PaginatedFlowsResponse:
     """Retrieve paginated flow classifications for the capture."""
-    if capture_id not in _state_store:
+    entry = _get_entry(capture_id)
+    if not entry:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Capture session '{capture_id}' not found.",
         )
 
-    entry = _state_store[capture_id]
     results = entry.get("results") or {}
     flows = results.get("flows", [])
 
@@ -264,13 +305,14 @@ async def get_flows(
 )
 async def get_flow_detail(capture_id: str, flow_id: str) -> dict[str, Any]:
     """Retrieve detailed flow information including stats and classification."""
-    if capture_id not in _state_store:
+    entry = _get_entry(capture_id)
+    if not entry:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Capture session '{capture_id}' not found.",
         )
 
-    results = _state_store[capture_id].get("results") or {}
+    results = entry.get("results") or {}
     flows = results.get("flows", [])
     for f in flows:
         if f.get("flow_id") == flow_id:
@@ -288,13 +330,14 @@ async def get_flow_detail(capture_id: str, flow_id: str) -> dict[str, Any]:
 )
 async def get_flow_shap(capture_id: str, flow_id: str) -> dict[str, Any]:
     """Retrieve local SHAP feature attribution explanation for a single flow."""
-    if capture_id not in _state_store:
+    entry = _get_entry(capture_id)
+    if not entry:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Capture session '{capture_id}' not found.",
         )
 
-    results = _state_store[capture_id].get("results") or {}
+    results = entry.get("results") or {}
     flows = results.get("flows", [])
     for f in flows:
         if f.get("flow_id") == flow_id:
@@ -319,11 +362,12 @@ async def get_flow_shap(capture_id: str, flow_id: str) -> dict[str, Any]:
 )
 async def get_ike_details(capture_id: str) -> list[dict[str, Any]]:
     """Retrieve detailed IKE handshake proposals and negotiated transforms."""
-    if capture_id not in _state_store:
+    entry = _get_entry(capture_id)
+    if not entry:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Capture session '{capture_id}' not found.",
         )
 
-    results = _state_store[capture_id].get("results") or {}
+    results = entry.get("results") or {}
     return results.get("ike_sessions", [])

@@ -48,7 +48,13 @@ class LiveCaptureStatusResponse(BaseModel):
 )
 async def list_interfaces() -> dict[str, Any]:
     """Enumerate network interfaces available on the host system."""
-    import psutil
+    try:
+        import psutil
+    except ImportError:
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="psutil is not installed in the backend environment. Interface enumeration unavailable.",
+        )
     interfaces = []
     addrs = psutil.net_if_addrs()
     stats = psutil.net_if_stats()

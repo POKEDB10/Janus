@@ -40,6 +40,10 @@ export function CaptureHeader({ captureId }: { captureId: string }) {
     ? compliance.indeterminate_reason ?? data.reason ?? "Not assessable: no IKE handshake in this capture."
     : undefined;
 
+  const isCleartext = compliance?.evaluated_parameters?.esp_encryption?.toString().toLowerCase().includes("cleartext") ||
+    compliance?.findings?.some((f) => f.rule_id?.includes("CLEARTEXT") || f.parameter?.toLowerCase().includes("cleartext")) ||
+    (data.flows.length > 0 && !data.ike_sessions.length && compliance?.overall_score === 0.0);
+
   return (
     <>{recorded && <SampleStamp />}<div className="bg-surface">
       <div className="mx-auto max-w-content px-4 py-4 sm:px-6">
@@ -47,13 +51,22 @@ export function CaptureHeader({ captureId }: { captureId: string }) {
           <p className="font-medium text-ink">{data.filename ?? context.filename ?? "Capture"}</p>
           <p className="font-mono text-xs text-muted">{captureId}</p>
         </div>
-        <VerdictPair configuration={{ score: compliance?.overall_score ?? null, grade: compliance?.grade ?? "—", reason, critical, high }} traffic={{ flows: data.total_flows, mix: trafficMix, abstained, obfuscated }} />
+        <VerdictPair
+          configuration={{ score: compliance?.overall_score ?? null, grade: compliance?.grade ?? "—", reason, critical, high }}
+          traffic={{ flows: data.total_flows, mix: trafficMix, abstained, obfuscated, trafficType: isCleartext ? "Cleartext IP" : "ESP" }}
+        />
         <nav className="mt-3 flex gap-4" aria-label="Capture workspace">
           {workspaceTabs.map((tab) => (
             <NavLink
               key={tab.segment}
               to={`/${tab.segment}/${encodeURIComponent(captureId)}${search}`}
-              className={({ isActive }) => `border-b-2 px-1 pb-2 text-sm font-medium ${isActive ? "border-accent text-ink" : "border-transparent text-muted hover:border-rule hover:text-ink"}`}
+              className={({ isActive }) =>
+                `border-b-2 px-1 pb-2 text-sm font-medium transition-all duration-200 cursor-pointer ${
+                  isActive
+                    ? "border-accent text-ink font-semibold"
+                    : "border-transparent text-muted hover:border-rule hover:text-ink"
+                }`
+              }
             >
               {tab.label}
             </NavLink>

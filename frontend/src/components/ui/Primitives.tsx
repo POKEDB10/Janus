@@ -66,16 +66,20 @@ export function Stat({ label, value, detail }: { label: string; value: ReactNode
   );
 }
 
-const severityStyles: Record<RiskLevel, string> = {
+const severityStyles: Record<string, string> = {
   CRITICAL: "border-critical/40 bg-critical/10 text-critical",
   HIGH: "border-high/40 bg-high/10 text-high",
   MEDIUM: "border-medium/40 bg-medium/10 text-medium",
   LOW: "border-low/40 bg-low/10 text-low",
   INFO: "border-info/40 bg-info/10 text-info",
+  PASS: "border-pass/40 bg-pass/10 text-pass",
+  COMPLIANT: "border-pass/40 bg-pass/10 text-pass",
+  ADVISORY: "border-amber-500/40 bg-amber-500/10 text-amber-500",
 };
 
 export function SeverityBadge({ level }: { level: RiskLevel | string }) {
-  const normalised = (level.toUpperCase() in severityStyles ? level.toUpperCase() : "INFO") as RiskLevel;
+  const upper = level.toUpperCase();
+  const normalised = upper in severityStyles ? upper : "INFO";
   return <span className={`inline-flex border px-1.5 py-0.5 font-mono text-xs font-medium ${severityStyles[normalised]}`}>{normalised}</span>;
 }
 

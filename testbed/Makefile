@@ -35,6 +35,7 @@ CAPTURE_SECS    ?= 120
 TRAFFIC_SECS    ?= 60
 CAPTURES_DIR    ?= $(CURDIR)/captures
 DATASET_DIR     ?= $(CURDIR)/dataset
+DPATH = $(patsubst /mnt/%,/run/desktop/mnt/host/%,$(1))
 COMPOSE         := docker compose
 COMPOSE_FILE    := docker-compose.yml
 
@@ -122,7 +123,7 @@ build: dirs
 # ---------------------------------------------------------------------------
 up: dirs
 	$(call log_info,"Starting Janus testbed...")
-	CAPTURES_DIR=$(CAPTURES_DIR) DATASET_DIR=$(DATASET_DIR) \
+	CAPTURES_DIR=$(call DPATH,$(CAPTURES_DIR)) DATASET_DIR=$(call DPATH,$(DATASET_DIR)) \
 	    $(COMPOSE) -f $(COMPOSE_FILE) up -d
 	@echo ""
 	$(call log_ok,"Testbed running.  Use 'make status' to inspect containers.")
@@ -183,15 +184,22 @@ capture-scenario:
 	    grep -q running || \
 	    (echo "ERROR: $(INIT_CONTAINER) is not running. Run 'make up' first." && exit 1)
 
-	# Start tshark in the capture container (background)
-	@docker exec -d $(CAPTURE_CONTAINER) \
-	    tshark \
-	        -i eth0 \
-	        -a duration:$(CAPTURE_SECS) \
-	        -w /captures/sc$(SCENARIO)_$$(date +%Y%m%d_%H%M%S).pcapng \
-	        -f "udp port 500 or udp port 4500 or esp" \
-	        2>/dev/null
-	$(call log_ok,"tshark capture started ($(CAPTURE_SECS)s)")
+	# Start packet capture on the initiator container interface before IKE negotiation
+	# (Captures on INIT_CONTAINER eth0 directly, ensuring both IKE handshake and ESP are recorded)
+	@docker exec -d $(INIT_CONTAINER) \
+	    tcpdump -i eth0 -s 0 -w /captures/sc$(SCENARIO)_$$(date +%Y%m%d_%H%M%S).pcap \
+	    "udp port 500 or udp port 4500 or esp" 2>/dev/null || \
+	    docker exec -d $(CAPTURE_CONTAINER) \
+	        tshark -i eth0 -a duration:$(CAPTURE_SECS) -w /captures/sc$(SCENARIO)_$$(date +%Y%m%d_%H%M%S).pcapng \
+	        -f "udp port 500 or udp port 4500 or esp" 2>/dev/null
+	$(call log_ok,"Packet capture started on wire")
+	@sleep 1
+
+	# Re-negotiate IKE SA while sniffer is running so full IKE_SA_INIT and IKE_AUTH handshake is captured!
+	$(call log_info,"Triggering IKE SA negotiation during active capture window...")
+	@docker exec $(INIT_CONTAINER) swanctl --terminate --ike sc$(SCENARIO) 2>/dev/null || true
+	@sleep 1
+	@docker exec $(INIT_CONTAINER) swanctl --initiate --child sc$(SCENARIO) --timeout 15 2>/dev/null || true
 
 	# Get target IP for this scenario from the initiator's environment
 	$(eval TARGET_IP := $(shell docker inspect --format \
@@ -205,6 +213,9 @@ capture-scenario:
 	    --target $(TARGET_IP) \
 	    --duration $(TRAFFIC_SECS) || \
 	    $(call log_warn,"Traffic generation exited non-zero (partial capture may still be useful)")
+
+	# Stop tcpdump on initiator
+	@docker exec $(INIT_CONTAINER) pkill -INT tcpdump 2>/dev/null || true
 
 	$(call log_ok,"Capture + traffic for scenario $(SCENARIO) complete")
 	$(call log_info,"Captures in: $(CAPTURES_DIR)/")

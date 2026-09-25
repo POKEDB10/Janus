@@ -41,6 +41,7 @@ def _run_capture(capture_id: str, pcap_path: Path) -> dict[str, Any]:
     [
         ("scenario_01_hardened.pcap", "capture_x99.pcap"),
         ("wireshark_ikev2_aes_gcm.pcap", "weak_3des_legacy.pcap"),
+        ("scenario_04_weak_3des.pcap", "weak_3des_renamed_to_hardened.pcap"),
     ],
 )
 def test_pipeline_results_do_not_depend_on_capture_filename(

@@ -1,0 +1,234 @@
+[
+  {
+    "url": "http://127.0.0.1:8000/health",
+    "method": "GET",
+    "has_api_key": true,
+    "api_key_val": "verify-local-2026",
+    "has_capture_token": false,
+    "token_val": null
+  },
+  {
+    "url": "http://127.0.0.1:8000/api/model/info",
+    "method": "GET",
+    "has_api_key": true,
+    "api_key_val": "verify-local-2026",
+    "has_capture_token": false,
+    "token_val": null
+  },
+  {
+    "url": "http://127.0.0.1:8000/api/samples",
+    "method": "GET",
+    "has_api_key": true,
+    "api_key_val": "verify-local-2026",
+    "has_capture_token": false,
+    "token_val": null
+  },
+  {
+    "url": "http://127.0.0.1:8000/health",
+    "method": "GET",
+    "has_api_key": true,
+    "api_key_val": "verify-local-2026",
+    "has_capture_token": false,
+    "token_val": null
+  },
+  {
+    "url": "http://127.0.0.1:8000/api/model/info",
+    "method": "GET",
+    "has_api_key": true,
+    "api_key_val": "verify-local-2026",
+    "has_capture_token": false,
+    "token_val": null
+  },
+  {
+    "url": "http://127.0.0.1:8000/api/samples",
+    "method": "GET",
+    "has_api_key": true,
+    "api_key_val": "verify-local-2026",
+    "has_capture_token": false,
+    "token_val": null
+  },
+  {
+    "url": "http://127.0.0.1:8000/api/captures/upload",
+    "method": "POST",
+    "has_api_key": true,
+    "api_key_val": "verify-local-2026",
+    "has_capture_token": false,
+    "token_val": null
+  },
+  {
+    "url": "http://127.0.0.1:8000/api/analysis/dff0ded6-1b8c-47cc-8db4-e82bbb5f1425/stream?token=5ff009d4ec4504aad94a1c01",
+    "method": "GET",
+    "has_api_key": false,
+    "api_key_val": null,
+    "has_capture_token": false,
+    "token_val": null
+  },
+  {
+    "url": "http://127.0.0.1:8000/health",
+    "method": "GET",
+    "has_api_key": true,
+    "api_key_val": "verify-local-2026",
+    "has_capture_token": false,
+    "token_val": null
+  },
+  {
+    "url": "http://127.0.0.1:8000/api/analysis/544d4b59-968f-4efc-b042-07dab1c6a2f7/results",
+    "method": "GET",
+    "has_api_key": true,
+    "api_key_val": "verify-local-2026",
+    "has_capture_token": true,
+    "token_val": "dc1e1d63127face961a40548"
+  },
+  {
+    "url": "http://127.0.0.1:8000/api/model/info",
+    "method": "GET",
+    "has_api_key": true,
+    "api_key_val": "verify-local-2026",
+    "has_capture_token": false,
+    "token_val": null
+  },
+  {
+    "url": "http://127.0.0.1:8000/health",
+    "method": "GET",
+    "has_api_key": true,
+    "api_key_val": "verify-local-2026",
+    "has_capture_token": false,
+    "token_val": null
+  },
+  {
+    "url": "http://127.0.0.1:8000/api/analysis/e1ffc86f-1463-47f3-b259-26b3fb491fd7/results",
+    "method": "GET",
+    "has_api_key": true,
+    "api_key_val": "verify-local-2026",
+    "has_capture_token": true,
+    "token_val": "457f939cca438a05bde3582a"
+  },
+  {
+    "url": "http://127.0.0.1:8000/api/model/info",
+    "method": "GET",
+    "has_api_key": true,
+    "api_key_val": "verify-local-2026",
+    "has_capture_token": false,
+    "token_val": null
+  },
+  {
+    "url": "http://127.0.0.1:8000/health",
+    "method": "GET",
+    "has_api_key": true,
+    "api_key_val": "verify-local-2026",
+    "has_capture_token": false,
+    "token_val": null
+  },
+  {
+    "url": "http://127.0.0.1:8000/api/analysis/e1ffc86f-1463-47f3-b259-26b3fb491fd7/results",
+    "method": "GET",
+    "has_api_key": true,
+    "api_key_val": "verify-local-2026",
+    "has_capture_token": true,
+    "token_val": "457f939cca438a05bde3582a"
+  },
+  {
+    "url": "http://127.0.0.1:8000/api/model/info",
+    "method": "GET",
+    "has_api_key": true,
+    "api_key_val": "verify-local-2026",
+    "has_capture_token": false,
+    "token_val": null
+  },
+  {
+    "url": "http://127.0.0.1:8000/health",
+    "method": "GET",
+    "has_api_key": true,
+    "api_key_val": "verify-local-2026",
+    "has_capture_token": false,
+    "token_val": null
+  },
+  {
+    "url": "http://127.0.0.1:8000/api/analysis/544d4b59-968f-4efc-b042-07dab1c6a2f7/results",
+    "method": "GET",
+    "has_api_key": true,
+    "api_key_val": "verify-local-2026",
+    "has_capture_token": true,
+    "token_val": "dc1e1d63127face961a40548"
+  },
+  {
+    "url": "http://127.0.0.1:8000/api/model/info",
+    "method": "GET",
+    "has_api_key": true,
+    "api_key_val": "verify-local-2026",
+    "has_capture_token": false,
+    "token_val": null
+  },
+  {
+    "url": "http://127.0.0.1:8000/api/report/544d4b59-968f-4efc-b042-07dab1c6a2f7/status",
+    "method": "GET",
+    "has_api_key": true,
+    "api_key_val": "verify-local-2026",
+    "has_capture_token": true,
+    "token_val": "dc1e1d63127face961a40548"
+  },
+  {
+    "url": "http://127.0.0.1:8000/health",
+    "method": "GET",
+    "has_api_key": true,
+    "api_key_val": "verify-local-2026",
+    "has_capture_token": false,
+    "token_val": null
+  },
+  {
+    "url": "http://127.0.0.1:8000/api/model/info",
+    "method": "GET",
+    "has_api_key": true,
+    "api_key_val": "verify-local-2026",
+    "has_capture_token": false,
+    "token_val": null
+  },
+  {
+    "url": "http://127.0.0.1:8000/api/analysis/544d4b59-968f-4efc-b042-07dab1c6a2f7/results",
+    "method": "GET",
+    "has_api_key": true,
+    "api_key_val": "verify-local-2026",
+    "has_capture_token": true,
+    "token_val": "dc1e1d63127face961a40548"
+  },
+  {
+    "url": "http://127.0.0.1:8000/api/analysis/e1ffc86f-1463-47f3-b259-26b3fb491fd7/results",
+    "method": "GET",
+    "has_api_key": true,
+    "api_key_val": "verify-local-2026",
+    "has_capture_token": true,
+    "token_val": "457f939cca438a05bde3582a"
+  },
+  {
+    "url": "http://127.0.0.1:8000/health",
+    "method": "GET",
+    "has_api_key": true,
+    "api_key_val": "verify-local-2026",
+    "has_capture_token": false,
+    "token_val": null
+  },
+  {
+    "url": "http://127.0.0.1:8000/api/model/info",
+    "method": "GET",
+    "has_api_key": true,
+    "api_key_val": "verify-local-2026",
+    "has_capture_token": false,
+    "token_val": null
+  },
+  {
+    "url": "http://127.0.0.1:8000/health",
+    "method": "GET",
+    "has_api_key": true,
+    "api_key_val": "verify-local-2026",
+    "has_capture_token": false,
+    "token_val": null
+  },
+  {
+    "url": "http://127.0.0.1:8000/api/model/info",
+    "method": "GET",
+    "has_api_key": true,
+    "api_key_val": "verify-local-2026",
+    "has_capture_token": false,
+    "token_val": null
+  }
+]

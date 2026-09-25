@@ -34,6 +34,74 @@ except ImportError:
 log = logging.getLogger(__name__)
 
 
+def _extract_ip_layer(buf: bytes, datalink: int = 1) -> Any:
+    """Safely extract IP/IPv6 layer from link layer buffer supporting Ethernet, SLL, SLL2, and raw IP."""
+    if dpkt is None:
+        return None
+    if datalink == 1:  # DLT_EN10MB
+        try:
+            eth = dpkt.ethernet.Ethernet(buf)
+            if isinstance(eth.data, (dpkt.ip.IP, dpkt.ip6.IP6)):
+                return eth.data
+        except Exception:
+            pass
+    elif datalink == 276:  # DLT_LINUX_SLL2
+        try:
+            sll2_cls = getattr(dpkt, "sll2", None)
+            if sll2_cls and hasattr(sll2_cls, "SLL2"):
+                link = sll2_cls.SLL2(buf)
+                if isinstance(link.data, (dpkt.ip.IP, dpkt.ip6.IP6)):
+                    return link.data
+        except Exception:
+            pass
+        if len(buf) > 20:
+            try:
+                return dpkt.ip.IP(buf[20:]) if (buf[20] >> 4) == 4 else dpkt.ip6.IP6(buf[20:])
+            except Exception:
+                pass
+    elif datalink == 113:  # DLT_LINUX_SLL
+        try:
+            sll_cls = getattr(dpkt, "sll", None)
+            if sll_cls and hasattr(sll_cls, "SLL"):
+                link = sll_cls.SLL(buf)
+                if isinstance(link.data, (dpkt.ip.IP, dpkt.ip6.IP6)):
+                    return link.data
+        except Exception:
+            pass
+        if len(buf) > 16:
+            try:
+                return dpkt.ip.IP(buf[16:]) if (buf[16] >> 4) == 4 else dpkt.ip6.IP6(buf[16:])
+            except Exception:
+                pass
+    elif datalink in (12, 101, 228):  # DLT_RAW / IPV4 / IPV6
+        try:
+            return dpkt.ip.IP(buf) if (buf[0] >> 4) == 4 else dpkt.ip6.IP6(buf)
+        except Exception:
+            pass
+
+    # Generic decoder fallback
+    for cls_name in ("Ethernet", "SLL2", "SLL"):
+        mod = getattr(dpkt, cls_name.lower(), None)
+        cls = getattr(mod, cls_name, None) if mod else None
+        if cls:
+            try:
+                link = cls(buf)
+                if isinstance(link.data, (dpkt.ip.IP, dpkt.ip6.IP6)):
+                    return link.data
+            except Exception:
+                continue
+
+    # Fallback to direct IP check
+    try:
+        if (buf[0] >> 4) == 4:
+            return dpkt.ip.IP(buf)
+        elif (buf[0] >> 4) == 6:
+            return dpkt.ip6.IP6(buf)
+    except Exception:
+        pass
+    return None
+
+
 @dataclass
 class Transform:
     """A single cryptographic transform inside an IKE proposal."""
@@ -382,11 +450,12 @@ class IKEParser:
                 except Exception:
                     return []
 
+            datalink = reader.datalink() if hasattr(reader, "datalink") and callable(reader.datalink) else 1
+
             for ts, buf in reader:
                 try:
-                    eth = dpkt.ethernet.Ethernet(buf)
-                    ip_layer = eth.data
-                    if not isinstance(ip_layer, (dpkt.ip.IP, dpkt.ip6.IP6)):
+                    ip_layer = _extract_ip_layer(buf, datalink)
+                    if ip_layer is None or not isinstance(ip_layer, (dpkt.ip.IP, dpkt.ip6.IP6)):
                         continue
                     if ip_layer.p != 17:  # UDP
                         continue

@@ -1,18 +1,61 @@
 import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
-import { FileCheck2, UploadCloud } from "lucide-react";
-import { Link } from "react-router-dom";
-import { getAnalysisStatus, streamAnalysisProgress, uploadPcap } from "../api/client";
-import { ErrorState, InlineNotice, LoadingState, PageHeader, Section } from "../components/ui/Primitives";
+import {
+  ArrowRight,
+  CheckCircle2,
+  Cpu,
+  Download,
+  FileCheck2,
+  Layers,
+  Lock,
+  Play,
+  RefreshCw,
+  ShieldCheck,
+  Terminal,
+  UploadCloud,
+  X,
+} from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
+import { analyzeSample, getAnalysisStatus, streamAnalysisProgress, uploadPcap } from "../api/client";
+import ScoreGauge from "../components/ScoreGauge";
+import { ErrorState, InlineNotice, LoadingState, PageHeader } from "../components/ui/Primitives";
 import { getApiErrorMessage } from "../lib/api-error";
 import { saveCaptureContext } from "../lib/capture-session";
 import { cn } from "../lib/cn";
 import { formatBytes } from "../lib/format";
 import { recordedAnalysisPath, recordedSampleCaptures, sampleDownloadHref, useTestbedSamples } from "../lib/sample-captures";
-import type { AnalysisStatus, SamplePcap } from "../types";
+import type { AnalysisStatus } from "../types";
 
 const statusText: Record<AnalysisStatus["status"], string> = {
-  INIT: "Queued", PARSING: "Parsing capture", CLASSIFYING: "Classifying ESP traffic", SCORING: "Auditing configuration", DONE: "Complete", ERROR: "Failed",
+  INIT: "Initializing",
+  PARSING: "Protocol Parsing",
+  CLASSIFYING: "Statistical Flow Classification",
+  SCORING: "RFC Compliance Scoring",
+  DONE: "Analysis Complete",
+  ERROR: "Pipeline Failed",
 };
+
+const PIPELINE_STAGES = [
+  { key: "PARSING", label: "Protocol Parsing", desc: "tshark IKE & dpkt ESP extraction", icon: Layers },
+  { key: "CLASSIFYING", label: "Flow Telemetry", desc: "FlowDeepNet 25D statistical analysis", icon: Cpu },
+  { key: "SCORING", label: "Compliance Audit", desc: "RFC 8221, RFC 8247 & NIST SP 800-77", icon: Lock },
+  { key: "DONE", label: "Finished", desc: "Interactive workspace & reports ready", icon: ShieldCheck },
+];
+
+function getStageIndex(status: AnalysisStatus["status"]): number {
+  switch (status) {
+    case "INIT":
+    case "PARSING":
+      return 0;
+    case "CLASSIFYING":
+      return 1;
+    case "SCORING":
+      return 2;
+    case "DONE":
+      return 3;
+    default:
+      return 0;
+  }
+}
 
 type MonitoringMode = "idle" | "streaming" | "polling";
 
@@ -29,15 +72,28 @@ export default function Upload() {
   const fileInput = useRef<HTMLInputElement>(null);
   const stream = useRef<EventSource | null>(null);
   const timer = useRef<number | null>(null);
+  const logsContainerRef = useRef<HTMLDivElement>(null);
   const dragDepth = useRef(0);
+
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [status, setStatus] = useState<AnalysisStatus | null>(null);
+  const [showAnalysisModal, setShowAnalysisModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [monitoringMode, setMonitoringMode] = useState<MonitoringMode>("idle");
   const [connectionNote, setConnectionNote] = useState<string | null>(null);
   const [isDragActive, setIsDragActive] = useState(false);
+  const [analyzingSampleId, setAnalyzingSampleId] = useState<string | null>(null);
+
+  const location = useLocation();
+  useEffect(() => {
+    const preloaded = (location.state as { preloadedFile?: File } | null)?.preloadedFile;
+    if (preloaded && !file) {
+      chooseFile(preloaded);
+    }
+  }, [location.state]);
+
   const samples = useTestbedSamples();
 
   const clearMonitoring = useCallback(() => {
@@ -76,7 +132,9 @@ export default function Upload() {
     setMonitoringMode("streaming");
     setConnectionNote(null);
     stream.current = streamAnalysisProgress(captureId, captureToken, {
-      onProgress: (next) => setStatus((current) => mergeStreamStatus(captureId, current, next)),
+      onProgress: (next) => {
+        setStatus((current) => mergeStreamStatus(captureId, current, next));
+      },
       onDone: (next) => {
         setStatus((current) => ({ ...mergeStreamStatus(captureId, current, next), status: "DONE", progress_pct: 100 }));
         setMonitoringMode("idle");
@@ -84,7 +142,7 @@ export default function Upload() {
       onFailure: (message) => {
         clearMonitoring();
         setMonitoringMode("polling");
-        setConnectionNote(`Live progress disconnected (${message}). Continuing with status polling.`);
+        setConnectionNote(`Live stream disconnected (${message}). Switched to status polling.`);
         void poll(captureId, captureToken, 1_000);
       },
     });
@@ -92,9 +150,17 @@ export default function Upload() {
 
   useEffect(() => () => clearMonitoring(), [clearMonitoring]);
 
+  // Auto-scroll terminal logs
+  useEffect(() => {
+    if (logsContainerRef.current) {
+      logsContainerRef.current.scrollTop = logsContainerRef.current.scrollHeight;
+    }
+  }, [status?.logs]);
+
   function chooseFile(next: File) {
-    if (!/\.pcapng?$/i.test(next.name)) {
-      setError("Choose a .pcap or .pcapng capture.");
+    const isValid = /\.(pcap|pcapng|cap|dmp|dump|gz)$/i.test(next.name);
+    if (!isValid) {
+      setError(`Unsupported file extension for '${next.name}'. Please choose a .pcap, .pcapng, .cap, or .gz capture.`);
       return;
     }
     setFile(next);
@@ -138,7 +204,8 @@ export default function Upload() {
     try {
       const response = await uploadPcap(file, setUploadProgress);
       saveCaptureContext(response);
-      setStatus({ capture_id: response.capture_id, status: "INIT", progress_pct: 0, message: "Capture accepted", logs: [] });
+      setStatus({ capture_id: response.capture_id, status: "INIT", progress_pct: 5, message: "Capture accepted by server", logs: [] });
+      setShowAnalysisModal(true);
       monitor(response.capture_id, response.capture_token ?? undefined);
     } catch (uploadError) {
       setError(getApiErrorMessage(uploadError));
@@ -147,50 +214,486 @@ export default function Upload() {
     }
   }
 
-  const analysisLink = status?.status === "DONE" ? `/analysis/${encodeURIComponent(status.capture_id)}` : null;
+  async function handleAnalyzeSample(sampleId: string) {
+    clearMonitoring();
+    setAnalyzingSampleId(sampleId);
+    setError(null);
+    setStatus(null);
+    setConnectionNote(null);
+    try {
+      const response = await analyzeSample(sampleId);
+      saveCaptureContext(response);
+      setStatus({ capture_id: response.capture_id, status: "INIT", progress_pct: 10, message: "Sample capture loaded. Launching pipeline...", logs: [] });
+      setShowAnalysisModal(true);
+      monitor(response.capture_id, response.capture_token ?? undefined);
+    } catch (err) {
+      setError(getApiErrorMessage(err));
+    } finally {
+      setAnalyzingSampleId(null);
+    }
+  }
+
+  const isDone = status?.status === "DONE";
+  const isError = status?.status === "ERROR";
+  const currentStageIdx = status ? getStageIndex(status.status) : 0;
+  const parsedScoreMatch = status?.message?.match(/(\d+(?:\.\d+)?)\/100\s*\((?:Grade\s*)?([A-F]|N\/A)/i);
+  const parsedScore = parsedScoreMatch ? parseFloat(parsedScoreMatch[1]) : null;
+  const parsedGrade = parsedScoreMatch ? parsedScoreMatch[2] : null;
 
   return (
-    <div className="space-y-8">
-      <PageHeader eyebrow="Capture intake" title="Upload an IPsec capture." answer="Drop a capture file to see its observed negotiation, traffic patterns, and configuration evidence. Technical details remain available when you need them." />
-      <section className="border-y border-rule py-6" aria-labelledby="capture-file">
-        <h2 id="capture-file" className="sr-only">Capture file</h2>
-        <div onDrop={drop} onDragEnter={dragEnter} onDragLeave={dragLeave} onDragOver={dragOver} data-drag-active={isDragActive} className={cn("drop-zone grid min-h-52 place-items-center border border-dashed bg-surface p-6 text-center", isDragActive ? "is-drag-active border-accent bg-sunken" : "border-rule")}>
-          <div aria-live="polite">
-            <div className="mx-auto grid size-10 place-items-center border border-rule bg-sunken text-accent">
-              {file ? <FileCheck2 aria-hidden="true" className="size-5" /> : <UploadCloud aria-hidden="true" className="size-5" />}
+    <div className="space-y-10 motion-enter max-w-4xl mx-auto">
+      <PageHeader
+        eyebrow="Capture intake &amp; pipeline"
+        title="Upload an IPsec capture."
+        answer="Drop a packet capture to dissect observed IKE negotiation transforms, classify ESP flows with zero IP leakage, and audit RFC 8221/8247 compliance."
+      />
+
+      {/* Upload Zone Card */}
+      <section className="rounded-2xl border border-rule bg-surface p-6 sm:p-8 space-y-6 shadow-sm">
+        <div
+          onDrop={drop}
+          onDragEnter={dragEnter}
+          onDragLeave={dragLeave}
+          onDragOver={dragOver}
+          onClick={() => fileInput.current?.click()}
+          className={cn(
+            "group relative grid min-h-56 place-items-center rounded-xl border-2 border-dashed p-8 text-center cursor-pointer transition-all duration-200",
+            isDragActive
+              ? "border-accent bg-accent/5 ring-4 ring-accent/20 scale-[1.01]"
+              : file
+              ? "border-accent/80 bg-sunken/40"
+              : "border-rule/80 hover:border-accent hover:bg-sunken/30"
+          )}
+        >
+          <input
+            ref={fileInput}
+            type="file"
+            accept=".pcap,.pcapng,.cap,.dmp,.dump,.gz"
+            className="sr-only"
+            tabIndex={-1}
+            aria-hidden="true"
+            onChange={(event) => {
+              const next = event.currentTarget.files?.item(0);
+              if (next) chooseFile(next);
+            }}
+          />
+
+          <div className="flex flex-col items-center space-y-3">
+            <div className={cn(
+              "grid size-14 place-items-center rounded-full border transition-all duration-200",
+              file
+                ? "border-accent bg-accent/10 text-accent"
+                : "border-rule bg-sunken text-muted group-hover:border-accent group-hover:text-accent"
+            )}>
+              {file ? <FileCheck2 size={26} /> : <UploadCloud size={26} />}
             </div>
-            <p className="mt-3 font-medium text-ink">{file ? file.name : isDragActive ? "Release to add this capture" : "Drag a capture here"}</p>
-            <p className="mt-1 text-sm text-muted">{file ? `${formatBytes(file.size)} · ready to analyze` : "or choose a .pcap or .pcapng file from this device"}</p>
-            <input ref={fileInput} type="file" accept=".pcap,.pcapng" className="sr-only" tabIndex={-1} aria-hidden="true" onChange={(event) => { const next = event.currentTarget.files?.item(0); if (next) chooseFile(next); }} />
-            <div className="mt-4 flex flex-wrap justify-center gap-3">
-              <button type="button" onClick={() => fileInput.current?.click()} className="min-h-10 border border-rule px-4 text-sm font-medium text-ink hover:border-accent focus-visible:outline-none">Choose file</button>
-              <button type="button" onClick={() => void submit()} disabled={!file || uploading} className="min-h-10 bg-accent px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-rule hover:bg-accent-strong focus-visible:outline-none">{uploading ? "Uploading…" : "Analyze capture"}</button>
+
+            <div className="space-y-1">
+              <p className="font-semibold text-ink sm:text-base">
+                {file ? file.name : isDragActive ? "Drop capture file here" : "Choose or drag a capture here"}
+              </p>
+              <p className="text-xs text-muted">
+                {file
+                  ? `${formatBytes(file.size)} · ready for autonomous analysis`
+                  : "Supports standard PCAP, nanosecond PCAP, PCAPng, .cap, and gzip captures (up to 100 MB)"}
+              </p>
             </div>
           </div>
         </div>
-        {uploading ? <p className="data-number mt-3 font-mono text-xs text-muted">Upload {uploadProgress}%</p> : null}
+
+        {/* Action Buttons */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => fileInput.current?.click()}
+              className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-rule px-4 text-xs font-semibold text-ink hover:border-accent transition-colors"
+            >
+              Browse device
+            </button>
+            {file && (
+              <button
+                type="button"
+                onClick={() => { setFile(null); setError(null); }}
+                className="inline-flex min-h-10 items-center gap-1 rounded-lg border border-transparent px-3 text-xs text-muted hover:text-ink transition-colors"
+              >
+                <X size={14} /> Clear
+              </button>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() => void submit()}
+            disabled={!file || uploading}
+            className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-accent px-6 text-sm font-semibold text-white shadow-sm hover:bg-accent-strong disabled:cursor-not-allowed disabled:bg-rule transition-all"
+          >
+            {uploading ? (
+              <>
+                <RefreshCw size={15} className="animate-spin" />
+                <span>Uploading ({uploadProgress}%)</span>
+              </>
+            ) : (
+              <>
+                <Play size={14} />
+                <span>Analyze Capture</span>
+              </>
+            )}
+          </button>
+        </div>
       </section>
-      {error ? <ErrorState title="Upload or analysis failed" detail={error} onRetry={file ? () => void submit() : undefined} /> : null}
-      {status ? (
-        <Section title="Pipeline" detail="Live status is delivered by the analysis service." action={analysisLink ? <Link className="text-sm font-medium text-accent underline underline-offset-4" to={analysisLink}>Open workspace</Link> : null}>
-          <div className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-center" role="status" aria-live="polite" aria-atomic="true"><p className="data-number font-mono text-2xl text-ink">{Math.round(status.progress_pct)}%</p><div><p className="font-medium text-ink">{statusText[status.status]}</p><p className="mt-1 text-sm text-muted">{status.message ?? "Waiting for pipeline status."}</p></div></div>
-          {monitoringMode === "streaming" ? <p className="mt-3 font-mono text-xs text-muted">Receiving live progress events.</p> : null}
-          {monitoringMode === "polling" ? <p className="mt-3 font-mono text-xs text-muted">Polling status while the live stream is unavailable.</p> : null}
-          {connectionNote ? <InlineNotice>{connectionNote}</InlineNotice> : null}
-          {status.logs.length ? <pre className="mt-4 max-h-44 overflow-auto border-t border-rule pt-3 font-mono text-xs leading-5 text-muted" aria-live="polite">{status.logs.join("\n")}</pre> : null}
-        </Section>
-      ) : null}
-      {samples.isPending ? <LoadingState label="Loading testbed captures…" /> : null}
-      {samples.isError ? <InlineNotice>Sample captures are unavailable: {getApiErrorMessage(samples.error)}</InlineNotice> : null}
-      {samples.data?.length === 0 ? <InlineNotice>No sample captures returned by the API.</InlineNotice> : null}
-      {samples.data?.length ? <Section title="Live testbed captures" detail="Published by the connected Janus service."><SampleTable samples={samples.data} /></Section> : null}
-      <Section title="Recorded walkthrough" detail="Fixture-backed evidence for reviewing the workspace without uploading a file.">
-        <div className="grid gap-px border border-rule bg-rule md:grid-cols-2">{recordedSampleCaptures.map((sample) => <article key={sample.id} className="bg-surface p-4"><p className="font-mono text-xs text-muted">{sample.category} · {sample.rfcStatus} · {sample.cipher}</p><h3 className="mt-2 font-medium text-ink">{sample.title}</h3><p className="mt-1 text-sm text-muted">{sample.description}</p><Link to={recordedAnalysisPath(sample)} className="mt-3 inline-flex text-sm font-medium text-accent underline underline-offset-4">Open recorded evidence</Link></article>)}</div>
-      </Section>
+
+      {/* Error notification */}
+      {error && (
+        <ErrorState
+          title="Upload or analysis failed"
+          detail={error}
+          onRetry={file ? () => void submit() : undefined}
+        />
+      )}
+
+      {/* In-page compact status indicator when pop-up is dismissed */}
+      {status && !showAnalysisModal && (
+        <section className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-xl border border-accent/40 bg-accent/5 p-4 sm:p-5 shadow-sm motion-enter">
+          <div className="flex items-center gap-3">
+            <div
+              className={cn(
+                "size-3 rounded-full shrink-0",
+                isDone ? "bg-pass" : isError ? "bg-critical" : "bg-accent animate-pulse"
+              )}
+            />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-sm text-ink">
+                  {statusText[status.status]}
+                </span>
+                <span className="font-mono text-xs text-muted">
+                  ({Math.round(status.progress_pct)}%)
+                </span>
+              </div>
+              <p className="text-xs text-muted mt-0.5 line-clamp-1">
+                {status.message ?? "Running autonomous pipeline stages..."}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <button
+              type="button"
+              onClick={() => setShowAnalysisModal(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-accent-strong transition-all"
+            >
+              <span>View Analysis Details</span>
+              <ArrowRight size={13} />
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* Focused Pop-up Modal Window for Active/Completed Analysis */}
+      {status && showAnalysisModal && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/80 backdrop-blur-md overflow-y-auto motion-fade"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="analysis-modal-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowAnalysisModal(false);
+          }}
+        >
+          <div
+            className="relative w-full max-w-3xl rounded-2xl border border-rule bg-surface p-6 sm:p-7 shadow-2xl space-y-6 motion-scale-in my-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close button in top-right */}
+            <button
+              type="button"
+              onClick={() => setShowAnalysisModal(false)}
+              className="absolute top-5 right-5 p-1.5 rounded-lg text-muted hover:text-ink hover:bg-sunken transition-colors"
+              aria-label="Close analysis popup"
+            >
+              <X size={18} />
+            </button>
+
+            {/* Top Bar: Progress & Stage Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-rule pb-5 pr-8">
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <div
+                    className={cn(
+                      "size-2.5 rounded-full",
+                      isDone ? "bg-pass" : isError ? "bg-critical" : "bg-accent animate-pulse"
+                    )}
+                  />
+                  <h2 id="analysis-modal-title" className="text-lg font-bold text-ink">
+                    {statusText[status.status]}
+                  </h2>
+                  <span className="font-mono text-xs text-muted">
+                    ({Math.round(status.progress_pct)}%)
+                  </span>
+                </div>
+                <p className="mt-1 text-xs text-muted">
+                  {status.message ?? "Running autonomous pipeline stages..."}
+                </p>
+              </div>
+
+              {/* Overall Progress Bar */}
+              <div className="w-full sm:w-56 space-y-1">
+                <div className="h-2 w-full overflow-hidden rounded-full bg-sunken">
+                  <div
+                    className="h-full bg-accent transition-all duration-300"
+                    style={{ width: `${Math.max(5, Math.min(100, status.progress_pct))}%` }}
+                  />
+                </div>
+                <div className="flex justify-between font-mono text-[10px] text-muted">
+                  <span>{monitoringMode === "streaming" ? "Live Stream" : "Status Polling"}</span>
+                  <span>{Math.round(status.progress_pct)}%</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 4-Stage Visual Stepper */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              {PIPELINE_STAGES.map((stage, idx) => {
+                const isPast = isDone || currentStageIdx > idx;
+                const isCurrent = !isDone && currentStageIdx === idx;
+                const Icon = stage.icon;
+
+                return (
+                  <div
+                    key={stage.key}
+                    className={cn(
+                      "rounded-xl border p-3.5 transition-all text-left",
+                      isCurrent
+                        ? "border-accent bg-accent/5 ring-2 ring-accent/20"
+                        : isPast
+                        ? "border-pass/40 bg-pass/5 text-ink"
+                        : "border-rule/60 bg-sunken/40 text-muted opacity-60"
+                    )}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-mono text-[10px] font-bold">STAGE 0{idx + 1}</span>
+                      {isPast ? (
+                        <CheckCircle2 size={15} className="text-pass" />
+                      ) : isCurrent ? (
+                        <RefreshCw size={14} className="animate-spin text-accent" />
+                      ) : (
+                        <Icon size={14} />
+                      )}
+                    </div>
+                    <p className="mt-2 text-xs font-bold text-ink">{stage.label}</p>
+                    <p className="text-[11px] text-muted truncate">{stage.desc}</p>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* When complete: Show the Verdict Score Gauge */}
+            {isDone && parsedScore !== null && parsedGrade && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-5 rounded-xl border border-rule bg-sunken/50 p-4 sm:p-5 motion-enter">
+                <div className="space-y-1.5 text-center sm:text-left">
+                  <span className="rounded bg-accent/10 px-2 py-0.5 font-mono text-[10px] font-bold text-accent uppercase tracking-wider">
+                    Audit Verdict
+                  </span>
+                  <h3 className="text-sm font-bold text-ink mt-1">RFC Compliance &amp; Dissection Evaluation</h3>
+                  <p className="text-xs text-muted max-w-md leading-relaxed">
+                    {status.message}
+                  </p>
+                </div>
+                <div className="shrink-0">
+                  <ScoreGauge
+                    score={parsedScore}
+                    grade={parsedGrade}
+                    label="Evaluated Score"
+                    size={140}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Live Terminal Log Stream */}
+            <div className="rounded-xl border border-rule bg-canvas p-4 space-y-2">
+              <div className="flex items-center justify-between border-b border-rule/60 pb-2 text-xs font-mono text-muted">
+                <div className="flex items-center gap-2">
+                  <Terminal size={14} className="text-accent" />
+                  <span>Execution Dissection Log</span>
+                </div>
+                <span className="text-[10px] uppercase font-bold">
+                  {isDone ? "COMPLETE" : isError ? "HALTED" : "DISSECTING"}
+                </span>
+              </div>
+
+              <div
+                ref={logsContainerRef}
+                className="max-h-44 overflow-y-auto space-y-1.5 font-mono text-xs leading-relaxed"
+              >
+                {status.logs.length === 0 ? (
+                  <div className="flex items-center gap-2 text-muted py-2">
+                    <RefreshCw size={12} className="animate-spin text-accent" />
+                    <span>Spawning worker pipeline and initializing packet dissector...</span>
+                  </div>
+                ) : (
+                  status.logs.map((logLine, idx) => {
+                    const isOk = logLine.includes("Complete") || logLine.includes("Succeeded") || logLine.includes("Validating");
+                    const isInfo = logLine.includes("IKE") || logLine.includes("RFC") || logLine.includes("FlowDeepNet") || logLine.includes("SHAP");
+                    const isErr = logLine.includes("Failed") || logLine.includes("Error") || logLine.includes("CRITICAL");
+
+                    return (
+                      <div key={idx} className="flex items-start gap-2">
+                        <span className="text-muted select-none">&gt;</span>
+                        <span className={cn(
+                          isErr ? "text-critical font-medium" : isOk ? "text-pass" : isInfo ? "text-accent font-medium" : "text-ink"
+                        )}>
+                          {logLine}
+                        </span>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
+            {/* Action buttons */}
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-rule">
+              <button
+                type="button"
+                onClick={() => setShowAnalysisModal(false)}
+                className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-rule bg-surface px-4 text-xs font-semibold text-muted hover:text-ink hover:border-accent transition-colors"
+              >
+                <span>Dismiss</span>
+              </button>
+
+              {isDone ? (
+                <div className="flex flex-wrap items-center gap-3">
+                  <Link
+                    to={`/analysis/${encodeURIComponent(status.capture_id)}`}
+                    className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-rule bg-surface px-4 text-xs font-semibold text-ink hover:border-accent transition-colors"
+                  >
+                    <Cpu size={15} />
+                    View Flow Classification
+                  </Link>
+
+                  <Link
+                    to={`/compliance/${encodeURIComponent(status.capture_id)}`}
+                    className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-accent px-5 text-xs font-semibold text-white shadow-sm hover:bg-accent-strong transition-colors"
+                  >
+                    <ShieldCheck size={15} />
+                    View Compliance Audit
+                    <ArrowRight size={14} />
+                  </Link>
+                </div>
+              ) : (
+                <span className="text-xs font-mono text-muted flex items-center gap-2">
+                  <RefreshCw size={12} className="animate-spin text-accent" />
+                  Autonomous pipeline active...
+                </span>
+              )}
+            </div>
+
+            {connectionNote && <InlineNotice>{connectionNote}</InlineNotice>}
+          </div>
+        </div>
+      )}
+
+      {/* Live Testbed Captures Catalog with 1-Click Analyze */}
+      <section className="space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h2 className="text-lg font-bold text-ink flex items-center gap-2">
+              <FileCheck2 size={18} className="text-accent" />
+              Verified Testbed Captures
+            </h2>
+            <p className="text-xs text-muted mt-0.5">
+              Run live evaluations with real strongSwan captures or Wireshark testbed files in a single click.
+            </p>
+          </div>
+
+          <a
+            href="https://wiki.wireshark.org/SampleCaptures#ipsec"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-mono text-accent hover:underline inline-flex items-center gap-1"
+          >
+            Wireshark Samples Wiki &rarr;
+          </a>
+        </div>
+
+        {samples.isPending && <LoadingState label="Loading sample captures..." />}
+        {samples.isError && (
+          <InlineNotice>Sample captures unavailable: {getApiErrorMessage(samples.error)}</InlineNotice>
+        )}
+
+        {samples.data && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {samples.data.map((sample, idx) => (
+              <div
+                key={sample.id}
+                className={cn(
+                  "flex flex-col justify-between rounded-xl border border-rule bg-surface p-4 space-y-3 interactive-card",
+                  idx < 4 ? `stagger-${idx + 1}` : ""
+                )}
+              >
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="rounded bg-accent/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-accent border border-accent/20">
+                      {sample.category}
+                    </span>
+                    <span className="font-mono text-[11px] text-muted">
+                      {formatBytes(sample.size_bytes)}
+                    </span>
+                  </div>
+
+                  <h3 className="text-sm font-bold text-ink">{sample.title}</h3>
+                  <p className="text-xs text-muted leading-relaxed line-clamp-2">{sample.description}</p>
+                  <p className="font-mono text-[11px] text-accent truncate">{sample.cipher}</p>
+                </div>
+
+                <div className="flex items-center justify-between gap-2 pt-2 border-t border-rule">
+                  <a
+                    href={sampleDownloadHref(sample)}
+                    download={sample.filename}
+                    className="inline-flex items-center gap-1.5 text-xs text-muted hover:text-ink transition-colors"
+                  >
+                    <Download size={13} />
+                    <span>Download</span>
+                  </a>
+
+                  <button
+                    type="button"
+                    disabled={analyzingSampleId === sample.id || uploading}
+                    onClick={() => handleAnalyzeSample(sample.id)}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent-strong disabled:opacity-50 transition-all"
+                  >
+                    <Play size={12} />
+                    <span>{analyzingSampleId === sample.id ? "Launching..." : "1-Click Analyze"}</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Fixture-backed walkthrough demo shortcut */}
+      <section className="rounded-xl border border-rule bg-surface p-5 space-y-3">
+        <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-muted">
+          Instant Recorded Evidence (No Backend Required):
+        </h3>
+        <div className="flex flex-wrap gap-2">
+          {recordedSampleCaptures.map((sample) => (
+            <Link
+              key={sample.id}
+              to={recordedAnalysisPath(sample)}
+              className="inline-flex items-center gap-2 rounded-lg border border-rule bg-sunken/60 px-3 py-1.5 text-xs font-mono text-ink hover:border-accent transition-colors"
+            >
+              <span>{sample.title}</span>
+              <span className="rounded bg-accent/20 px-1.5 py-0.5 text-[10px] text-accent">
+                {sample.cipher}
+              </span>
+            </Link>
+          ))}
+        </div>
+      </section>
     </div>
   );
-}
-
-function SampleTable({ samples }: { samples: SamplePcap[] }) {
-  return <div className="overflow-x-auto"><table className="w-full min-w-[720px] border-collapse text-left text-sm"><caption className="sr-only">Live testbed captures</caption><thead className="border-y border-rule font-mono text-xs text-muted"><tr><th scope="col" className="px-2 py-2 font-medium">Capture</th><th scope="col" className="px-2 py-2 font-medium">Category</th><th scope="col" className="px-2 py-2 font-medium">RFC status</th><th scope="col" className="px-2 py-2 font-medium">Cipher</th><th scope="col" className="px-2 py-2 font-medium">File</th></tr></thead><tbody>{samples.map((sample) => <tr key={sample.id} className="border-b border-rule/70"><td className="px-2 py-3 text-ink"><p>{sample.title}</p><p className="mt-1 text-xs text-muted">{sample.description}</p></td><td className="px-2 py-3 text-muted">{sample.category}</td><td className="px-2 py-3 text-muted">{sample.rfc_status}</td><td className="px-2 py-3 font-mono text-xs text-muted">{sample.cipher}</td><td className="px-2 py-3"><a className="text-accent underline underline-offset-4" href={sampleDownloadHref(sample)} download={sample.filename}>Download .pcap</a></td></tr>)}</tbody></table></div>;
 }

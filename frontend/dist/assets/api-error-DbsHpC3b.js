@@ -1,0 +1,1 @@
+import{b as s}from"./vendor-query-Cgs7qfHd.js";function i(e){if(s.isAxiosError(e)){const t=e.response?.data?.detail;return typeof t=="string"?t:e.code==="ECONNABORTED"?"The request timed out.":e.response?`The backend returned ${e.response.status}.`:"The backend could not be reached."}return e instanceof Error?e.message:"The request failed."}export{i as g};

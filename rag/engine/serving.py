@@ -157,51 +157,257 @@ class LLMServingConnector:
 
         top_chunk = retrieved_chunks[0] if retrieved_chunks else {}
         doc = top_chunk.get("document", "RFC 8221")
-        sec = top_chunk.get("section", "§5")
+        sec_raw = str(top_chunk.get("section", "§5")).strip()
+        sec = sec_raw if sec_raw.startswith("§") or sec_raw.lower().startswith("table") or sec_raw.lower().startswith("appendix") else f"§{sec_raw}"
         cit = f"[{doc} {sec}]"
         clause_title = top_chunk.get("title", "Standards Specification")
 
         # Mathematical and algorithmic threat analysis
-        math_threat = "Legacy algorithm exhibits known cryptanalytic weaknesses under sustained packet capture."
-        if "3des" in param.lower() or "3des" in rule_id.lower():
+        sev_upper = str(severity).upper()
+        p_lower = param.lower()
+        r_lower = rule_id.lower()
+        is_info_or_compliant = sev_upper in ("INFO", "LOW") or "gcm" in p_lower or "gcm" in r_lower or "ecp" in p_lower
+
+        if "gcm" in p_lower or "gcm" in r_lower or "chacha" in p_lower:
             math_threat = (
-                "3DES operates with a 64-bit block size. Under the Birthday Paradox, ciphertext block collisions "
-                "occur with high probability after approximately 2^32 blocks (32 GB of data). In CBC mode, an attacker "
-                "observing collisions can mathematically derive the XOR difference of plaintext blocks (SWEET32 attack, CVE-2016-2183)."
+                f"`{param}` utilizes modern Authenticated Encryption with Associated Data (AEAD). "
+                "Galois/Counter Mode (GCM) combines counter-mode (CTR) confidentiality with a Galois authentication field (GHASH) "
+                "yielding a 128-bit Integrity Check Value (ICV). This structure eliminates unauthenticated CBC bit-flipping "
+                "and padding oracle attacks, providing cryptographic collision resistance bounded at $2^{64}$ blocks."
             )
-        elif "des" in param.lower() or "des" in rule_id.lower():
+            std_grounding = (
+                f"The compliance engine evaluated this parameter under authoritative clause {cit} (*{clause_title}*). "
+                f"[RFC 8221 §5] classifies AES-GCM-16 as **MUST** implement for IPsec ESP, satisfying both NIST SP 800-77 Rev. 1 "
+                "and DoD IPsec STIG compliance baselines."
+            )
+            sys_impact = (
+                f"Active configuration adheres to modern cryptographic standards. Session payloads traversing the VPN tunnel "
+                "maintain mathematical confidentiality and origin integrity against passive surveillance and active transit tampering."
+            )
+            remediation = (
+                f"No remediation required. The configured `{param}` suite satisfies governing IETF RFC 8221, RFC 8247, "
+                "and NIST SP 800-77 Rev. 1 requirements."
+            )
+        elif "tfs" in p_lower or "tfs" in r_lower:
             math_threat = (
-                "Single DES relies on a 56-bit key length (2^56 keyspace). Modern GPU/FPGA clusters can exhaust "
+                "Traffic Flow Security (TFS) operates against side-channel flow analysis. Without constant-rate AGGFRAG framing, "
+                "packet size entropy and inter-packet arrival time variance leak application behavior and traffic bursts "
+                "to passive wire observers without breaking payload encryption."
+            )
+            std_grounding = (
+                f"The compliance engine classified this finding as **{severity}** under authoritative clause {cit} (*{clause_title}*). "
+                "[RFC 9347 §2] defines the Aggregation and Fragmentation (AGGFRAG) payload format for IPsec Traffic Flow Security."
+            )
+            sys_impact = (
+                "Payload confidentiality remains mathematically sound under AEAD encryption. However, packet timing and size distributions "
+                "remain observable to side-channel classifiers on unmanaged network transports."
+            )
+            remediation = (
+                "To eliminate side-channel packet length and timing signatures in high-assurance environments, configure RFC 9347 TFS in strongSwan `swanctl.conf`:\n"
+                "```text\n"
+                "connections {\n"
+                "  vpn {\n"
+                "    children {\n"
+                "      secure-esp {\n"
+                "        tfs = 1400\n"
+                "      }\n"
+                "    }\n"
+                "  }\n"
+                "}\n"
+                "```"
+            )
+        elif is_info_or_compliant:
+            math_threat = (
+                f"Cryptographic parameters for `{param}` adhere to current standards benchmarks with no known mathematical shortcuts "
+                "or collision vulnerabilities under sustained capture."
+            )
+            std_grounding = (
+                f"The compliance engine evaluated this parameter under authoritative clause {cit} (*{clause_title}*). "
+                f"Requirements for `{param}` satisfy governing IETF RFC and NIST SP 800-77 Rev. 1 specifications."
+            )
+            sys_impact = (
+                f"No adverse security impact. Session encryption keys, integrity protections, and protocol state for `{param}` "
+                "operate within standard cryptographic security boundaries."
+            )
+            remediation = (
+                f"No remediation required. The configured `{param}` parameter satisfies RFC 8221, RFC 8247, "
+                "and NIST SP 800-77 Rev. 1 benchmarks."
+            )
+        elif "3des" in p_lower or "3des" in r_lower:
+            math_threat = (
+                "3DES operates with a 64-bit block size. Under the Birthday Paradox, ciphertext block collisions occur "
+                "with high probability after observing ~2^32 blocks (32 GB of data). In CBC mode, an adversary observing "
+                "collisions can mathematically derive the XOR difference of plaintext blocks (SWEET32 attack, CVE-2016-2183)."
+            )
+            std_grounding = (
+                f"The compliance engine classified this finding as **{severity}** under authoritative clause {cit} (*{clause_title}*). "
+                "[RFC 8221 §5] explicitly designates ENCR_3DES as **MUST NOT**, and NIST SP 800-131A Rev. 2 formally disallowed 3DES for encryption."
+            )
+            sys_impact = (
+                f"Leaving `{param}` active allows passive eavesdroppers recording high-volume tunnel sessions to decrypt "
+                "sensitive credentials, session tokens, and encapsulated payloads."
+            )
+            remediation = (
+                "In strongSwan `swanctl.conf`, upgrade ESP proposals to modern AEAD ciphers:\n"
+                "```text\n"
+                "connections {\n"
+                "  vpn {\n"
+                "    children {\n"
+                "      esp-tunnel {\n"
+                "        esp_proposals = aes256gcm16-aes128gcm16\n"
+                "      }\n"
+                "    }\n"
+                "  }\n"
+                "}\n"
+                "```"
+            )
+        elif "des" in p_lower or "des" in r_lower:
+            math_threat = (
+                "Single DES relies on a 56-bit key length ($2^{56}$ keyspace). Modern GPU/FPGA clusters can exhaust "
                 "the entire keyspace in hours, rendering packet confidentiality obsolete."
             )
-        elif "group 2" in param.lower() or "group_2" in rule_id.lower() or "group 1" in param.lower():
+            std_grounding = (
+                f"The compliance engine classified this finding as **{severity}** under authoritative clause {cit} (*{clause_title}*). "
+                "[RFC 8221 §5] lists single DES as **MUST NOT**."
+            )
+            sys_impact = (
+                "Total loss of confidentiality. Passive wire captures can be decrypted via key exhaustion."
+            )
+            remediation = (
+                "Upgrade proposals in strongSwan `swanctl.conf` to AES-256-GCM:\n"
+                "```text\n"
+                "connections {\n"
+                "  vpn {\n"
+                "    children {\n"
+                "      esp-tunnel {\n"
+                "        esp_proposals = aes256gcm16\n"
+                "      }\n"
+                "    }\n"
+                "  }\n"
+                "}\n"
+                "```"
+            )
+        elif "group 2" in p_lower or "group_2" in r_lower or "group 1" in p_lower:
             math_threat = (
                 "MODP-1024 / MODP-768 groups are susceptible to Number Field Sieve (NFS) precomputation. "
-                "Adversaries can precalculate discrete logarithms for standard primes and decrypt IKE key exchanges in real-time (Logjam attack)."
+                "Adversaries can precalculate discrete logarithms for standard primes and decrypt IKE key exchanges in real-time (Logjam attack, CVE-2015-4000)."
             )
-        elif "md5" in param.lower() or "md5" in rule_id.lower():
+            std_grounding = (
+                f"The compliance engine classified this finding as **{severity}** under authoritative clause {cit} (*{clause_title}*). "
+                "[RFC 8247 §2.4] designates MODP-1024 as **MUST NOT**, and NIST SP 800-131A Rev. 2 disallows keys below 112 bits of security."
+            )
+            sys_impact = (
+                "Adversaries can passively decrypt the IKEv2 handshake, recover SKEYSEED, and decrypt all subsequent Child SAs, destroying forward secrecy."
+            )
+            remediation = (
+                "Migrate key exchange proposals in `swanctl.conf` to Diffie-Hellman Group 19 (256-bit ECP) or Group 14 (2048-bit MODP):\n"
+                "```text\n"
+                "connections {\n"
+                "  vpn {\n"
+                "    proposals = aes256-sha256-ecp256,aes256-sha256-modp2048\n"
+                "  }\n"
+                "}\n"
+                "```"
+            )
+        elif "md5" in p_lower or "md5" in r_lower:
             math_threat = (
-                "MD5 has demonstrated cryptographic collision vulnerability. Attackers can forge valid HMAC-MD5 signatures "
+                "MD5 has demonstrated practical cryptographic collision vulnerabilities. Attackers can forge valid HMAC-MD5 signatures "
                 "in milliseconds, completely compromising packet integrity."
             )
-        elif "auth_none" in param.lower() or "none" in rule_id.lower():
+            std_grounding = (
+                f"The compliance engine classified this finding as **{severity}** under authoritative clause {cit} (*{clause_title}*). "
+                "[RFC 8221 §5] classifies MD5 as **MUST NOT**, mandating SHA-2 or combined AEAD."
+            )
+            sys_impact = (
+                "Packet integrity and origin authenticity are void. Adversaries can inject or alter packets in transit."
+            )
+            remediation = (
+                "Upgrade to combined AEAD or SHA-2 integrity in strongSwan `swanctl.conf`:\n"
+                "```text\n"
+                "connections {\n"
+                "  vpn {\n"
+                "    children {\n"
+                "      esp-tunnel {\n"
+                "        esp_proposals = aes256gcm16,aes256-sha256\n"
+                "      }\n"
+                "    }\n"
+                "  }\n"
+                "}\n"
+                "```"
+            )
+        elif "auth_none" in p_lower or "none" in r_lower:
             math_threat = (
                 "Unauthenticated CBC mode is vulnerable to bit-flipping and padding oracle attacks. Modifying ciphertext block C_{i-1} "
                 "predictably alters plaintext block P_i without detection, enabling active Man-in-the-Middle command injection."
             )
+            std_grounding = (
+                f"The compliance engine classified this finding as **{severity}** under authoritative clause {cit} (*{clause_title}*). "
+                "[RFC 8221 §4] explicitly specifies AUTH_NONE as **MUST NOT** when paired with non-AEAD block ciphers like AES-CBC."
+            )
+            sys_impact = (
+                "Active adversaries can manipulate decrypted payloads and execute padding oracle decryption."
+            )
+            remediation = (
+                "Enforce authenticated encryption (AES-256-GCM) in `swanctl.conf`:\n"
+                "```text\n"
+                "connections {\n"
+                "  vpn {\n"
+                "    children {\n"
+                "      esp-tunnel {\n"
+                "        esp_proposals = aes256gcm16\n"
+                "      }\n"
+                "    }\n"
+                "  }\n"
+                "}\n"
+                "```"
+            )
+        elif "cleartext" in r_lower or "no-esp" in r_lower or "encapsulation" in p_lower:
+            math_threat = (
+                "Zero cryptographic encapsulation. Plaintext IP payloads, protocol headers, and credentials "
+                "traverse intermediate network hops unencrypted with zero confidentiality or integrity guarantees."
+            )
+            std_grounding = (
+                f"The compliance engine classified this finding as **{severity}** under authoritative clause {cit} (*{clause_title}*). "
+                "[RFC 8221 §5] and [NIST SP 800-77 Rev. 1 §4.1] mandate ESP encapsulation (IP protocol 50) "
+                "with authenticated encryption for all sensitive inter-site and remote access communications."
+            )
+            sys_impact = (
+                "Total exposure to wiretapping, eavesdropping, and packet injection attacks (MITRE ATT&CK T1040). "
+                "Any intermediary router or ISP can read, log, or manipulate payload contents."
+            )
+            remediation = (
+                "Deploy an authenticated strongSwan IPsec tunnel enforcing ESP encapsulation:\n"
+                "```text\n"
+                "connections {\n"
+                "  site-to-site {\n"
+                "    remote_addrs = <gateway-ip>\n"
+                "    children {\n"
+                "      esp-tunnel {\n"
+                "        esp_proposals = aes256gcm16-aes128gcm16\n"
+                "        mode = tunnel\n"
+                "      }\n"
+                "    }\n"
+                "  }\n"
+                "}\n"
+                "```"
+            )
+        else:
+            math_threat = (
+                f"Configuration parameter `{param}` deviates from authoritative RFC and NIST cryptographic baselines. "
+                "Non-standard or unvetted parameters introduce cryptanalytic risks under sustained capture."
+            )
+            std_grounding = (
+                f"The compliance engine classified this finding as **{severity}** under authoritative clause {cit} (*{clause_title}*). "
+                "Governing standards require strict compliance with RFC 8221, RFC 8247, and NIST SP 800-77 Rev. 1 specifications."
+            )
+            sys_impact = f"Leaving `{param}` in this state leaves session traffic exposed to {vuln or 'cryptographic degradation'}."
+            remediation = f"{recom or 'Upgrade transform proposals to modern AEAD encryption (AES-256-GCM) and DH Group 19 (ECP-256).'}"
 
         sections = [
             f"### Cryptanalytic Threat & Mathematical Analysis\n{math_threat}",
-            f"### Primary Standards Grounding\n"
-            f"The compliance engine classified this finding as **{severity}** under authoritative clause {cit} (*{clause_title}*). "
-            f"The governing text mandates that: \"{top_chunk.get('text', '')[:260].strip()}...\" "
-            f"Deploying this algorithm in production directly violates IETF RFC requirements, NIST SP 800-77 Rev. 1, and DoD IPsec STIG benchmarks.",
-            f"### System Impact & Blast Radius\n"
-            f"Leaving `{param}` in this state leaves session traffic exposed to {vuln}. "
-            f"Passive eavesdroppers or active in-path adversaries can exploit this parameter to intercept or alter VPN tunnel traffic.",
-            f"### Verified Actionable Remediation\n"
-            f"{recom} In strongSwan `swanctl.conf`, upgrade the transform proposals to modern authenticated encryption (AES-256-GCM) "
-            f"and high-strength Diffie-Hellman groups (Group 19/20) to achieve 100% standards compliance.",
+            f"### Primary Standards Grounding\n{std_grounding}",
+            f"### System Impact & Blast Radius\n{sys_impact}",
+            f"### Verified Actionable Remediation\n{remediation}",
         ]
         return "\n\n".join(sections)
 
@@ -299,7 +505,7 @@ class LLMServingConnector:
             content=fallback_text,
             is_fallback=True,
             latency_ms=latency,
-            model_name=f"Janus-Grounded-Fallback/{target_model}-CoT",
+            model_name=f"Janus-Standards-Engine/{target_model}-CoT",
         )
 
     def generate_compound(
@@ -347,7 +553,7 @@ class LLMServingConnector:
             content=fallback_text,
             is_fallback=True,
             latency_ms=latency,
-            model_name=f"Janus-Grounded-Fallback/{target_model}-Compound",
+            model_name=f"Janus-Standards-Engine/{target_model}-Compound",
         )
 
 

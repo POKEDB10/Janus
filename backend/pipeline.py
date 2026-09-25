@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import time
 from pathlib import Path
 from typing import Any
@@ -29,8 +30,21 @@ except ImportError:
 
 log = logging.getLogger(__name__)
 
+# Concurrency throttle to prevent CPU/RAM exhaustion under multi-user traffic
+_PIPELINE_SEMAPHORE = asyncio.Semaphore(int(os.environ.get("JANUS_MAX_CONCURRENT_ANALYSES", "4")))
+
 
 async def run_analysis_pipeline(
+    capture_id: str,
+    pcap_path: str,
+    state_store: dict[str, Any],
+) -> None:
+    """Wrapper that limits concurrent pipeline runs via semaphore to prevent server exhaustion."""
+    async with _PIPELINE_SEMAPHORE:
+        await _execute_analysis_pipeline(capture_id, pcap_path, state_store)
+
+
+async def _execute_analysis_pipeline(
     capture_id: str,
     pcap_path: str,
     state_store: dict[str, Any],
@@ -64,12 +78,12 @@ async def run_analysis_pipeline(
         state_store[capture_id]["logs"] = []
 
         add_log(f"Received capture payload: {filename} ({size_kb:.1f} KB). Validating PCAP headers...")
-        await asyncio.sleep(0.9)
+        await asyncio.sleep(0.2)
 
-        # Parse IKE sessions
+        # Parse IKE sessions off-thread to avoid event-loop blocking
         add_log("Dissecting IKEv2 packets (UDP 500/4500) — analyzing SA_INIT & IKE_AUTH payloads...")
         ike_parser = IKEParser(pcap_file)
-        ike_sessions = ike_parser.parse()
+        ike_sessions = await asyncio.to_thread(ike_parser.parse)
         ike_sessions_data = [s.to_dict() for s in ike_sessions]
 
         if ike_sessions_data:
@@ -80,51 +94,60 @@ async def run_analysis_pipeline(
 
         state_store[capture_id]["progress_pct"] = 30.0
         state_store[capture_id]["message"] = "Extracting ESP flow tunnels & statistical distributions..."
-        await asyncio.sleep(1.0)
+        await asyncio.sleep(0.2)
 
-        # Parse ESP flows
+        # Parse ESP flows off-thread to prevent event-loop starvation
         esp_extractor = ESPFeatureExtractor(pcap_file)
-        raw_flows = esp_extractor.extract_all_flow_features()
+        raw_flows = await asyncio.to_thread(esp_extractor.extract_all_flow_features)
+        has_native_esp = bool(raw_flows)
+        has_cleartext_ip = False
 
-        if not raw_flows:
-            add_log("No raw ESP flows detected in capture — generating representative baseline flow for analysis")
-            raw_flows = [
-                {
-                    "flow_id": "flow_0001",
-                    "src_ip": "172.20.1.1",
-                    "dst_ip": "172.20.1.2",
-                    "spi": "0x0c9f1a2b",
-                    "packet_count": 120,
-                    "duration_s": 2.4,
-                    "features": {
-                        "pkt_len_min": 160.0,
-                        "pkt_len_max": 220.0,
-                        "pkt_len_mean": 180.0,
-                        "pkt_len_var": 30.0,
-                        "pkt_len_std": 5.47,
-                        "pkt_len_median": 180.0,
-                        "pkt_len_q25": 170.0,
-                        "pkt_len_q75": 190.0,
-                        "pkt_len_iqr": 20.0,
-                        "iat_min": 0.018,
-                        "iat_max": 0.022,
-                        "iat_mean": 0.020,
-                        "iat_var": 0.000004,
-                        "iat_std": 0.002,
-                        "burst_count": 15,
-                        "burst_len_mean": 4.0,
-                        "burst_len_max": 8.0,
-                        "burst_bytes_mean": 720.0,
-                        "flow_duration_s": 2.4,
-                        "total_packets": 120,
-                        "total_bytes": 21600,
-                        "packet_rate_pps": 50.0,
-                        "byte_rate_bps": 9000.0,
-                        "forward_packet_ratio": 0.5,
-                        "forward_byte_ratio": 0.5,
-                    },
-                }
-            ]
+        if not has_native_esp:
+            # Fallback to general IP flow extraction to inspect cleartext packets traversing the wire
+            all_ip_extractor = ESPFeatureExtractor(pcap_file, include_all_ip=True)
+            raw_flows = await asyncio.to_thread(all_ip_extractor.extract_all_flow_features)
+            has_cleartext_ip = bool(raw_flows)
+            if has_cleartext_ip:
+                add_log(f"Zero IPsec ESP encapsulation detected — extracted {len(raw_flows)} raw cleartext IP flow(s)")
+            else:
+                add_log("No IP traffic detected in capture — generating baseline diagnostic flow")
+                raw_flows = [
+                    {
+                        "flow_id": "flow_0001",
+                        "src_ip": "172.20.1.1",
+                        "dst_ip": "172.20.1.2",
+                        "spi": "0x0c9f1a2b",
+                        "packet_count": 120,
+                        "duration_s": 2.4,
+                        "features": {
+                            "pkt_len_min": 160.0,
+                            "pkt_len_max": 220.0,
+                            "pkt_len_mean": 180.0,
+                            "pkt_len_var": 30.0,
+                            "pkt_len_std": 5.47,
+                            "pkt_len_median": 180.0,
+                            "pkt_len_q25": 170.0,
+                            "pkt_len_q75": 190.0,
+                            "pkt_len_iqr": 20.0,
+                            "iat_min": 0.018,
+                            "iat_max": 0.022,
+                            "iat_mean": 0.020,
+                            "iat_var": 0.000004,
+                            "iat_std": 0.002,
+                            "burst_count": 15,
+                            "burst_len_mean": 4.0,
+                            "burst_len_max": 8.0,
+                            "burst_bytes_mean": 720.0,
+                            "flow_duration_s": 2.4,
+                            "total_packets": 120,
+                            "total_bytes": 21600,
+                            "packet_rate_pps": 50.0,
+                            "byte_rate_bps": 9000.0,
+                            "forward_packet_ratio": 0.5,
+                            "forward_byte_ratio": 0.5,
+                        },
+                    }
+                ]
         else:
             add_log(f"Extracted {len(raw_flows)} active ESP tunnel flow(s) (IP proto 50)")
 
@@ -133,12 +156,11 @@ async def run_analysis_pipeline(
         state_store[capture_id]["progress_pct"] = 48.0
         state_store[capture_id]["message"] = "Executing FlowDeepNet Ensemble (XGBoost + MLP)..."
         add_log("Extracting 25-dimensional statistical flow vectors (IAT, burst lengths, byte entropy)...")
-        await asyncio.sleep(1.1)
+        await asyncio.sleep(0.2)
 
         classified_flows = []
-        for f in raw_flows:
-            feats = f.get("features", {})
-            cls_out = classifier.classify_flow(feats)
+        cls_results = await asyncio.to_thread(classifier.classify_flows_batch, raw_flows)
+        for f, cls_out in zip(raw_flows, cls_results):
             shap_dict = None
             if cls_out.shap_explanation:
                 raw_shap = cls_out.shap_explanation.to_dict()
@@ -170,7 +192,7 @@ async def run_analysis_pipeline(
         state_store[capture_id]["progress_pct"] = 68.0
         state_store[capture_id]["message"] = "Generating TreeExplainer local SHAP attributions..."
         add_log("TreeExplainer SHAP: Computed per-feature marginal contribution weights.")
-        await asyncio.sleep(0.9)
+        await asyncio.sleep(0.2)
 
         # Stage 3: Deterministic Compliance Scoring
         state_store[capture_id]["status"] = "SCORING"
@@ -207,14 +229,19 @@ async def run_analysis_pipeline(
             pfs_enabled = primary_session.pfs_enabled
             sa_lifetime = primary_session.sa_lifetime_seconds
             rsa_bits = primary_session.rsa_key_bits
-        else:
-            # No IKE handshake packets found in capture.
+        elif has_native_esp or not has_cleartext_ip:
+            # Case 2: ESP packets present without IKE, OR completely empty capture with 0 packets.
             # We cannot audit what was never negotiated — mark as INDETERMINATE.
-            # Do NOT infer cipher from filename; that produces false compliance grades.
+            # Satisfies test_regression_bug02_pcap_without_ike_returns_indeterminate
+            # and test_pipeline_persists_to_database.
+            indeterminate_msg = (
+                "IKE handshake not present in capture."
+                if has_native_esp
+                else "No IP network traffic found in capture."
+            )
             add_log(
                 "WARNING: No IKE_SA_INIT or IKE_AUTH packets found in capture. "
                 "Compliance audit cannot determine negotiated cipher suite. "
-                "Capture may contain only ESP data (key exchange happened off-capture). "
                 "Reporting as INDETERMINATE — upload a full session capture including handshake."
             )
             state_store[capture_id]["results"] = {
@@ -242,7 +269,7 @@ async def run_analysis_pipeline(
                     "grade": "N/A",
                     "status": "INDETERMINATE",
                     "findings": [],
-                    "indeterminate_reason": "IKE handshake not present in capture.",
+                    "indeterminate_reason": indeterminate_msg,
                 },
                 "ike_sessions": [],
                 "reports": {},
@@ -260,6 +287,199 @@ async def run_analysis_pipeline(
             except Exception as db_exc:
                 log.warning("Failed to record audit in database for %s: %s", capture_id, db_exc)
             log.info("Pipeline finished INDETERMINATE for capture_id=%s (no IKE session)", capture_id)
+            return
+        else:
+            # Case 3: Neither IKE nor ESP detected in capture (Cleartext / Unencrypted traffic)
+            add_log("CRITICAL SECURITY ALERT: Zero IPsec ESP encapsulation detected across all observed packets.")
+            add_log("Cryptographic Audit: Evaluated Cleartext Unprotected Traffic (Zero Encryption). Score 0/100 (Grade F).")
+
+            cleartext_findings = [
+                {
+                    "rule_id": "RFC8221-CLEARTEXT-NO-ESP",
+                    "severity": "CRITICAL",
+                    "category": "Encryption",
+                    "parameter": "IPsec Tunnel Encapsulation",
+                    "value": "NONE (Cleartext)",
+                    "description": f"Observed {len(classified_flows)} unencrypted network flow(s). Zero ESP encapsulation (IP protocol 50) or IKE negotiation (UDP 500/4500) was detected. All packet payloads, protocol headers, and metadata traverse the wire in plaintext, directly exposing communications to passive network sniffing (MITRE ATT&CK T1040) and man-in-the-middle tampering.",
+                    "recommendation": "Deploy an RFC 8221 compliant strongSwan IPsec tunnel (tunnel mode with ESP ENCR_AES_GCM_16 and DH Group 19 PFS) between network gateways to secure all transit traffic.",
+                    "references": ["RFC 8221 §5", "NIST SP 800-77 Rev. 1", "MITRE ATT&CK T1040"],
+                    "vulnerability_tag": "CLEARTEXT_EXPOSURE",
+                },
+                {
+                    "rule_id": "RFC8247-NO-KEY-EXCHANGE",
+                    "severity": "HIGH",
+                    "category": "Key Exchange",
+                    "parameter": "Key Exchange Protocol",
+                    "value": "NONE",
+                    "description": "No IKEv2 (RFC 7296) or post-quantum hybrid key exchange observed. The connection does not establish authenticated session keys, leaving communications vulnerable to active adversary-in-the-middle attacks.",
+                    "recommendation": "Configure strongSwan IKEv2 daemon with mutual certificate authentication and ephemeral ECDH (Curve25519 / NIST P-256) key exchange.",
+                    "references": ["RFC 8247 §2.4", "FIPS 203 (ML-KEM)"],
+                    "vulnerability_tag": "MISSING_KEY_AGREEMENT",
+                },
+                {
+                    "rule_id": "RFC4303-NO-INTEGRITY-ANTI-REPLAY",
+                    "severity": "HIGH",
+                    "category": "Integrity",
+                    "parameter": "Packet Integrity & Anti-Replay",
+                    "value": "NONE",
+                    "description": "Unencrypted cleartext IP packets lack ESP sequence numbers and cryptographic authentication tags (ICV), exposing the network to replay attacks, packet injection, and session hijacking.",
+                    "recommendation": "Enforce ESP AEAD (AES-GCM) with 64-bit Extended Sequence Numbers (ESN) to guarantee anti-replay protection.",
+                    "references": ["RFC 4303 §3.3.3"],
+                    "vulnerability_tag": "NO_ANTI_REPLAY",
+                },
+            ]
+
+            remediation_cfg = (
+                "# =============================================================================\n"
+                "# Janus Automated strongSwan Remediation Configuration\n"
+                "# Generated for Unprotected Cleartext Perimeter Remediation\n"
+                "# =============================================================================\n"
+                "# Remediation: Wrap cleartext subnet traffic in an RFC 8221 compliant IPsec tunnel.\n\n"
+                "connections {\n"
+                "    janus-perimeter-remediation {\n"
+                "        version = 2\n"
+                "        local_addrs = %defaultroute\n"
+                "        remote_addrs = %any\n\n"
+                "        local {\n"
+                "            auth = pubkey\n"
+                "            certs = cert.pem\n"
+                "            id = gateway.internal\n"
+                "        }\n\n"
+                "        remote {\n"
+                "            auth = pubkey\n"
+                "            id = %any\n"
+                "        }\n\n"
+                "        proposals = aes256gcm16-prfsha256-ecp256\n"
+                "        rekey_time = 4h\n\n"
+                "        children {\n"
+                "            protect-traffic {\n"
+                "                local_ts = 0.0.0.0/0\n"
+                "                remote_ts = 0.0.0.0/0\n"
+                "                mode = tunnel\n"
+                "                esp_proposals = aes256gcm16-ecp256\n"
+                "                dpd_action = restart\n"
+                "                close_action = restart\n"
+                "                rekey_time = 4h\n"
+                "            }\n"
+                "        }\n"
+                "    }\n"
+                "}"
+            )
+
+            threat_mat = [
+                {
+                    "technique_id": "T1040",
+                    "tactic": "Credential Access / Discovery",
+                    "technique_name": "Network Sniffing",
+                    "severity": "CRITICAL",
+                    "status": "VULNERABLE",
+                    "details": "Zero encryption: all application packets and credentials transmitted in cleartext.",
+                    "affected_parameter": "esp_encryption",
+                },
+                {
+                    "technique_id": "T1557",
+                    "tactic": "Credential Access / Collection",
+                    "technique_name": "Adversary-in-the-Middle",
+                    "severity": "HIGH",
+                    "status": "VULNERABLE",
+                    "details": "No cryptographic authentication tag (ICV) or mutual authentication.",
+                    "affected_parameter": "esp_auth",
+                },
+                {
+                    "technique_id": "T1584",
+                    "tactic": "Resource Development",
+                    "technique_name": "Compromise Infrastructure",
+                    "severity": "HIGH",
+                    "status": "VULNERABLE",
+                    "details": "No Diffie-Hellman ephemeral key exchange or forward secrecy active.",
+                    "affected_parameter": "pfs_enabled",
+                },
+            ]
+
+            compliance_dict = {
+                "overall_score": 0.0,
+                "grade": "F",
+                "summary": "CRITICAL RISK: Zero IPsec Encapsulation. Observed network traffic is completely unencrypted in cleartext across the network perimeter with no cryptographic confidentiality or integrity verification.",
+                "findings": cleartext_findings,
+                "threat_matrix": threat_mat,
+                "evaluated_parameters": {
+                    "esp_encryption": "NONE (Cleartext)",
+                    "esp_auth": "NONE (Cleartext)",
+                    "dh_group": None,
+                    "pfs_enabled": False,
+                    "sa_lifetime_seconds": 0,
+                    "rsa_key_bits": None,
+                    "ike_version": "None Detected",
+                    "pqc_status": "CRQC_VULNERABLE",
+                    "pqc_algorithm": None,
+                    "pqc_hybrid": False,
+                },
+                "remediation_config": remediation_cfg,
+                "pqc_status": "CRQC_VULNERABLE",
+                "pqc_advisory": "Communications are completely unencrypted. Classical and quantum adversaries can intercept and read all data in plaintext.",
+                "generated_at": time.strftime("%Y-%m-%dT%H:%M:%S.000000+00:00", time.gmtime()),
+            }
+
+            # Generate publication-quality ReportLab PDFs
+            state_store[capture_id]["progress_pct"] = 92.0
+            state_store[capture_id]["message"] = "Compiling executive CISO & technical engineering PDF deliverables..."
+            add_log("Rendering publication-quality PDF audit deliverables with ReportLab...")
+            await asyncio.sleep(0.2)
+
+            exec_pdf, tech_pdf = await asyncio.to_thread(
+                generate_all_reports,
+                capture_id=capture_id,
+                compliance_data=compliance_dict,
+                analysis_data={
+                    "capture_id": capture_id,
+                    "filename": filename,
+                    "total_flows": len(classified_flows),
+                    "flows": classified_flows,
+                    "compliance": compliance_dict,
+                },
+            )
+            add_log("Executive CISO Report & Technical Audit PDF compiled successfully.")
+
+            # Compute traffic distribution for dashboard charts
+            traffic_distribution = {
+                "VoIP": 0, "Video": 0, "Web": 0, "Email": 0, "ICMP": 0, "Obfuscated": 0
+            }
+            for f in classified_flows:
+                c_info = f.get("classification", {})
+                if c_info.get("is_obfuscated"):
+                    traffic_distribution["Obfuscated"] += 1
+                else:
+                    lbl = c_info.get("traffic_type") or c_info.get("label", "Unknown")
+                    if lbl in traffic_distribution:
+                        traffic_distribution[lbl] += 1
+                    else:
+                        traffic_distribution[lbl] = traffic_distribution.get(lbl, 0) + 1
+
+            state_store[capture_id]["results"] = {
+                "capture_id": capture_id,
+                "total_flows": len(classified_flows),
+                "traffic_distribution": traffic_distribution,
+                "overall_risk": "CRITICAL",
+                "ike_sessions": [],
+                "flows": classified_flows,
+                "compliance": compliance_dict,
+                "reports": {
+                    "executive_pdf": str(exec_pdf),
+                    "technical_pdf": str(tech_pdf),
+                    "executive_url": f"/api/report/{capture_id}/executive",
+                    "technical_url": f"/api/report/{capture_id}/technical",
+                },
+            }
+
+            state_store[capture_id]["status"] = "DONE"
+            state_store[capture_id]["progress_pct"] = 100.0
+            state_store[capture_id]["message"] = "Analysis complete — 0/100 (Grade F, CRITICAL: Zero IPsec Encapsulation)."
+            add_log("Pipeline Execution Succeeded: All cryptographic scores, AI attributions, and artifacts ready.")
+            try:
+                record_audit(capture_id, filename, state_store[capture_id]["results"])
+            except Exception as db_exc:
+                log.warning("Failed to record audit in database for %s: %s", capture_id, db_exc)
+            log.info("Pipeline finished with cleartext exposure audit for capture_id=%s", capture_id)
             return
 
         add_log(f"Cryptographic Audit: Evaluated ESP Cipher={esp_encr}, Auth={esp_auth}, DH Group={dh_group}, PFS={pfs_enabled}")
@@ -285,7 +505,7 @@ async def run_analysis_pipeline(
         state_store[capture_id]["progress_pct"] = 92.0
         state_store[capture_id]["message"] = "Compiling executive CISO & technical engineering PDF deliverables..."
         add_log("Rendering publication-quality PDF audit deliverables with ReportLab...")
-        await asyncio.sleep(0.9)
+        await asyncio.sleep(0.2)
 
         analysis_data_bundle = {
             "capture_id": capture_id,
@@ -294,7 +514,8 @@ async def run_analysis_pipeline(
             "flows": classified_flows,
         }
 
-        exec_pdf, tech_pdf = generate_all_reports(
+        exec_pdf, tech_pdf = await asyncio.to_thread(
+            generate_all_reports,
             capture_id=capture_id,
             compliance_data=compliance_dict,
             analysis_data=analysis_data_bundle,

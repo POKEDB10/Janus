@@ -9,9 +9,9 @@ Endpoints:
 - POST /api/report/{capture_id}/draft-narrative: Draft executive & technical narrative prose.
 """
 
-from __future__ import annotations
-
+import json
 import logging
+from pathlib import Path
 from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -25,12 +25,44 @@ from models import (
 )
 from rag.engine.explainer import explainer
 from rag.engine.narrative_writer import narrative_writer
-from routes.analysis import _state_store
+from routes.analysis import _get_entry, _state_store
 from security import verify_auth_or_token
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["Compliance-RAG Explainer"])
+
+
+def _get_capture_results(capture_id: str) -> dict[str, Any] | None:
+    """Retrieve capture analysis results from cache, SQLite audit store, or fixture data."""
+    entry = _get_entry(capture_id)
+    if entry and entry.get("results"):
+        return entry["results"]
+
+    if capture_id in _state_store:
+        st_entry = _state_store[capture_id]
+        if st_entry.get("results"):
+            return st_entry["results"]
+
+    fixture_path = Path("frontend/src/fixtures") / f"{capture_id}.results.json"
+    if fixture_path.exists():
+        try:
+            with open(fixture_path, encoding="utf-8") as f:
+                return json.load(f)
+        except Exception as exc:
+            logger.warning("Failed loading fixture %s: %s", fixture_path, exc)
+
+    fixtures_dir = Path("frontend/src/fixtures")
+    if fixtures_dir.exists():
+        for f in fixtures_dir.glob("*.results.json"):
+            if capture_id in f.stem or f.stem.startswith(capture_id):
+                try:
+                    with open(f, encoding="utf-8") as fp:
+                        return json.load(fp)
+                except Exception:
+                    pass
+
+    return None
 
 
 @router.post(
@@ -72,14 +104,13 @@ async def explain_session_finding_endpoint(
     """
     Retrieve finding from capture session and explain with authoritative standards citations.
     """
-    if capture_id not in _state_store:
+    results = _get_capture_results(capture_id)
+    if not results:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Capture session '{capture_id}' not found.",
         )
 
-    entry = _state_store[capture_id]
-    results = entry.get("results") or {}
     comp = results.get("compliance") or {}
     findings = comp.get("findings", [])
 
@@ -110,9 +141,8 @@ async def explain_compound_endpoint(
     findings detected in this IPsec capture session.
     """
     findings = []
-    if capture_id in _state_store:
-        entry = _state_store[capture_id]
-        results = entry.get("results") or {}
+    results = _get_capture_results(capture_id)
+    if results:
         comp = results.get("compliance") or {}
         findings = comp.get("findings", [])
 
@@ -162,21 +192,15 @@ async def draft_report_narrative_endpoint(
     Draft grounded executive summary narrative and technical assessment prose around
     the deterministic findings table.
     """
-    # Narratives must be grounded in a completed capture analysis.
-    comp_data = None
-    analysis_data = None
-
-    if capture_id in _state_store:
-        entry = _state_store[capture_id]
-        results = entry.get("results") or {}
-        comp_data = results.get("compliance")
-        analysis_data = results
-
-    if not comp_data:
+    results = _get_capture_results(capture_id)
+    if not results:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail=f"Completed analysis for capture session '{capture_id}' not found.",
         )
+
+    comp_data = results.get("compliance") or {}
+    analysis_data = results
 
     res = narrative_writer.draft_narrative(
         capture_id=capture_id,
