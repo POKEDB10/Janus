@@ -2,13 +2,7 @@
   "capture_id": "wireshark_http_sample",
   "total_flows": 2,
   "traffic_distribution": {
-    "VoIP": 0,
-    "Video": 0,
-    "Web": 0,
-    "Email": 0,
-    "ICMP": 0,
-    "Obfuscated": 0,
-    "Uncertain \u2014 Real Traffic Detected (OOD: likely Web)": 2
+    "Cleartext Web Traffic": 2
   },
   "overall_risk": "CRITICAL",
   "ike_sessions": [],
@@ -248,17 +242,19 @@
         ]
       ],
       "classification": {
-        "label": "Uncertain \u2014 Real Traffic Detected (OOD: likely Web)",
-        "traffic_type": "Uncertain \u2014 Real Traffic Detected (OOD: likely Web)",
+        "label": "Cleartext Web Traffic (Non-IPsec)",
+        "traffic_type": "Cleartext Web Traffic (Non-IPsec)",
         "confidence": 0.4946,
+        "calibrated_confidence": 0.4946,
         "is_obfuscated": false,
         "obfuscation_details": {
           "status": "OUT_OF_DISTRIBUTION_ANOMALY",
-          "raw_prediction": "Web"
+          "raw_prediction": "Web",
+          "details": "Non-IPsec cleartext HTTP traffic detected - outside IPsec flow classifier domain"
         },
         "shap": {
           "base_value": 0.4971,
-          "predicted_class": "Uncertain \u2014 Real Traffic Detected (OOD: likely Web)",
+          "predicted_class": "Cleartext Web Traffic (Non-IPsec)",
           "output_value": 0.4946,
           "shap_values": {
             "pkt_len_iqr": 3.1018,
@@ -537,17 +533,19 @@
         ]
       ],
       "classification": {
-        "label": "Uncertain \u2014 Real Traffic Detected (OOD: likely Web)",
-        "traffic_type": "Uncertain \u2014 Real Traffic Detected (OOD: likely Web)",
+        "label": "Cleartext Web Traffic (Non-IPsec)",
+        "traffic_type": "Cleartext Web Traffic (Non-IPsec)",
         "confidence": 0.4897,
+        "calibrated_confidence": 0.4897,
         "is_obfuscated": false,
         "obfuscation_details": {
           "status": "OUT_OF_DISTRIBUTION_ANOMALY",
-          "raw_prediction": "Web"
+          "raw_prediction": "Web",
+          "details": "Non-IPsec cleartext HTTP traffic detected - outside IPsec flow classifier domain"
         },
         "shap": {
           "base_value": 0.4971,
-          "predicted_class": "Uncertain \u2014 Real Traffic Detected (OOD: likely Web)",
+          "predicted_class": "Cleartext Web Traffic (Non-IPsec)",
           "output_value": 0.4897,
           "shap_values": {
             "pkt_len_iqr": 3.1018,

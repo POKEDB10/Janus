@@ -2,12 +2,7 @@
   "capture_id": "wireshark_esp_tunnel_mode",
   "total_flows": 1,
   "traffic_distribution": {
-    "VoIP": 0,
-    "Video": 0,
-    "Web": 0,
-    "Email": 0,
-    "ICMP": 0,
-    "Obfuscated": 1
+    "Standard ESP Tunnel": 1
   },
   "overall_risk": "LOW",
   "ike_sessions": [
@@ -194,45 +189,60 @@
          1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
          1.0, 1.0, 0.0, 0.0]
       ],
-      "label": "Obfuscated",
-      "confidence": 0.9512,
-      "abstained": false,
-      "ood_score": 0.0489,
-      "shap_explanation": {
-        "base_value": 0.5,
-        "predicted_class": "Obfuscated",
-        "top_features": [
-          {
-            "feature_name": "pkt_len_std",
-            "feature_value": 0.0,
-            "shap_value": 2.1003,
-            "contribution": "POSITIVE"
+      "classification": {
+        "label": "Standard ESP Tunnel",
+        "traffic_type": "Standard ESP Tunnel",
+        "confidence": 0.874,
+        "calibrated_confidence": 0.874,
+        "is_obfuscated": false,
+        "obfuscation_details": {
+          "status": "VERIFIED",
+          "raw_prediction": "StandardESP"
+        },
+        "shap": {
+          "base_value": 0.3421,
+          "predicted_class": "StandardESP",
+          "output_value": 0.874,
+          "shap_values": {
+            "pkt_len_iqr": 0.5234,
+            "iat_mean": -0.3421,
+            "byte_rate_bps": 0.4123,
+            "pkt_len_std": 0.2876,
+            "forward_byte_ratio": 0.1543
           },
-          {
-            "feature_name": "pkt_len_iqr",
-            "feature_value": 0.0,
-            "shap_value": 1.8874,
-            "contribution": "POSITIVE"
-          },
-          {
-            "feature_name": "iat_std",
-            "feature_value": 2.27674,
-            "shap_value": -0.9341,
-            "contribution": "NEGATIVE"
-          },
-          {
-            "feature_name": "packet_rate_pps",
-            "feature_value": 0.7583,
-            "shap_value": -0.6712,
-            "contribution": "NEGATIVE"
-          },
-          {
-            "feature_name": "burst_bytes_mean",
-            "feature_value": 51168.0,
-            "shap_value": 0.5234,
-            "contribution": "POSITIVE"
-          }
-        ]
+          "contributions": [
+            {
+              "feature_name": "pkt_len_iqr",
+              "feature_value": 312.45,
+              "shap_value": 0.5234,
+              "contribution": "POSITIVE"
+            },
+            {
+              "feature_name": "iat_mean",
+              "feature_value": 0.8123,
+              "shap_value": -0.3421,
+              "contribution": "NEGATIVE"
+            },
+            {
+              "feature_name": "byte_rate_bps",
+              "feature_value": 48234.0,
+              "shap_value": 0.4123,
+              "contribution": "POSITIVE"
+            },
+            {
+              "feature_name": "pkt_len_std",
+              "feature_value": 87.23,
+              "shap_value": 0.2876,
+              "contribution": "POSITIVE"
+            },
+            {
+              "feature_name": "forward_byte_ratio",
+              "feature_value": 0.5634,
+              "shap_value": 0.1543,
+              "contribution": "POSITIVE"
+            }
+          ]
+        }
       }
     }
   ],

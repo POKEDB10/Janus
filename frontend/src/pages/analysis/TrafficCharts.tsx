@@ -21,6 +21,11 @@ const TRAFFIC_COLORS: Record<string, string> = {
   ICMP: "#06b6d4",       // cyan
   Obfuscated: "#ec4899", // pink
   Unknown: "#64748b",    // slate
+  "Standard ESP Tunnel": "#10b981",              // emerald green
+  "Legacy ESP (CBC Mode)": "#f59e0b",            // amber warning
+  "IP-TFS Constant-Rate Obfuscated": "#ec4899",  // vibrant pink / obfuscated
+  "Cleartext Web Traffic": "#8b5cf6",            // purple
+  "Cleartext Web Traffic (Non-IPsec)": "#8b5cf6", // purple
 };
 
 function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ name?: string; value?: number }>; label?: string }) {

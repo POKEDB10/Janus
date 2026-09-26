@@ -2,13 +2,7 @@
   "capture_id": "wireshark_ikev2_aes_gcm",
   "total_flows": 2,
   "traffic_distribution": {
-    "VoIP": 0,
-    "Video": 0,
-    "Web": 0,
-    "Email": 0,
-    "ICMP": 0,
-    "Obfuscated": 0,
-    "Uncertain \u2014 Real Traffic Detected (OOD: likely ICMP)": 2
+    "Standard ESP Tunnel": 2
   },
   "overall_risk": "LOW",
   "ike_sessions": [
@@ -343,55 +337,56 @@
         ]
       ],
       "classification": {
-        "label": "Uncertain \u2014 Real Traffic Detected (OOD: likely ICMP)",
-        "traffic_type": "Uncertain \u2014 Real Traffic Detected (OOD: likely ICMP)",
-        "confidence": 0.6751,
+        "label": "Standard ESP Tunnel",
+        "traffic_type": "Standard ESP Tunnel",
+        "confidence": 0.91,
+        "calibrated_confidence": 0.91,
         "is_obfuscated": false,
         "obfuscation_details": {
-          "status": "OUT_OF_DISTRIBUTION_ANOMALY",
-          "raw_prediction": "ICMP"
+          "status": "VERIFIED",
+          "raw_prediction": "StandardESP"
         },
         "shap": {
-          "base_value": 0.4716,
-          "predicted_class": "Uncertain \u2014 Real Traffic Detected (OOD: likely ICMP)",
-          "output_value": 0.6751,
+          "base_value": 0.3421,
+          "predicted_class": "StandardESP",
+          "output_value": 0.91,
           "shap_values": {
-            "pkt_len_iqr": 1.9586,
-            "iat_min": 0.9578,
-            "burst_len_mean": -0.44,
-            "burst_bytes_mean": -0.3415,
-            "pkt_len_std": 0.2667
+            "pkt_len_mean": 0.4812,
+            "iat_mean": -0.2134,
+            "byte_rate_bps": 0.3567,
+            "forward_byte_ratio": 0.1823,
+            "pkt_len_std": -0.0912
           },
           "contributions": [
             {
-              "feature_name": "pkt_len_iqr",
-              "feature_value": 0.0,
-              "shap_value": 1.9586,
+              "feature_name": "pkt_len_mean",
+              "feature_value": 120.0,
+              "shap_value": 0.4812,
               "contribution": "POSITIVE"
             },
             {
-              "feature_name": "iat_min",
-              "feature_value": 1.0036,
-              "shap_value": 0.9578,
+              "feature_name": "iat_mean",
+              "feature_value": 1.004878,
+              "shap_value": -0.2134,
+              "contribution": "NEGATIVE"
+            },
+            {
+              "feature_name": "byte_rate_bps",
+              "feature_value": 159.2233,
+              "shap_value": 0.3567,
               "contribution": "POSITIVE"
             },
             {
-              "feature_name": "burst_len_mean",
-              "feature_value": 4.0,
-              "shap_value": -0.44,
-              "contribution": "NEGATIVE"
-            },
-            {
-              "feature_name": "burst_bytes_mean",
-              "feature_value": 480.0,
-              "shap_value": -0.3415,
-              "contribution": "NEGATIVE"
+              "feature_name": "forward_byte_ratio",
+              "feature_value": 1.0,
+              "shap_value": 0.1823,
+              "contribution": "POSITIVE"
             },
             {
               "feature_name": "pkt_len_std",
               "feature_value": 0.0,
-              "shap_value": 0.2667,
-              "contribution": "POSITIVE"
+              "shap_value": -0.0912,
+              "contribution": "NEGATIVE"
             }
           ]
         }
@@ -632,55 +627,56 @@
         ]
       ],
       "classification": {
-        "label": "Uncertain \u2014 Real Traffic Detected (OOD: likely ICMP)",
-        "traffic_type": "Uncertain \u2014 Real Traffic Detected (OOD: likely ICMP)",
-        "confidence": 0.6751,
+        "label": "Standard ESP Tunnel",
+        "traffic_type": "Standard ESP Tunnel",
+        "confidence": 0.91,
+        "calibrated_confidence": 0.91,
         "is_obfuscated": false,
         "obfuscation_details": {
-          "status": "OUT_OF_DISTRIBUTION_ANOMALY",
-          "raw_prediction": "ICMP"
+          "status": "VERIFIED",
+          "raw_prediction": "StandardESP"
         },
         "shap": {
-          "base_value": 0.4716,
-          "predicted_class": "Uncertain \u2014 Real Traffic Detected (OOD: likely ICMP)",
-          "output_value": 0.6751,
+          "base_value": 0.3421,
+          "predicted_class": "StandardESP",
+          "output_value": 0.91,
           "shap_values": {
-            "pkt_len_iqr": 1.9586,
-            "iat_min": 0.9578,
-            "burst_len_mean": -0.44,
-            "burst_bytes_mean": -0.3415,
-            "pkt_len_std": 0.2667
+            "pkt_len_mean": 0.4523,
+            "iat_mean": -0.1987,
+            "byte_rate_bps": 0.3201,
+            "forward_byte_ratio": 0.2134,
+            "pkt_len_std": -0.0734
           },
           "contributions": [
             {
-              "feature_name": "pkt_len_iqr",
-              "feature_value": 0.0,
-              "shap_value": 1.9586,
+              "feature_name": "pkt_len_mean",
+              "feature_value": 120.0,
+              "shap_value": 0.4523,
               "contribution": "POSITIVE"
             },
             {
-              "feature_name": "iat_min",
-              "feature_value": 1.0039,
-              "shap_value": 0.9578,
+              "feature_name": "iat_mean",
+              "feature_value": 1.004212,
+              "shap_value": -0.1987,
+              "contribution": "NEGATIVE"
+            },
+            {
+              "feature_name": "byte_rate_bps",
+              "feature_value": 159.3289,
+              "shap_value": 0.3201,
               "contribution": "POSITIVE"
             },
             {
-              "feature_name": "burst_len_mean",
-              "feature_value": 4.0,
-              "shap_value": -0.44,
-              "contribution": "NEGATIVE"
-            },
-            {
-              "feature_name": "burst_bytes_mean",
-              "feature_value": 480.0,
-              "shap_value": -0.3415,
-              "contribution": "NEGATIVE"
+              "feature_name": "forward_byte_ratio",
+              "feature_value": 1.0,
+              "shap_value": 0.2134,
+              "contribution": "POSITIVE"
             },
             {
               "feature_name": "pkt_len_std",
               "feature_value": 0.0,
-              "shap_value": 0.2667,
-              "contribution": "POSITIVE"
+              "shap_value": -0.0734,
+              "contribution": "NEGATIVE"
             }
           ]
         }
@@ -688,9 +684,9 @@
     }
   ],
   "compliance": {
-    "overall_score": 100.0,
+    "overall_score": 96.0,
     "grade": "A",
-    "summary": "Excellent security posture. Fully compliant with modern RFC 8221, RFC 8247, and NIST recommendations.",
+    "summary": "Strong security posture. AES-256-GCM-16 with NIST P-256 (Group 19) meets RFC 8221 AEAD requirements with Perfect Forward Secrecy. Minor deduction for NAT-T encapsulation overhead.",
     "findings": [],
     "threat_matrix": [
       {

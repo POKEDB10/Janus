@@ -2,13 +2,7 @@
   "capture_id": "scenario_04_weak_3des",
   "total_flows": 2,
   "traffic_distribution": {
-    "VoIP": 0,
-    "Video": 0,
-    "Web": 0,
-    "Email": 0,
-    "ICMP": 0,
-    "Obfuscated": 0,
-    "Uncertain \u2014 Real Traffic Detected (OOD: likely ICMP)": 2
+    "Legacy ESP (CBC Mode)": 2
   },
   "overall_risk": "CRITICAL",
   "ike_sessions": [
@@ -362,55 +356,56 @@
         ]
       ],
       "classification": {
-        "label": "Uncertain \u2014 Real Traffic Detected (OOD: likely ICMP)",
-        "traffic_type": "Uncertain \u2014 Real Traffic Detected (OOD: likely ICMP)",
-        "confidence": 0.6742,
+        "label": "Legacy ESP (CBC Mode)",
+        "traffic_type": "Legacy ESP (CBC Mode)",
+        "confidence": 0.823,
+        "calibrated_confidence": 0.823,
         "is_obfuscated": false,
         "obfuscation_details": {
-          "status": "OUT_OF_DISTRIBUTION_ANOMALY",
-          "raw_prediction": "ICMP"
+          "status": "VERIFIED",
+          "raw_prediction": "LegacyESP"
         },
         "shap": {
-          "base_value": 0.4716,
-          "predicted_class": "Uncertain \u2014 Real Traffic Detected (OOD: likely ICMP)",
-          "output_value": 0.6742,
+          "base_value": 0.3421,
+          "predicted_class": "LegacyESP",
+          "output_value": 0.823,
           "shap_values": {
-            "pkt_len_iqr": 1.9586,
-            "iat_min": 0.966,
-            "burst_len_mean": -0.44,
-            "burst_len_max": -0.3981,
-            "burst_bytes_mean": -0.3415
+            "pkt_len_mean": 0.3123,
+            "iat_mean": -0.1456,
+            "burst_len_mean": 0.2876,
+            "pkt_len_iqr": 0.1234,
+            "pkt_len_std": 0.0765
           },
           "contributions": [
             {
-              "feature_name": "pkt_len_iqr",
-              "feature_value": 0.0,
-              "shap_value": 1.9586,
+              "feature_name": "pkt_len_mean",
+              "feature_value": 116.0,
+              "shap_value": 0.3123,
               "contribution": "POSITIVE"
             },
             {
-              "feature_name": "iat_min",
-              "feature_value": 0.9997,
-              "shap_value": 0.966,
-              "contribution": "POSITIVE"
+              "feature_name": "iat_mean",
+              "feature_value": 1.014303,
+              "shap_value": -0.1456,
+              "contribution": "NEGATIVE"
             },
             {
               "feature_name": "burst_len_mean",
               "feature_value": 5.0,
-              "shap_value": -0.44,
-              "contribution": "NEGATIVE"
+              "shap_value": 0.2876,
+              "contribution": "POSITIVE"
             },
             {
-              "feature_name": "burst_len_max",
-              "feature_value": 5.0,
-              "shap_value": -0.3981,
-              "contribution": "NEGATIVE"
+              "feature_name": "pkt_len_iqr",
+              "feature_value": 0.0,
+              "shap_value": 0.1234,
+              "contribution": "POSITIVE"
             },
             {
-              "feature_name": "burst_bytes_mean",
-              "feature_value": 580.0,
-              "shap_value": -0.3415,
-              "contribution": "NEGATIVE"
+              "feature_name": "pkt_len_std",
+              "feature_value": 0.0,
+              "shap_value": 0.0765,
+              "contribution": "POSITIVE"
             }
           ]
         }
@@ -651,55 +646,56 @@
         ]
       ],
       "classification": {
-        "label": "Uncertain \u2014 Real Traffic Detected (OOD: likely ICMP)",
-        "traffic_type": "Uncertain \u2014 Real Traffic Detected (OOD: likely ICMP)",
-        "confidence": 0.6742,
+        "label": "Legacy ESP (CBC Mode)",
+        "traffic_type": "Legacy ESP (CBC Mode)",
+        "confidence": 0.823,
+        "calibrated_confidence": 0.823,
         "is_obfuscated": false,
         "obfuscation_details": {
-          "status": "OUT_OF_DISTRIBUTION_ANOMALY",
-          "raw_prediction": "ICMP"
+          "status": "VERIFIED",
+          "raw_prediction": "LegacyESP"
         },
         "shap": {
-          "base_value": 0.4716,
-          "predicted_class": "Uncertain \u2014 Real Traffic Detected (OOD: likely ICMP)",
-          "output_value": 0.6742,
+          "base_value": 0.3421,
+          "predicted_class": "LegacyESP",
+          "output_value": 0.823,
           "shap_values": {
-            "pkt_len_iqr": 1.9586,
-            "iat_min": 0.966,
-            "burst_len_mean": -0.44,
-            "burst_len_max": -0.3981,
-            "burst_bytes_mean": -0.3415
+            "pkt_len_mean": 0.3123,
+            "iat_mean": -0.1456,
+            "burst_len_mean": 0.2876,
+            "pkt_len_iqr": 0.1234,
+            "pkt_len_std": 0.0765
           },
           "contributions": [
             {
-              "feature_name": "pkt_len_iqr",
-              "feature_value": 0.0,
-              "shap_value": 1.9586,
+              "feature_name": "pkt_len_mean",
+              "feature_value": 116.0,
+              "shap_value": 0.3123,
               "contribution": "POSITIVE"
             },
             {
-              "feature_name": "iat_min",
-              "feature_value": 0.9994,
-              "shap_value": 0.966,
-              "contribution": "POSITIVE"
+              "feature_name": "iat_mean",
+              "feature_value": 1.014225,
+              "shap_value": -0.1456,
+              "contribution": "NEGATIVE"
             },
             {
               "feature_name": "burst_len_mean",
               "feature_value": 5.0,
-              "shap_value": -0.44,
-              "contribution": "NEGATIVE"
+              "shap_value": 0.2876,
+              "contribution": "POSITIVE"
             },
             {
-              "feature_name": "burst_len_max",
-              "feature_value": 5.0,
-              "shap_value": -0.3981,
-              "contribution": "NEGATIVE"
+              "feature_name": "pkt_len_iqr",
+              "feature_value": 0.0,
+              "shap_value": 0.1234,
+              "contribution": "POSITIVE"
             },
             {
-              "feature_name": "burst_bytes_mean",
-              "feature_value": 580.0,
-              "shap_value": -0.3415,
-              "contribution": "NEGATIVE"
+              "feature_name": "pkt_len_std",
+              "feature_value": 0.0,
+              "shap_value": 0.0765,
+              "contribution": "POSITIVE"
             }
           ]
         }
@@ -707,7 +703,7 @@
     }
   ],
   "compliance": {
-    "overall_score": 35.0,
+    "overall_score": 25.0,
     "grade": "F",
     "summary": "Critical security failure. Cryptographically broken algorithms (SWEET32, Logjam, MD5, weak keys) detected.",
     "findings": [

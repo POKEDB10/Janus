@@ -270,6 +270,7 @@ SAMPLE_PCAPS: dict[str, dict] = {
         "relative_path": "samples/wireshark_ikev2_aes_gcm.pcap",
         "external_url": "https://wiki.wireshark.org/SampleCaptures#example-3-site-to-site-ikev2-vpn-with-aes-256-gcm",
         "size_bytes": 3356,
+        "use_fixture": True,
     },
     "wireshark_ikev2_multi_suite": {
         "id": "wireshark_ikev2_multi_suite",
@@ -278,10 +279,11 @@ SAMPLE_PCAPS: dict[str, dict] = {
         "category": "Multi-Cipher Benchmark",
         "rfc_status": "RFC 8221 Comparative (Grade A & B)",
         "cipher": "AES-GCM-16, AES-CTR, AES-CBC / Port 4500 NAT-T",
-        "description": "Official Wireshark capture of 3 consecutive IKEv2 tunnels demonstrating AES-GCM (modern), AES-CTR, and AES-CBC over UDP 4500.",
+        "description": "Official Wireshark capture of 3 consecutive IKEv2 tunnels demonstrating AES-GCM (modern), AES-CTR, and legacy AES-CBC over UDP 4500.",
         "relative_path": "samples/wireshark_ikev2_multi_suite.pcapng",
         "external_url": "https://wiki.wireshark.org/SampleCaptures#example-2-dissection-of-encrypted-and-udp-encapsulated-ikev2-and-esp-messages",
         "size_bytes": 18476,
+        "use_fixture": True,
     },
     "wireshark_esp_tunnel_mode": {
         "id": "wireshark_esp_tunnel_mode",
@@ -307,6 +309,7 @@ SAMPLE_PCAPS: dict[str, dict] = {
         "relative_path": "samples/scenario_04_weak_3des.pcap",
         "external_url": "https://wiki.wireshark.org/SampleCaptures#ipsec",
         "size_bytes": 3616,
+        "use_fixture": True,
     },
     "scenario_01_hardened": {
         "id": "scenario_01_hardened",
@@ -332,6 +335,7 @@ SAMPLE_PCAPS: dict[str, dict] = {
         "relative_path": "samples/wireshark_http_sample.pcap",
         "external_url": "https://wiki.wireshark.org/SampleCaptures#hypertext-transfer-protocol-http",
         "size_bytes": 25803,
+        "use_fixture": True,
     },
 }
 
@@ -441,6 +445,9 @@ async def analyze_sample_pcap(
                 with open(_ffile, encoding="utf-8") as _fp:
                     _fdata = json.load(_fp)
                 capture_id = str(uuid.uuid4())
+                _fdata["capture_id"] = capture_id
+                if isinstance(_fdata.get("compliance"), dict):
+                    _fdata["compliance"]["capture_id"] = capture_id
                 _state_store[capture_id] = {
                     "status": "DONE",
                     "progress_pct": 100.0,
@@ -484,6 +491,9 @@ async def analyze_sample_pcap(
                 with open(fixture_file, encoding="utf-8") as fp:
                     fixture_data = json.load(fp)
                 capture_id = str(uuid.uuid4())
+                fixture_data["capture_id"] = capture_id
+                if isinstance(fixture_data.get("compliance"), dict):
+                    fixture_data["compliance"]["capture_id"] = capture_id
                 _state_store[capture_id] = {
                     "status": "DONE",
                     "progress_pct": 100.0,

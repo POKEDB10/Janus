@@ -76,6 +76,9 @@ def _get_entry(capture_id: str) -> dict[str, Any] | None:
         if fixture_path:
             with open(fixture_path, encoding="utf-8") as fp:
                 fixture_data = json.load(fp)
+            fixture_data["capture_id"] = capture_id
+            if isinstance(fixture_data.get("compliance"), dict):
+                fixture_data["compliance"]["capture_id"] = capture_id
             entry = {
                 "status": "DONE",
                 "progress_pct": 100.0,

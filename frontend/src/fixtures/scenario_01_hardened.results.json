@@ -2,12 +2,7 @@
   "capture_id": "scenario_01_hardened",
   "total_flows": 1,
   "traffic_distribution": {
-    "VoIP": 0,
-    "Video": 0,
-    "Web": 0,
-    "Email": 0,
-    "ICMP": 0,
-    "Obfuscated": 1
+    "IP-TFS Constant-Rate Obfuscated": 1
   },
   "overall_risk": "LOW",
   "ike_sessions": [
@@ -181,45 +176,61 @@
          1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0,
          0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
       ],
-      "label": "Obfuscated",
-      "confidence": 0.9997,
-      "abstained": false,
-      "ood_score": 0.0012,
-      "shap_explanation": {
-        "base_value": 0.5,
-        "predicted_class": "Obfuscated",
-        "top_features": [
-          {
-            "feature_name": "pkt_len_std",
-            "feature_value": 0.0,
-            "shap_value": 2.3841,
-            "contribution": "POSITIVE"
+      "classification": {
+        "label": "IP-TFS Constant-Rate Obfuscated",
+        "traffic_type": "IP-TFS Constant-Rate Obfuscated",
+        "confidence": 0.981,
+        "calibrated_confidence": 0.981,
+        "is_obfuscated": true,
+        "obfuscation_details": {
+          "status": "VERIFIED",
+          "detected_mechanism": "IP-TFS AGGFRAG constant-rate padding",
+          "details": "Fixed-rate 1280-byte packets at 100ms intervals consistent with RFC 9347 IP-TFS"
+        },
+        "shap": {
+          "base_value": 0.4102,
+          "predicted_class": "IP-TFS Obfuscated",
+          "output_value": 0.981,
+          "shap_values": {
+            "pkt_len_iqr": -0.8234,
+            "iat_cv": -0.7123,
+            "pkt_len_var": -0.6834,
+            "burst_len_mean": 0.3412,
+            "iat_mean": -0.2987
           },
-          {
-            "feature_name": "pkt_len_iqr",
-            "feature_value": 0.0,
-            "shap_value": 2.1003,
-            "contribution": "POSITIVE"
-          },
-          {
-            "feature_name": "iat_std",
-            "feature_value": 0.0,
-            "shap_value": 1.9472,
-            "contribution": "POSITIVE"
-          },
-          {
-            "feature_name": "pkt_len_mean",
-            "feature_value": 1334.0,
-            "shap_value": 1.4112,
-            "contribution": "POSITIVE"
-          },
-          {
-            "feature_name": "iat_mean",
-            "feature_value": 1.0,
-            "shap_value": 0.8834,
-            "contribution": "POSITIVE"
-          }
-        ]
+          "contributions": [
+            {
+              "feature_name": "pkt_len_iqr",
+              "feature_value": 0.0,
+              "shap_value": -0.8234,
+              "contribution": "NEGATIVE"
+            },
+            {
+              "feature_name": "iat_cv",
+              "feature_value": 0.0012,
+              "shap_value": -0.7123,
+              "contribution": "NEGATIVE"
+            },
+            {
+              "feature_name": "pkt_len_var",
+              "feature_value": 0.0,
+              "shap_value": -0.6834,
+              "contribution": "NEGATIVE"
+            },
+            {
+              "feature_name": "burst_len_mean",
+              "feature_value": 1.0,
+              "shap_value": 0.3412,
+              "contribution": "POSITIVE"
+            },
+            {
+              "feature_name": "iat_mean",
+              "feature_value": 0.1001,
+              "shap_value": -0.2987,
+              "contribution": "NEGATIVE"
+            }
+          ]
+        }
       }
     }
   ],
