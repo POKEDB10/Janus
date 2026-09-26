@@ -186,7 +186,12 @@ class FlowClassifier:
         X = np.array([feature_vector], dtype=np.float32)
 
         # 3. Model Inference (Ensemble Fusion: Tabular FlowDeepNet + Sequence FlowTraceNet)
-        xgb_probs = self.model.predict_proba(X)[0]
+        try:
+            xgb_probs = self.model.predict_proba(X)[0] if self.model is not None else np.full(len(TARGET_CLASSES), 1.0 / len(TARGET_CLASSES))
+        except Exception as exc:
+            log.warning("XGBoost prediction failed: %s; using uniform prior", exc)
+            xgb_probs = np.full(len(TARGET_CLASSES), 1.0 / len(TARGET_CLASSES))
+
         if self.deep_ensemble.model is not None:
             try:
                 deep_probs = self.deep_ensemble.predict_proba(X)[0]
@@ -288,7 +293,12 @@ class FlowClassifier:
 
         if non_obf_indices:
             X_batch = np.array(vectors, dtype=np.float32)
-            xgb_probs = self.model.predict_proba(X_batch)
+            try:
+                xgb_probs = self.model.predict_proba(X_batch) if self.model is not None else np.full((len(X_batch), len(TARGET_CLASSES)), 1.0 / len(TARGET_CLASSES))
+            except Exception as exc:
+                log.warning("Batch XGBoost prediction failed: %s; using uniform prior", exc)
+                xgb_probs = np.full((len(X_batch), len(TARGET_CLASSES)), 1.0 / len(TARGET_CLASSES))
+
             if self.deep_ensemble.model is not None:
                 try:
                     deep_probs = self.deep_ensemble.predict_proba(X_batch)

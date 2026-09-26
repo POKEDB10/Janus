@@ -22,14 +22,17 @@ export function ThreatMatrix({
   const [filter, setFilter] = useState<"ALL" | "AT_RISK" | "WARNING" | "SECURE">("ALL");
   const [viewMode, setViewMode] = useState<"CARDS" | "TABLE">("TABLE");
 
+  const safeItems = items ?? [];
+
   const handleExplain = (item: ThreatMatrixItem) => {
     if (!onExplain) return;
-    const isSecure = item.status.toUpperCase() === "SECURE" || item.status.toUpperCase() === "MITIGATED";
+    const statusUpper = (item.status || "").toUpperCase();
+    const isSecure = statusUpper === "SECURE" || statusUpper === "MITIGATED";
     onExplain({
       rule_id: item.technique_id,
       parameter: item.affected_parameter || "ipsec_suite",
       severity: isSecure ? "INFO" : item.severity || "HIGH",
-      description: `${item.technique_name} (${item.technique_id}): ${item.details}. Current posture status: ${item.status}.`,
+      description: `${item.technique_name} (${item.technique_id}): ${item.details}. Current posture status: ${item.status || "UNKNOWN"}.`,
       remediation: isSecure
         ? `Current configuration for ${item.affected_parameter ?? "suite"} successfully mitigates adversary technique ${item.technique_name}.`
         : `Remediate ${item.affected_parameter ?? "parameters"} according to RFC 8221 and RFC 8247 requirements to defeat ${item.technique_name}.`,
@@ -37,42 +40,54 @@ export function ThreatMatrix({
   };
 
   const secureCount = useMemo(
-    () => items.filter((i) => i.status.toUpperCase() === "SECURE" || i.status.toUpperCase() === "MITIGATED").length,
-    [items]
+    () => safeItems.filter((i) => {
+      const s = (i.status || "").toUpperCase();
+      return s === "SECURE" || s === "MITIGATED";
+    }).length,
+    [safeItems]
   );
   const vulnerableCount = useMemo(
-    () => items.filter((i) => i.status.toUpperCase() === "VULNERABLE" || i.status.toUpperCase() === "EXPOSED").length,
-    [items]
+    () => safeItems.filter((i) => {
+      const s = (i.status || "").toUpperCase();
+      return s === "VULNERABLE" || s === "EXPOSED";
+    }).length,
+    [safeItems]
   );
   const warningCount = useMemo(
-    () => items.filter((i) => i.status.toUpperCase() === "WARNING" || i.status.toUpperCase() === "SUBOPTIMAL").length,
-    [items]
+    () => safeItems.filter((i) => {
+      const s = (i.status || "").toUpperCase();
+      return s === "WARNING" || s === "SUBOPTIMAL";
+    }).length,
+    [safeItems]
   );
 
   const filteredItems = useMemo(() => {
-    if (filter === "ALL") return items;
+    if (filter === "ALL") return safeItems;
     if (filter === "AT_RISK") {
-      return items.filter(
-        (i) => i.status.toUpperCase() === "VULNERABLE" || i.status.toUpperCase() === "EXPOSED"
-      );
+      return safeItems.filter((i) => {
+        const s = (i.status || "").toUpperCase();
+        return s === "VULNERABLE" || s === "EXPOSED";
+      });
     }
     if (filter === "WARNING") {
-      return items.filter(
-        (i) => i.status.toUpperCase() === "WARNING" || i.status.toUpperCase() === "SUBOPTIMAL"
-      );
+      return safeItems.filter((i) => {
+        const s = (i.status || "").toUpperCase();
+        return s === "WARNING" || s === "SUBOPTIMAL";
+      });
     }
     if (filter === "SECURE") {
-      return items.filter(
-        (i) => i.status.toUpperCase() === "SECURE" || i.status.toUpperCase() === "MITIGATED"
-      );
+      return safeItems.filter((i) => {
+        const s = (i.status || "").toUpperCase();
+        return s === "SECURE" || s === "MITIGATED";
+      });
     }
-    return items;
-  }, [items, filter]);
+    return safeItems;
+  }, [safeItems, filter]);
 
-  if (!items.length) return null;
+  if (!safeItems.length) return null;
 
   const renderStatusBadge = (item: ThreatMatrixItem) => {
-    const statusUpper = item.status.toUpperCase();
+    const statusUpper = (item.status || "").toUpperCase();
     if (statusUpper === "SECURE" || statusUpper === "MITIGATED") {
       return (
         <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">

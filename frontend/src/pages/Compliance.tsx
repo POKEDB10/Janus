@@ -42,8 +42,9 @@ export default function Compliance() {
     );
   }
 
-  const critical = compliance.findings.filter((finding) => finding.severity.toUpperCase() === "CRITICAL").length;
-  const high = compliance.findings.filter((finding) => finding.severity.toUpperCase() === "HIGH").length;
+  const findings = compliance.findings ?? [];
+  const critical = findings.filter((finding) => finding.severity?.toUpperCase() === "CRITICAL").length;
+  const high = findings.filter((finding) => finding.severity?.toUpperCase() === "HIGH").length;
   const indeterminate = compliance.overall_score === null;
   const answer = indeterminate
     ? compliance.indeterminate_reason ?? "Not assessable: no IKE handshake in this capture."
@@ -77,7 +78,7 @@ export default function Compliance() {
             <div className="flex flex-wrap items-center gap-3 pt-1">
               <RiskBadge level={critical > 0 ? "CRITICAL" : high > 0 ? "HIGH" : "LOW"} size="md" />
               <span className="font-mono text-xs text-muted">
-                {compliance.findings.length} findings · {compliance.threat_matrix?.length ?? 0} ATT&amp;CK techniques
+                {findings.length} findings · {compliance.threat_matrix?.length ?? 0} ATT&amp;CK techniques
               </span>
             </div>
           </div>

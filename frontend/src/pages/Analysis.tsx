@@ -19,17 +19,28 @@ export default function Analysis() {
 
   const data = results.data;
   if (!data) return null;
-  const abstained = data.flows.filter((flow) => getFlowDisposition(flow) === "ABSTAINED" || getFlowDisposition(flow) === "LOW_CONFIDENCE").length;
-  const shaped = data.flows.filter((flow) => getFlowDisposition(flow) === "OBFUSCATED").length;
+  const flows = data.flows ?? [];
+  const abstained = flows.filter((flow) => getFlowDisposition(flow) === "ABSTAINED" || getFlowDisposition(flow) === "LOW_CONFIDENCE").length;
+  const shaped = flows.filter((flow) => getFlowDisposition(flow) === "OBFUSCATED").length;
 
   return (
     <div className="space-y-8 motion-enter">
       <PageHeader
         eyebrow="Traffic classification"
-        title={`${data.total_flows} ESP flows analyzed.`}
+        title={`${data.total_flows ?? flows.length} ESP flows analyzed.`}
         answer={`${abstained} abstained, ${shaped} with traffic shaping detected. Review the classifier decision for each flow below.`}
       />
-      {data.flows.length === 0 ? <EmptyState title="No flows returned" detail="The analysis result did not include ESP flow classifications." /> : <><TrafficCharts distribution={data.traffic_distribution} flows={data.flows} /><Section title="Flows" detail="Results returned by the statistical ESP classifier."><FlowTable captureId={captureId} flows={data.flows} onInspect={setSelectedFlow} /></Section><FlowDrawer flow={selectedFlow} onClose={() => setSelectedFlow(null)} /></>}
+      {flows.length === 0 ? (
+        <EmptyState title="No flows returned" detail="The analysis result did not include ESP flow classifications." />
+      ) : (
+        <>
+          <TrafficCharts distribution={data.traffic_distribution} flows={flows} />
+          <Section title="Flows" detail="Results returned by the statistical ESP classifier.">
+            <FlowTable captureId={captureId} flows={flows} onInspect={setSelectedFlow} />
+          </Section>
+          <FlowDrawer flow={selectedFlow} onClose={() => setSelectedFlow(null)} />
+        </>
+      )}
     </div>
   );
 }

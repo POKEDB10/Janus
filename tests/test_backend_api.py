@@ -88,12 +88,15 @@ def test_upload_valid_pcap_and_inspect_pipeline(sample_esp_pcap_bytes):
     assert status_res.json()["capture_id"] == capture_id
 
 
-def test_upload_rate_limiter_exceeded_returns_429(sample_esp_pcap_bytes):
+def test_upload_rate_limiter_exceeded_returns_429(sample_esp_pcap_bytes, monkeypatch):
     """
     RATE LIMITING TEST:
-    Verify that an IP address can upload up to 5 PCAP files within the sliding window,
-    and the 6th upload attempt from the same IP is blocked with HTTP 429 Too Many Requests.
+    Verify that an IP address can upload up to the configured limit within the sliding window,
+    and the subsequent upload attempt from the same IP is blocked with HTTP 429 Too Many Requests.
     """
+    import routes.upload as upload_mod
+    monkeypatch.setattr(upload_mod, "_MAX_UPLOADS_PER_WINDOW", 5)
+
     test_ip = "198.51.100.77"
     headers = {"cf-connecting-ip": test_ip}
 

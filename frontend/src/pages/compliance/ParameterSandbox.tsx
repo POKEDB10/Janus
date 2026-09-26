@@ -128,13 +128,13 @@ export function ParameterSandbox({ onExplain }: { onExplain?: (finding: Finding)
               {evaluation.data.summary}
             </p>
           ) : null}
-          {evaluation.data.findings.length > 0 && (
+          {(evaluation.data.findings ?? []).length > 0 && (
             <div className="space-y-2 pt-1">
               <h4 className="text-xs font-mono font-semibold uppercase tracking-wider text-muted">
                 Identified Cryptographic Weaknesses:
               </h4>
               <div className="grid gap-2">
-                {evaluation.data.findings.map((f, idx) => (
+                {(evaluation.data.findings ?? []).map((f, idx) => (
                   <div
                     key={idx}
                     className="flex items-start gap-2.5 rounded-lg border border-rule/60 bg-sunken/40 p-2.5 text-xs"

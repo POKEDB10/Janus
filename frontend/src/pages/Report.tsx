@@ -104,11 +104,12 @@ function ReportCard({
   );
 }
 
-function CitationList({ citations }: { citations: CitationItem[] }) {
-  if (!citations.length) return <InlineNotice>No citation evidence was returned.</InlineNotice>;
+function CitationList({ citations }: { citations?: CitationItem[] }) {
+  const safeCitations = citations ?? [];
+  if (!safeCitations.length) return <InlineNotice>No citation evidence was returned.</InlineNotice>;
   return (
     <div className="divide-y divide-rule border-y border-rule">
-      {citations.map((citation, index) => (
+      {safeCitations.map((citation, index) => (
         <article key={`${citation.document}-${citation.section}-${index}`} className="grid gap-2 py-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
           <div>
             <p className="font-semibold text-ink text-xs">{citation.clause_title ?? citation.raw_citation}</p>

@@ -173,10 +173,22 @@ class DeepEnsembleClassifier:
     def _load(self) -> None:
         if self.model_path.exists():
             try:
+                # Guard against unpulled Git LFS text pointers
+                with open(self.model_path, "rb") as f:
+                    header = f.read(50)
+                if header.startswith(b"version https://git-lfs"):
+                    log.warning(
+                        "Model file %s is a Git LFS pointer (not binary weights). "
+                        "Run 'git lfs pull' to fetch real weights. Falling back gracefully.",
+                        self.model_path,
+                    )
+                    self.model = None
+                    return
                 self.model = joblib.load(self.model_path)
                 log.info("Loaded Deep Tabular Ensemble (%.2f MB)", os.path.getsize(self.model_path) / (1024 * 1024))
             except Exception as exc:
                 log.warning("Could not load deep ensemble: %s", exc)
+                self.model = None
 
     def predict_proba(self, X: np.ndarray) -> np.ndarray:
         if self.model is None:

@@ -38,7 +38,8 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
   );
 }
 
-export function TrafficCharts({ distribution, flows }: { distribution?: Record<string, number>; flows: FlowResult[] }) {
+export function TrafficCharts({ distribution, flows }: { distribution?: Record<string, number>; flows?: FlowResult[] }) {
+  const safeFlows = flows ?? [];
   const distributionData = Object.entries(distribution ?? {})
     .filter(([, count]) => count > 0)
     .map(([name, count]) => ({
@@ -47,7 +48,7 @@ export function TrafficCharts({ distribution, flows }: { distribution?: Record<s
       color: TRAFFIC_COLORS[name] || "#3b82f6",
     }));
 
-  const confidenceData = flows.flatMap((flow, index) => {
+  const confidenceData = safeFlows.flatMap((flow, index) => {
     const confidence = flow.classification?.calibrated_confidence ?? flow.classification?.confidence;
     return confidence === undefined
       ? []

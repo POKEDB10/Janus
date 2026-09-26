@@ -18,8 +18,8 @@ function ModelCard({ model }: { model: ModelInfo }) {
         <div className="grid gap-5 border-y border-rule py-4 sm:grid-cols-2 lg:grid-cols-4">
           <Stat label="Model" value={model.model_name} />
           <Stat label="Architecture" value={model.architecture} />
-          <Stat label="Input Dimensions" value={`${model.features} Features`} detail={model.feature_type} />
-          <Stat label="Class Coverage" value={`${model.classes.length} Classes`} detail={model.classes.join(" · ")} />
+          <Stat label="Input Dimensions" value={`${model.features ?? 25} Features`} detail={model.feature_type} />
+          <Stat label="Class Coverage" value={`${model.classes?.length ?? 0} Classes`} detail={model.classes?.join(" · ") ?? "—"} />
         </div>
         <div className="mt-5 grid gap-5 lg:grid-cols-2">
           <div className="rounded-xl border border-rule bg-surface p-4">

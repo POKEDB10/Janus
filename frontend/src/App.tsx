@@ -15,6 +15,8 @@ const Compare = lazy(() => import("./pages/Compare"));
 const Method = lazy(() => import("./pages/Method"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
+import { ErrorBoundary } from "./components/ui/ErrorBoundary";
+
 function Footer() {
   return <footer data-secondary-chrome="true" className="border-t border-rule"><p className="mx-auto max-w-content px-4 py-4 text-xs text-muted sm:px-6">SIH26160 · Cipher Ops</p></footer>;
 }
@@ -26,10 +28,16 @@ function AppFrame({ children, captureId }: { children: ReactNode; captureId?: st
     <div className="flex min-h-dvh flex-col">
       <a className="skip-link" href="#main-content">Skip to content</a>
       <Header />
-      {captureId ? <CaptureHeader captureId={captureId} /> : null}
+      {captureId ? (
+        <ErrorBoundary fallbackTitle="Capture Header Unavailable">
+          <CaptureHeader captureId={captureId} />
+        </ErrorBoundary>
+      ) : null}
       <main id="main-content" className="mx-auto w-full max-w-content flex-1 px-4 py-6 sm:px-6 sm:py-8">
         <div key={pathname} className="page-enter">
-          <Suspense fallback={<LoadingState label="Loading page…" />}>{children}</Suspense>
+          <ErrorBoundary>
+            <Suspense fallback={<LoadingState label="Loading page…" />}>{children}</Suspense>
+          </ErrorBoundary>
         </div>
       </main>
       <Footer />

@@ -28,21 +28,25 @@ export function CaptureHeader({ captureId }: { captureId: string }) {
   const data = results.data;
   if (!data) return null;
   const compliance = data.compliance;
-  const critical = compliance?.findings.filter((finding) => finding.severity.toUpperCase() === "CRITICAL").length ?? 0;
-  const high = compliance?.findings.filter((finding) => finding.severity.toUpperCase() === "HIGH").length ?? 0;
-  const abstained = data.flows.filter((flow) => {
+  const findings = compliance?.findings ?? [];
+  const flows = data.flows ?? [];
+  const ikeSessions = data.ike_sessions ?? [];
+
+  const critical = findings.filter((finding) => finding.severity?.toUpperCase() === "CRITICAL").length;
+  const high = findings.filter((finding) => finding.severity?.toUpperCase() === "HIGH").length;
+  const abstained = flows.filter((flow) => {
     const disposition = getFlowDisposition(flow);
     return disposition === "ABSTAINED" || disposition === "LOW_CONFIDENCE";
   }).length;
-  const obfuscated = data.flows.filter((flow) => getFlowDisposition(flow) === "OBFUSCATED").length;
+  const obfuscated = flows.filter((flow) => getFlowDisposition(flow) === "OBFUSCATED").length;
   const trafficMix = Object.values(data.traffic_distribution ?? {}).filter((count) => count > 0).length;
   const reason = compliance?.overall_score === null
     ? compliance.indeterminate_reason ?? data.reason ?? "Not assessable: no IKE handshake in this capture."
     : undefined;
 
   const isCleartext = compliance?.evaluated_parameters?.esp_encryption?.toString().toLowerCase().includes("cleartext") ||
-    compliance?.findings?.some((f) => f.rule_id?.includes("CLEARTEXT") || f.parameter?.toLowerCase().includes("cleartext")) ||
-    (data.flows.length > 0 && !data.ike_sessions.length && compliance?.overall_score === 0.0);
+    findings.some((f) => f.rule_id?.includes("CLEARTEXT") || f.parameter?.toLowerCase().includes("cleartext")) ||
+    (flows.length > 0 && !ikeSessions.length && compliance?.overall_score === 0.0);
 
   return (
     <>{recorded && <SampleStamp />}<div className="bg-surface">

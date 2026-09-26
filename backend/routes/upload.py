@@ -96,17 +96,21 @@ def _validate_magic(header: bytes, filename: str) -> None:
 # ---------------------------------------------------------------------------
 
 _upload_rate_tracker: dict[str, list[float]] = defaultdict(list)
-_MAX_UPLOADS_PER_WINDOW: int = 5
-_RATE_WINDOW_SECONDS: float = 300.0  # 5 uploads per 5 minutes per IP
+_MAX_UPLOADS_PER_WINDOW: int = int(os.getenv("JANUS_UPLOAD_RATE_LIMIT", "30"))
+_RATE_WINDOW_SECONDS: float = float(os.getenv("JANUS_UPLOAD_RATE_WINDOW", "300.0"))  # 30 uploads per 5 minutes per IP
 
 
 def _enforce_upload_rate_limit(client_ip: str) -> None:
     """Enforces sliding-window rate limit per client IP to mitigate unauthenticated upload floods."""
+    if _MAX_UPLOADS_PER_WINDOW <= 0:
+        return  # Rate limiting disabled via env var
+
     now = time.time()
     cutoff = now - _RATE_WINDOW_SECONDS
     # Evict timestamps older than the sliding window
     _upload_rate_tracker[client_ip] = [t for t in _upload_rate_tracker[client_ip] if t > cutoff]
     if len(_upload_rate_tracker[client_ip]) >= _MAX_UPLOADS_PER_WINDOW:
+        log.warning("Upload rate limit exceeded for client_ip=%s (limit=%d/%ds)", client_ip, _MAX_UPLOADS_PER_WINDOW, int(_RATE_WINDOW_SECONDS))
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail=(
