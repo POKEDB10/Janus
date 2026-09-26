@@ -16,7 +16,7 @@ import {
   UploadCloud,
 } from "lucide-react";
 import RiskBadge from "../components/RiskBadge";
-import { analyzeSample } from "../api/client";
+import { analyzeSample, getAnalysisStatus } from "../api/client";
 import { saveCaptureContext } from "../lib/capture-session";
 import { cn } from "../lib/cn";
 import type { RiskLevel } from "../types";
@@ -195,6 +195,18 @@ export default function Dashboard() {
       setAnalyzingId(sampleId);
       const res = await analyzeSample(sampleId);
       saveCaptureContext(res);
+
+      // Wait for pipeline completion so target page renders immediately
+      const maxWait = 25;
+      for (let i = 0; i < maxWait; i++) {
+        await new Promise((r) => setTimeout(r, 400));
+        try {
+          const st = await getAnalysisStatus(res.capture_id, res.capture_token ?? undefined);
+          if (st.status === "DONE" || st.status === "ERROR") break;
+        } catch {
+          // ignore transient poll error
+        }
+      }
       navigate(`/compliance/${res.capture_id}`);
     } catch {
       navigate(`/analysis/${sampleId}?demo=1`);
@@ -206,13 +218,13 @@ export default function Dashboard() {
   return (
     <div className="space-y-12 motion-enter">
       {/* 1. Technical Hero Section with Embedded Intake Dropzone */}
-      <section className="rounded-2xl border border-rule bg-surface p-6 sm:p-8 shadow-sm">
-        <div className="grid gap-8 lg:grid-cols-12 lg:items-center">
+      <section className="border-b border-rule pb-10">
+        <div className="grid gap-8 lg:grid-cols-12 lg:items-start">
           {/* Left Column: Mission, Standards, and Action Triggers */}
           <div className="space-y-5 lg:col-span-7">
-            <div className="inline-flex items-center gap-2 rounded border border-rule/80 bg-sunken/80 px-2.5 py-1 font-mono text-[11px] text-muted">
+            <div className="flex items-center gap-2 text-xs text-muted">
               <Shield className="size-3.5 text-accent" aria-hidden="true" />
-              <span>JANUS // RFC 8221 · RFC 8247 · NIST SP 800-77 REV. 1 · CNSA 2.0</span>
+              <span>Auditing IPsec implementations against RFC 8221, RFC 8247, and NIST SP 800-77 Rev. 1</span>
             </div>
 
             <div className="space-y-2">
@@ -280,93 +292,86 @@ export default function Dashboard() {
               onDragLeave={onDragLeave}
               onClick={() => fileInputRef.current?.click()}
               className={cn(
-                "group relative flex flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition-all cursor-pointer",
+                "group relative flex flex-col items-center justify-center border-2 border-dashed p-6 text-center transition-all cursor-pointer",
                 isDragActive
                   ? "border-accent bg-accent/10 ring-2 ring-accent/30"
-                  : "border-rule/80 bg-sunken/40 hover:border-accent hover:bg-sunken/70"
+                  : "border-rule bg-sunken/30 hover:border-accent hover:bg-sunken/60"
               )}
             >
-              <div className="mb-3 flex size-12 items-center justify-center rounded-lg border border-rule bg-surface text-accent group-hover:scale-105 transition-transform">
-                <UploadCloud className="size-6" aria-hidden="true" />
+              <div className="mb-3 flex size-11 items-center justify-center rounded-lg border border-rule bg-surface text-accent group-hover:scale-105 transition-transform">
+                <UploadCloud className="size-5" aria-hidden="true" />
               </div>
 
               <div className="space-y-1">
                 <p className="text-xs font-semibold text-ink sm:text-sm">
-                  {isDragActive ? "Drop capture to begin analysis" : "Drop .pcap / .pcapng file here"}
+                  {isDragActive ? "Drop capture to begin analysis" : "Drop .pcap or .pcapng file here"}
                 </p>
                 <p className="text-[11px] text-muted font-mono">
                   or click to select file from disk
                 </p>
               </div>
 
-              <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5 font-mono text-[10px] text-muted">
-                <span className="rounded bg-surface px-1.5 py-0.5 border border-rule">.pcap</span>
-                <span className="rounded bg-surface px-1.5 py-0.5 border border-rule">.pcapng</span>
-                <span className="rounded bg-surface px-1.5 py-0.5 border border-rule">IKEv2 SA</span>
-                <span className="rounded bg-surface px-1.5 py-0.5 border border-rule">ESP Tunnel</span>
-                <span className="rounded bg-surface px-1.5 py-0.5 border border-rule">UDP 4500</span>
-              </div>
+              <p className="mt-3 text-[11px] font-mono text-muted">
+                Accepts .pcap, .pcapng, and .gz captures (IKEv2 SA, ESP tunnel mode, UDP 4500)
+              </p>
             </div>
           </div>
         </div>
 
-        {/* System Capability Telemetry Ribbon */}
-        <div className="mt-8 grid grid-cols-2 gap-3 border-t border-rule pt-6 sm:grid-cols-4">
-          <div className="space-y-0.5">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-muted">Dissection Engine</span>
+        {/* System Capability Telemetry Ribbon: Instrument Layout */}
+        <div className="mt-8 grid grid-cols-2 gap-4 border-t border-rule pt-6 sm:grid-cols-4">
+          <div className="border-l border-rule pl-3.5 space-y-0.5">
+            <h2 className="text-xs font-medium text-muted">Dissection engine</h2>
             <p className="font-mono text-xs font-semibold text-ink">dpkt ESP &amp; tshark JSON</p>
-            <span className="text-[11px] text-muted">RFC 7296 &amp; RFC 4303 protocol framing</span>
+            <p className="text-[11px] text-muted">RFC 7296 and RFC 4303 protocol framing</p>
           </div>
 
-          <div className="space-y-0.5">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-muted">Compliance Rule Engine</span>
+          <div className="border-l border-rule pl-3.5 space-y-0.5">
+            <h2 className="text-xs font-medium text-muted">Compliance rules</h2>
             <p className="font-mono text-xs font-semibold text-ink">RFC 8221 / 8247 &amp; NIST SP 800-77</p>
-            <span className="text-[11px] text-muted">Deterministic score &amp; CVE mapping</span>
+            <p className="text-[11px] text-muted">Deterministic scoring and CVE mapping</p>
           </div>
 
-          <div className="space-y-0.5">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-muted">Statistical Classifier</span>
+          <div className="border-l border-rule pl-3.5 space-y-0.5">
+            <h2 className="text-xs font-medium text-muted">Statistical classifier</h2>
             <p className="font-mono text-xs font-semibold text-ink">FlowDeepNet 25D Ensemble</p>
-            <span className="text-[11px] text-muted">Zero IP / port feature bias</span>
+            <p className="text-[11px] text-muted">Zero IP and port feature bias</p>
           </div>
 
-          <div className="space-y-0.5">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-muted">Traffic Obfuscation</span>
+          <div className="border-l border-rule pl-3.5 space-y-0.5">
+            <h2 className="text-xs font-medium text-muted">Traffic obfuscation</h2>
             <p className="font-mono text-xs font-semibold text-ink">RFC 9347 IP-TFS &amp; AGGFRAG</p>
-            <span className="text-[11px] text-muted">Fixed-rate packet padding verification</span>
+            <p className="text-[11px] text-muted">Fixed-rate packet padding verification</p>
           </div>
         </div>
       </section>
 
-      {/* 2. Structured Pipeline Architecture Flow */}
-      <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-sm font-bold uppercase tracking-wider text-ink flex items-center gap-2">
-              <Layers className="size-4 text-accent" aria-hidden="true" />
-              <span>Dissection &amp; Verification Pipeline</span>
-            </h2>
-            <p className="text-xs text-muted">
-              End-to-end processing from raw wire capture to deterministic RFC compliance scoring and policy remediation.
-            </p>
-          </div>
+      {/* 2. Connected Pipeline Sequence Track */}
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-base font-semibold text-ink flex items-center gap-2">
+            <Layers className="size-4 text-accent" aria-hidden="true" />
+            <span>Dissection &amp; Verification Pipeline</span>
+          </h2>
+          <p className="text-xs text-muted mt-0.5">
+            Five-stage sequential processing from raw wire capture to deterministic RFC compliance scoring and policy remediation.
+          </p>
         </div>
 
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        {/* Connected pipeline rail */}
+        <div className="relative grid gap-0 border border-rule bg-surface sm:grid-cols-5 divide-y sm:divide-y-0 sm:divide-x divide-rule">
           {PIPELINE_FLOW.map((stage) => (
             <div
               key={stage.step}
-              className="flex flex-col justify-between rounded-xl border border-rule bg-surface p-4 space-y-3 interactive-card group hover:border-accent/80"
+              className="p-4 space-y-2.5 hover:bg-sunken/40 transition-colors"
             >
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs font-bold text-accent group-hover:scale-105 transition-transform origin-left">{stage.step}</span>
-                  <span className="rounded bg-sunken px-1.5 py-0.5 font-mono text-[10px] text-muted border border-rule group-hover:border-accent/40 transition-colors">
-                    {stage.tech}
-                  </span>
-                </div>
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-xs font-bold text-accent">{stage.step}</span>
+                <span className="font-mono text-[11px] text-muted">{stage.tech}</span>
+              </div>
+              <div>
                 <h3 className="text-xs font-bold text-ink">{stage.name}</h3>
-                <p className="text-[11px] leading-relaxed text-muted">{stage.desc}</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-muted">{stage.desc}</p>
               </div>
             </div>
           ))}
@@ -496,10 +501,7 @@ export default function Dashboard() {
                         </div>
                         <div className="flex flex-wrap items-center gap-1.5 font-mono text-[10px]">
                           <span className="text-muted">{sc.filename}</span>
-                          <span className="text-rule">·</span>
-                          <span className="rounded bg-sunken px-1.5 py-0.2 border border-rule/60 text-muted">
-                            {sc.category}
-                          </span>
+                          <span className="text-muted/60 font-sans">({sc.category})</span>
                         </div>
                       </div>
                     </td>
@@ -580,7 +582,7 @@ export default function Dashboard() {
                   <div className="flex items-start justify-between gap-2">
                     <div>
                       <h3 className="text-sm font-bold text-ink">{sc.title}</h3>
-                      <p className="font-mono text-[10px] text-muted">{sc.filename} · {sc.category}</p>
+                      <p className="font-mono text-[10px] text-muted">{sc.filename} ({sc.category})</p>
                     </div>
                     <RiskBadge level={sc.risk} size="sm" />
                   </div>
@@ -641,19 +643,19 @@ export default function Dashboard() {
       {/* 4. Standards Compliance & Cryptographic Framework */}
       <section className="space-y-4">
         <div>
-          <h2 className="text-sm font-bold uppercase tracking-wider text-ink flex items-center gap-2">
+          <h2 className="text-base font-semibold text-ink flex items-center gap-2">
             <Lock className="size-4 text-accent" aria-hidden="true" />
             <span>Cryptographic Standards &amp; Telemetry Coverage</span>
           </h2>
-          <p className="text-xs text-muted">
+          <p className="text-xs text-muted mt-0.5">
             Deterministic rule engine criteria aligned with authoritative IETF specifications and NIST SP 800-77 Rev. 1 guidelines.
           </p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
           {/* Panel 1: RFC 8221 / RFC 8247 */}
-          <div className="rounded-xl border border-rule bg-surface p-5 space-y-2.5">
-            <div className="flex items-center gap-2 text-xs font-mono font-bold text-accent">
+          <div className="border-l-2 border-accent bg-surface p-5 space-y-2.5">
+            <div className="flex items-center gap-2 text-xs font-semibold text-accent">
               <ShieldCheck className="size-4" aria-hidden="true" />
               <span>IETF RFC 8221 &amp; RFC 8247</span>
             </div>
@@ -661,17 +663,14 @@ export default function Dashboard() {
             <p className="text-xs leading-relaxed text-muted">
               Evaluates AEAD vs legacy transforms. Detects deprecated 64-bit block ciphers (3DES, Blowfish) vulnerable to Sweet32 collision attacks (CVE-2016-2183), unauthenticated CBC modes, and DH groups with less than 2048-bit modulus.
             </p>
-            <div className="pt-1 font-mono text-[10px] text-muted flex flex-wrap gap-1">
-              <span className="rounded bg-sunken px-1.5 py-0.5 border border-rule">AES-GCM-16</span>
-              <span className="rounded bg-sunken px-1.5 py-0.5 border border-rule">ChaCha20-Poly1305</span>
-              <span className="rounded bg-sunken px-1.5 py-0.5 border border-rule">Curve25519</span>
-              <span className="rounded bg-sunken px-1.5 py-0.5 border border-rule">NIST P-256</span>
-            </div>
+            <p className="pt-2 font-mono text-[11px] text-muted">
+              <span className="text-ink font-medium">Evaluated suites: </span>AES-256-GCM, ChaCha20-Poly1305, Curve25519, NIST P-256
+            </p>
           </div>
 
           {/* Panel 2: NIST SP 800-77 & PQC */}
-          <div className="rounded-xl border border-rule bg-surface p-5 space-y-2.5">
-            <div className="flex items-center gap-2 text-xs font-mono font-bold text-accent">
+          <div className="border-l-2 border-accent bg-surface p-5 space-y-2.5">
+            <div className="flex items-center gap-2 text-xs font-semibold text-accent">
               <Lock className="size-4" aria-hidden="true" />
               <span>NIST SP 800-77 Rev. 1 &amp; CNSA 2.0</span>
             </div>
@@ -679,16 +678,14 @@ export default function Dashboard() {
             <p className="text-xs leading-relaxed text-muted">
               Enforces Phase 2 Child SA rekey boundaries (&le; 28,800s / 8h) to prevent key exhaustion. Verifies ephemeral DH key exchanges on Child SAs (PFS) and maps quantum transition readiness (ML-KEM / Kyber, ML-DSA).
             </p>
-            <div className="pt-1 font-mono text-[10px] text-muted flex flex-wrap gap-1">
-              <span className="rounded bg-sunken px-1.5 py-0.5 border border-rule">Lifetime &le; 8h</span>
-              <span className="rounded bg-sunken px-1.5 py-0.5 border border-rule">PFS Enforced</span>
-              <span className="rounded bg-sunken px-1.5 py-0.5 border border-rule">CNSA 2.0 Mapped</span>
-            </div>
+            <p className="pt-2 font-mono text-[11px] text-muted">
+              <span className="text-ink font-medium">Key invariants: </span>SA lifetime &le; 8h, ephemeral Child SA PFS, post-quantum ML-KEM mapping
+            </p>
           </div>
 
           {/* Panel 3: RFC 9347 IP-TFS Side-Channel Defense */}
-          <div className="rounded-xl border border-rule bg-surface p-5 space-y-2.5">
-            <div className="flex items-center gap-2 text-xs font-mono font-bold text-accent">
+          <div className="border-l-2 border-accent bg-surface p-5 space-y-2.5">
+            <div className="flex items-center gap-2 text-xs font-semibold text-accent">
               <Network className="size-4" aria-hidden="true" />
               <span>RFC 9347 &amp; FlowDeepNet</span>
             </div>
@@ -696,11 +693,9 @@ export default function Dashboard() {
             <p className="text-xs leading-relaxed text-muted">
               Analyzes packet length entropy, burst dynamics, and inter-arrival timing. Identifies constant-rate IP-TFS padding and AGGFRAG shaping to guarantee traffic confidentiality against eavesdropping and ML classifiers.
             </p>
-            <div className="pt-1 font-mono text-[10px] text-muted flex flex-wrap gap-1">
-              <span className="rounded bg-sunken px-1.5 py-0.5 border border-rule">AGGFRAG Shaping</span>
-              <span className="rounded bg-sunken px-1.5 py-0.5 border border-rule">Dummy Bursts</span>
-              <span className="rounded bg-sunken px-1.5 py-0.5 border border-rule">25D Features</span>
-            </div>
+            <p className="pt-2 font-mono text-[11px] text-muted">
+              <span className="text-ink font-medium">Side-channel metrics: </span>RFC 9347 AGGFRAG padding, packet size entropy, 25-feature distributions
+            </p>
           </div>
         </div>
       </section>

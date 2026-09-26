@@ -61,11 +61,11 @@ export default function Compliance() {
 
       {/* Hero Score Gauge Banner */}
       {!indeterminate && compliance.overall_score !== null && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-6 rounded-2xl border border-rule bg-surface p-6 sm:p-8 shadow-sm">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-6 border border-rule bg-surface p-6 sm:p-8">
           <div className="space-y-3">
-            <div className="inline-flex items-center gap-2 rounded-full border border-rule/80 bg-sunken/60 px-3 py-1 font-mono text-xs text-muted">
-              <span>RFC 8221 (ESP) · RFC 8247 (IKEv2) · NIST SP 800-77 Rev. 1</span>
-            </div>
+            <p className="text-xs font-mono text-muted">
+              Governing audit rules: RFC 8221, RFC 8247, and NIST SP 800-77 Rev. 1
+            </p>
 
             <h2 className="text-xl sm:text-2xl font-bold text-ink">
               Compliance Posture: {compliance.overall_score >= 80 ? "Fully Compliant" : compliance.overall_score >= 50 ? "Sub-optimal / Legacy" : "Severe Security Vulnerabilities"}
@@ -78,7 +78,7 @@ export default function Compliance() {
             <div className="flex flex-wrap items-center gap-3 pt-1">
               <RiskBadge level={critical > 0 ? "CRITICAL" : high > 0 ? "HIGH" : "LOW"} size="md" />
               <span className="font-mono text-xs text-muted">
-                {findings.length} findings · {compliance.threat_matrix?.length ?? 0} ATT&amp;CK techniques
+                {findings.length} findings, {compliance.threat_matrix?.length ?? 0} ATT&amp;CK techniques mapped
               </span>
             </div>
           </div>
@@ -96,10 +96,10 @@ export default function Compliance() {
 
       {/* Indeterminate State Diagnostic Banner */}
       {indeterminate && (
-        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-6 sm:p-8 space-y-4 shadow-sm">
-          <div className="inline-flex items-center gap-2 rounded-full border border-amber-500/40 bg-amber-500/10 px-3 py-1 font-mono text-xs font-semibold text-amber-600 dark:text-amber-400">
-            <span>ESP Mid-Stream Session · IKE Key Exchange Absent</span>
-          </div>
+        <div className="border border-amber-500/30 bg-amber-500/5 p-6 sm:p-8 space-y-4">
+          <p className="text-xs font-mono font-medium text-amber-600 dark:text-amber-400">
+            Mid-stream capture: IKE key exchange negotiation not observed in packet stream
+          </p>
 
           <h2 className="text-xl sm:text-2xl font-bold text-ink">
             Compliance Posture: Indeterminate

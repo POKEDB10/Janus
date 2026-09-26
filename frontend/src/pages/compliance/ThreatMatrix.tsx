@@ -258,11 +258,11 @@ export function ThreatMatrix({
                       {item.technique_name}
                     </h3>
 
-                    {/* Affected Parameter Pill */}
+                    {/* Affected Parameter */}
                     {item.affected_parameter && (
-                      <div className="inline-flex items-center gap-1.5 rounded-md bg-sunken/70 border border-rule px-2.5 py-1 font-mono text-xs text-ink/90">
-                        <span className="text-muted">Target Parameter:</span>
-                        <span className="font-semibold text-accent">{item.affected_parameter}</span>
+                      <div className="font-mono text-xs text-muted">
+                        <span>Target parameter: </span>
+                        <span className="font-semibold text-ink">{item.affected_parameter}</span>
                       </div>
                     )}
 
@@ -335,13 +335,7 @@ export function ThreatMatrix({
                         </span>
                       </td>
                       <td className="px-4 py-3 font-mono text-xs text-ink font-semibold">
-                        {item.affected_parameter ? (
-                          <span className="rounded bg-sunken px-2 py-0.5 border border-rule">
-                            {item.affected_parameter}
-                          </span>
-                        ) : (
-                          "—"
-                        )}
+                        {item.affected_parameter ?? "—"}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         {renderStatusBadge(item)}

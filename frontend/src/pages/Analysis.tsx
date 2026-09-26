@@ -1,7 +1,7 @@
 import { useLocation, useParams } from "react-router-dom";
 import { useCaptureResults } from "../api/queries";
 import { useState } from "react";
-import { EmptyState, ErrorState, LoadingState, PageHeader, Section } from "../components/ui/Primitives";
+import { EmptyState, ErrorState, LoadingState, Section } from "../components/ui/Primitives";
 import { getApiErrorMessage } from "../lib/api-error";
 import { getFlowDisposition, type FlowResult } from "../types";
 import { FlowDrawer } from "./analysis/FlowDrawer";
@@ -24,18 +24,27 @@ export default function Analysis() {
   const shaped = flows.filter((flow) => getFlowDisposition(flow) === "OBFUSCATED").length;
 
   return (
-    <div className="space-y-8 motion-enter">
-      <PageHeader
-        eyebrow="Traffic classification"
-        title={`${data.total_flows ?? flows.length} ESP flows analyzed.`}
-        answer={`${abstained} abstained, ${shaped} with traffic shaping detected. Review the classifier decision for each flow below.`}
-      />
+    <div className="space-y-6 motion-enter">
+      {/* Operational context bar — differentiated from marketing hero */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-rule text-xs text-muted">
+        <div className="flex items-center gap-3">
+          <span className="font-semibold text-ink font-mono">{data.total_flows ?? flows.length} flows analyzed</span>
+          <span className="text-rule">/</span>
+          <span>{abstained} abstained</span>
+          <span className="text-rule">/</span>
+          <span>{shaped} traffic shaping detected</span>
+        </div>
+        <p className="text-[11px] font-mono text-muted">
+          Statistical side-channel classification (zero IP/port feature bias)
+        </p>
+      </div>
+
       {flows.length === 0 ? (
         <EmptyState title="No flows returned" detail="The analysis result did not include ESP flow classifications." />
       ) : (
         <>
           <TrafficCharts distribution={data.traffic_distribution} flows={flows} />
-          <Section title="Flows" detail="Results returned by the statistical ESP classifier.">
+          <Section title="Flow Telemetry &amp; Classification" detail="Extracted packet distributions, calibrated predictions, and SHAP attribution.">
             <FlowTable captureId={captureId} flows={flows} onInspect={setSelectedFlow} />
           </Section>
           <FlowDrawer flow={selectedFlow} onClose={() => setSelectedFlow(null)} />

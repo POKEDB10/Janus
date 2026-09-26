@@ -25,7 +25,7 @@ export function VerdictPair({ configuration, traffic }: { configuration: Configu
           <Stat label="Flows" value={traffic.flows} />
           <Stat label="Traffic mix" value={traffic.mix} />
           <Stat label="Abstained" value={traffic.abstained} />
-          <Stat label="Traffic shaping" value={traffic.obfuscated ? "Detected" : "Not detected"} />
+          <Stat label="Traffic shaping" value={traffic.obfuscated ? "Detected" : "None"} />
         </div>
       </div>
     </section>

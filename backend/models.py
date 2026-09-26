@@ -195,6 +195,10 @@ class ExplainerResponseModel(BaseModel):
     parameter: str
     severity: str
     explanation: str
+    summary: str = ""
+    standards_cited: list[dict[str, Any]] = Field(default_factory=list, alias="standardsCited")
+    risk_note: str = Field(default="", alias="riskNote")
+    remediation: str = ""
     citations: list[dict[str, Any]] = Field(default_factory=list)
     retrieved_chunks: list[dict[str, Any]] = Field(default_factory=list)
     groundedness_score: float
@@ -218,6 +222,10 @@ class ReportNarrativeResponseModel(BaseModel):
     grade: str
     executive_narrative: str
     technical_narrative: str
+    summary: str = ""
+    standards_cited: list[dict[str, Any]] = Field(default_factory=list, alias="standardsCited")
+    risk_note: str = Field(default="", alias="riskNote")
+    remediation: str = ""
     citations: list[dict[str, Any]] = Field(default_factory=list)
     is_grounded: bool
     latency_ms: float
@@ -238,6 +246,10 @@ class CompoundExplainerResponseModel(BaseModel):
     capture_id: str
     total_findings: int
     compound_narrative: str
+    summary: str = ""
+    standards_cited: list[dict[str, Any]] = Field(default_factory=list, alias="standardsCited")
+    risk_note: str = Field(default="", alias="riskNote")
+    remediation: str = ""
     citations: list[dict[str, Any]] = Field(default_factory=list)
     retrieved_chunks: list[dict[str, Any]] = Field(default_factory=list)
     groundedness_score: float

@@ -3,7 +3,7 @@
  * High-precision SVG circular progress gauge displaying 0-100 security score and letter grade.
  * Features smooth spring-eased mount sweep and numerical count-up animation.
  */
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { cn } from "../lib/cn";
 
 interface ScoreGaugeProps {
@@ -32,37 +32,15 @@ export const ScoreGauge: React.FC<ScoreGaugeProps> = ({
   const clamped = Math.min(100, Math.max(0, score));
   const color = scoreColor(clamped);
 
-  const [currentVal, setCurrentVal] = useState(0);
-
-  useEffect(() => {
-    const target = clamped === 0 ? 2.5 : clamped;
-    let startTimestamp: number | null = null;
-    const duration = 800;
-
-    let animFrame: number;
-    const step = (timestamp: number) => {
-      if (!startTimestamp) startTimestamp = timestamp;
-      const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-      // Fluid cubic deceleration
-      const eased = 1 - Math.pow(1 - progress, 3);
-      setCurrentVal(eased * target);
-      if (progress < 1) {
-        animFrame = requestAnimationFrame(step);
-      } else {
-        setCurrentVal(target);
-      }
-    };
-    animFrame = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(animFrame);
-  }, [clamped]);
-
   // SVG coordinate system: 160x160 viewBox
   const center = 80;
   const radius = 66; // Leaves 14px outer margin in 160x160 viewBox
   const strokeWidth = Math.max(8, Math.round(size * 0.065));
   const circumference = 2 * Math.PI * radius; // ~414.69
 
-  const strokeDashoffset = circumference - (currentVal / 100) * circumference;
+  // Deterministic arc offset: instantly reflects actual score prop
+  const arcTarget = clamped === 0 ? 2.5 : clamped;
+  const strokeDashoffset = circumference - (arcTarget / 100) * circumference;
   const isCompact = size < 150;
 
   return (
@@ -118,7 +96,7 @@ export const ScoreGauge: React.FC<ScoreGaugeProps> = ({
                 textShadow: clamped < 40 ? "0 0 14px rgba(239,68,68,0.3)" : undefined,
               }}
             >
-              {Math.round(clamped === 0 ? 0 : currentVal)}
+              {Math.round(clamped)}
             </span>
             <span className="ml-1 font-mono text-[11px] font-semibold text-muted leading-none">
               /100
@@ -144,7 +122,7 @@ export const ScoreGauge: React.FC<ScoreGaugeProps> = ({
       </div>
 
       {label ? (
-        <p className="mt-2 text-[11px] text-muted font-bold font-mono uppercase tracking-wider text-center">
+        <p className="mt-2 text-xs text-muted font-medium text-center">
           {label}
         </p>
       ) : null}

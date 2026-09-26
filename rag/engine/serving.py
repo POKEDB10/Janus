@@ -145,8 +145,8 @@ class LLMServingConnector:
         model_size: str = "4b",
     ) -> str:
         """
-        Synthesizes a high-fidelity natural language explanation directly from
-        retrieved primary source standards chunks with Chain-of-Thought reasoning.
+        Synthesizes a high-fidelity structured natural language explanation directly from
+        retrieved primary source standards chunks.
         """
         param = finding_data.get("parameter", "Cryptographic Parameter")
         severity = finding_data.get("severity", "MEDIUM")
@@ -159,51 +159,42 @@ class LLMServingConnector:
         doc = top_chunk.get("document", "RFC 8221")
         sec_raw = str(top_chunk.get("section", "§5")).strip()
         sec = sec_raw if sec_raw.startswith("§") or sec_raw.lower().startswith("table") or sec_raw.lower().startswith("appendix") else f"§{sec_raw}"
-        cit = f"[{doc} {sec}]"
         clause_title = top_chunk.get("title", "Standards Specification")
 
-        # Mathematical and algorithmic threat analysis
         sev_upper = str(severity).upper()
         p_lower = param.lower()
         r_lower = rule_id.lower()
         is_info_or_compliant = sev_upper in ("INFO", "LOW") or "gcm" in p_lower or "gcm" in r_lower or "ecp" in p_lower
 
         if "gcm" in p_lower or "gcm" in r_lower or "chacha" in p_lower:
-            math_threat = (
-                f"`{param}` utilizes modern Authenticated Encryption with Associated Data (AEAD). "
-                "Galois/Counter Mode (GCM) combines counter-mode (CTR) confidentiality with a Galois authentication field (GHASH) "
-                "yielding a 128-bit Integrity Check Value (ICV). This structure eliminates unauthenticated CBC bit-flipping "
-                "and padding oracle attacks, providing cryptographic collision resistance bounded at $2^{64}$ blocks."
+            summary = (
+                f"{param} utilizes modern Authenticated Encryption with Associated Data (AEAD), "
+                f"satisfying RFC 8221 §5 requirements."
             )
-            std_grounding = (
-                f"The compliance engine evaluated this parameter under authoritative clause {cit} (*{clause_title}*). "
-                f"[RFC 8221 §5] classifies AES-GCM-16 as **MUST** implement for IPsec ESP, satisfying both NIST SP 800-77 Rev. 1 "
-                "and DoD IPsec STIG compliance baselines."
+            standards_cited = [
+                {"id": "RFC 8221 §5", "note": "ESP Encryption Algorithms — MUST implement"},
+                {"id": "NIST SP 800-77 Rev. 1", "note": "Guidance on IPsec VPNs"},
+            ]
+            risk_note = (
+                "The active configuration adheres to modern cryptographic standards. "
+                "Galois/Counter Mode (GCM) combines counter-mode confidentiality with a Galois authentication field (GHASH), "
+                "yielding a 128-bit Integrity Check Value (ICV) that eliminates unauthenticated bit-flipping. "
+                "Session payloads maintain mathematical confidentiality and origin integrity, with collision resistance bounded at 2^64 blocks."
             )
-            sys_impact = (
-                f"Active configuration adheres to modern cryptographic standards. Session payloads traversing the VPN tunnel "
-                "maintain mathematical confidentiality and origin integrity against passive surveillance and active transit tampering."
-            )
-            remediation = (
-                f"No remediation required. The configured `{param}` suite satisfies governing IETF RFC 8221, RFC 8247, "
-                "and NIST SP 800-77 Rev. 1 requirements."
-            )
+            remediation = ""
         elif "tfs" in p_lower or "tfs" in r_lower:
-            math_threat = (
-                "Traffic Flow Security (TFS) operates against side-channel flow analysis. Without constant-rate AGGFRAG framing, "
-                "packet size entropy and inter-packet arrival time variance leak application behavior and traffic bursts "
-                "to passive wire observers without breaking payload encryption."
+            summary = (
+                "Traffic Flow Security (TFS) is not configured, leaving packet length and timing profiles observable."
             )
-            std_grounding = (
-                f"The compliance engine classified this finding as **{severity}** under authoritative clause {cit} (*{clause_title}*). "
-                "[RFC 9347 §2] defines the Aggregation and Fragmentation (AGGFRAG) payload format for IPsec Traffic Flow Security."
-            )
-            sys_impact = (
-                "Payload confidentiality remains mathematically sound under AEAD encryption. However, packet timing and size distributions "
-                "remain observable to side-channel classifiers on unmanaged network transports."
+            standards_cited = [
+                {"id": "RFC 9347 §2", "note": "Aggregation and Fragmentation (AGGFRAG) payload format for IPsec Traffic Flow Security"}
+            ]
+            risk_note = (
+                "Payload confidentiality remains mathematically sound under AEAD encryption. However, without constant-rate AGGFRAG framing, "
+                "packet size entropy and inter-packet arrival time variance leak application behavior and traffic bursts to passive network observers."
             )
             remediation = (
-                "To eliminate side-channel packet length and timing signatures in high-assurance environments, configure RFC 9347 TFS in strongSwan `swanctl.conf`:\n"
+                "To eliminate side-channel packet length and timing signatures in high-assurance environments, configure RFC 9347 TFS in strongSwan swanctl.conf:\n"
                 "```text\n"
                 "connections {\n"
                 "  vpn {\n"
@@ -217,38 +208,33 @@ class LLMServingConnector:
                 "```"
             )
         elif is_info_or_compliant:
-            math_threat = (
-                f"Cryptographic parameters for `{param}` adhere to current standards benchmarks with no known mathematical shortcuts "
-                "or collision vulnerabilities under sustained capture."
+            summary = (
+                f"Cryptographic parameters for {param} adhere to current standards benchmarks with no known vulnerabilities under sustained capture."
             )
-            std_grounding = (
-                f"The compliance engine evaluated this parameter under authoritative clause {cit} (*{clause_title}*). "
-                f"Requirements for `{param}` satisfy governing IETF RFC and NIST SP 800-77 Rev. 1 specifications."
-            )
-            sys_impact = (
-                f"No adverse security impact. Session encryption keys, integrity protections, and protocol state for `{param}` "
+            standards_cited = [
+                {"id": f"{doc} {sec}", "note": clause_title}
+            ]
+            risk_note = (
+                f"No adverse security impact. Session encryption keys, integrity protections, and protocol state for {param} "
                 "operate within standard cryptographic security boundaries."
             )
-            remediation = (
-                f"No remediation required. The configured `{param}` parameter satisfies RFC 8221, RFC 8247, "
-                "and NIST SP 800-77 Rev. 1 benchmarks."
-            )
+            remediation = ""
         elif "3des" in p_lower or "3des" in r_lower:
-            math_threat = (
+            summary = (
+                "3DES employs a deprecated 64-bit block cipher vulnerable to SWEET32 ciphertext collisions."
+            )
+            standards_cited = [
+                {"id": "RFC 8221 §5", "note": "ESP Encryption Algorithms — MUST NOT implement"},
+                {"id": "NIST SP 800-131A Rev. 2", "note": "Disallowed symmetric encryption algorithms"},
+            ]
+            risk_note = (
                 "3DES operates with a 64-bit block size. Under the Birthday Paradox, ciphertext block collisions occur "
-                "with high probability after observing ~2^32 blocks (32 GB of data). In CBC mode, an adversary observing "
-                "collisions can mathematically derive the XOR difference of plaintext blocks (SWEET32 attack, CVE-2016-2183)."
-            )
-            std_grounding = (
-                f"The compliance engine classified this finding as **{severity}** under authoritative clause {cit} (*{clause_title}*). "
-                "[RFC 8221 §5] explicitly designates ENCR_3DES as **MUST NOT**, and NIST SP 800-131A Rev. 2 formally disallowed 3DES for encryption."
-            )
-            sys_impact = (
-                f"Leaving `{param}` active allows passive eavesdroppers recording high-volume tunnel sessions to decrypt "
-                "sensitive credentials, session tokens, and encapsulated payloads."
+                "with high probability after observing approximately 2^32 blocks (32 GB of data). In CBC mode, an adversary observing "
+                "collisions can mathematically derive the XOR difference of plaintext blocks (SWEET32 attack, CVE-2016-2183), "
+                "allowing passive eavesdroppers recording high-volume tunnel sessions to recover sensitive credentials."
             )
             remediation = (
-                "In strongSwan `swanctl.conf`, upgrade ESP proposals to modern AEAD ciphers:\n"
+                "In strongSwan swanctl.conf, upgrade ESP proposals to modern AEAD ciphers:\n"
                 "```text\n"
                 "connections {\n"
                 "  vpn {\n"
@@ -262,19 +248,18 @@ class LLMServingConnector:
                 "```"
             )
         elif "des" in p_lower or "des" in r_lower:
-            math_threat = (
-                "Single DES relies on a 56-bit key length ($2^{56}$ keyspace). Modern GPU/FPGA clusters can exhaust "
+            summary = (
+                "Single DES relies on an obsolete 56-bit key length vulnerable to exhaustive keyspace exhaustion."
+            )
+            standards_cited = [
+                {"id": "RFC 8221 §5", "note": "ESP Encryption Algorithms — MUST NOT implement"}
+            ]
+            risk_note = (
+                "Single DES relies on a 56-bit key length (2^56 keyspace). Modern GPU and FPGA clusters can exhaust "
                 "the entire keyspace in hours, rendering packet confidentiality obsolete."
             )
-            std_grounding = (
-                f"The compliance engine classified this finding as **{severity}** under authoritative clause {cit} (*{clause_title}*). "
-                "[RFC 8221 §5] lists single DES as **MUST NOT**."
-            )
-            sys_impact = (
-                "Total loss of confidentiality. Passive wire captures can be decrypted via key exhaustion."
-            )
             remediation = (
-                "Upgrade proposals in strongSwan `swanctl.conf` to AES-256-GCM:\n"
+                "Upgrade proposals in strongSwan swanctl.conf to AES-256-GCM:\n"
                 "```text\n"
                 "connections {\n"
                 "  vpn {\n"
@@ -288,19 +273,20 @@ class LLMServingConnector:
                 "```"
             )
         elif "group 2" in p_lower or "group_2" in r_lower or "group 1" in p_lower:
-            math_threat = (
-                "MODP-1024 / MODP-768 groups are susceptible to Number Field Sieve (NFS) precomputation. "
-                "Adversaries can precalculate discrete logarithms for standard primes and decrypt IKE key exchanges in real-time (Logjam attack, CVE-2015-4000)."
+            summary = (
+                "Diffie-Hellman Group 2 uses a 1024-bit MODP group susceptible to Number Field Sieve precomputation."
             )
-            std_grounding = (
-                f"The compliance engine classified this finding as **{severity}** under authoritative clause {cit} (*{clause_title}*). "
-                "[RFC 8247 §2.4] designates MODP-1024 as **MUST NOT**, and NIST SP 800-131A Rev. 2 disallows keys below 112 bits of security."
-            )
-            sys_impact = (
-                "Adversaries can passively decrypt the IKEv2 handshake, recover SKEYSEED, and decrypt all subsequent Child SAs, destroying forward secrecy."
+            standards_cited = [
+                {"id": "RFC 8247 §2.4", "note": "Diffie-Hellman Groups — MUST NOT implement"},
+                {"id": "NIST SP 800-131A Rev. 2", "note": "Disallowed keys below 112 bits of security"},
+            ]
+            risk_note = (
+                "MODP-1024 and MODP-768 groups are susceptible to Number Field Sieve (NFS) precomputation. "
+                "Adversaries can precalculate discrete logarithms for standard primes and decrypt IKE key exchanges in real time (Logjam attack, CVE-2015-4000). "
+                "This allows adversaries to passively decrypt the IKEv2 handshake, recover SKEYSEED, and decrypt all subsequent Child SAs, destroying forward secrecy."
             )
             remediation = (
-                "Migrate key exchange proposals in `swanctl.conf` to Diffie-Hellman Group 19 (256-bit ECP) or Group 14 (2048-bit MODP):\n"
+                "Migrate key exchange proposals in swanctl.conf to Diffie-Hellman Group 19 (256-bit ECP) or Group 14 (2048-bit MODP):\n"
                 "```text\n"
                 "connections {\n"
                 "  vpn {\n"
@@ -310,19 +296,18 @@ class LLMServingConnector:
                 "```"
             )
         elif "md5" in p_lower or "md5" in r_lower:
-            math_threat = (
+            summary = (
+                "HMAC-MD5 integrity relies on a collision-vulnerable hash algorithm prohibited by modern standards."
+            )
+            standards_cited = [
+                {"id": "RFC 8221 §5", "note": "ESP Authentication Algorithms — MUST NOT implement"}
+            ]
+            risk_note = (
                 "MD5 has demonstrated practical cryptographic collision vulnerabilities. Attackers can forge valid HMAC-MD5 signatures "
-                "in milliseconds, completely compromising packet integrity."
-            )
-            std_grounding = (
-                f"The compliance engine classified this finding as **{severity}** under authoritative clause {cit} (*{clause_title}*). "
-                "[RFC 8221 §5] classifies MD5 as **MUST NOT**, mandating SHA-2 or combined AEAD."
-            )
-            sys_impact = (
-                "Packet integrity and origin authenticity are void. Adversaries can inject or alter packets in transit."
+                "in milliseconds, completely compromising packet integrity and origin authenticity."
             )
             remediation = (
-                "Upgrade to combined AEAD or SHA-2 integrity in strongSwan `swanctl.conf`:\n"
+                "Upgrade to combined AEAD or SHA-2 integrity in strongSwan swanctl.conf:\n"
                 "```text\n"
                 "connections {\n"
                 "  vpn {\n"
@@ -336,19 +321,18 @@ class LLMServingConnector:
                 "```"
             )
         elif "auth_none" in p_lower or "none" in r_lower:
-            math_threat = (
-                "Unauthenticated CBC mode is vulnerable to bit-flipping and padding oracle attacks. Modifying ciphertext block C_{i-1} "
-                "predictably alters plaintext block P_i without detection, enabling active Man-in-the-Middle command injection."
+            summary = (
+                "Unauthenticated CBC mode provides zero data integrity and is prohibited by RFC 8221 §4."
             )
-            std_grounding = (
-                f"The compliance engine classified this finding as **{severity}** under authoritative clause {cit} (*{clause_title}*). "
-                "[RFC 8221 §4] explicitly specifies AUTH_NONE as **MUST NOT** when paired with non-AEAD block ciphers like AES-CBC."
-            )
-            sys_impact = (
-                "Active adversaries can manipulate decrypted payloads and execute padding oracle decryption."
+            standards_cited = [
+                {"id": "RFC 8221 §4", "note": "ESP Transform Combinations — AUTH_NONE prohibited with CBC"}
+            ]
+            risk_note = (
+                "Unauthenticated CBC mode is vulnerable to bit-flipping and padding oracle attacks. Modifying ciphertext block C[i-1] "
+                "predictably alters plaintext block P[i] without detection, enabling active Man-in-the-Middle command injection."
             )
             remediation = (
-                "Enforce authenticated encryption (AES-256-GCM) in `swanctl.conf`:\n"
+                "Enforce authenticated encryption (AES-256-GCM) in swanctl.conf:\n"
                 "```text\n"
                 "connections {\n"
                 "  vpn {\n"
@@ -362,18 +346,16 @@ class LLMServingConnector:
                 "```"
             )
         elif "cleartext" in r_lower or "no-esp" in r_lower or "encapsulation" in p_lower:
-            math_threat = (
-                "Zero cryptographic encapsulation. Plaintext IP payloads, protocol headers, and credentials "
-                "traverse intermediate network hops unencrypted with zero confidentiality or integrity guarantees."
+            summary = (
+                "Zero cryptographic encapsulation was detected on traversing packets."
             )
-            std_grounding = (
-                f"The compliance engine classified this finding as **{severity}** under authoritative clause {cit} (*{clause_title}*). "
-                "[RFC 8221 §5] and [NIST SP 800-77 Rev. 1 §4.1] mandate ESP encapsulation (IP protocol 50) "
-                "with authenticated encryption for all sensitive inter-site and remote access communications."
-            )
-            sys_impact = (
-                "Total exposure to wiretapping, eavesdropping, and packet injection attacks (MITRE ATT&CK T1040). "
-                "Any intermediary router or ISP can read, log, or manipulate payload contents."
+            standards_cited = [
+                {"id": "RFC 8221 §5", "note": "ESP Encapsulation Requirements"},
+                {"id": "NIST SP 800-77 Rev. 1 §4.1", "note": "Mandatory ESP encapsulation"},
+            ]
+            risk_note = (
+                "Plaintext IP payloads, protocol headers, and credentials traverse intermediate network hops unencrypted with zero confidentiality or integrity guarantees. "
+                "Any intermediary router or ISP can read, log, or manipulate payload contents (MITRE ATT&CK T1040)."
             )
             remediation = (
                 "Deploy an authenticated strongSwan IPsec tunnel enforcing ESP encapsulation:\n"
@@ -392,24 +374,24 @@ class LLMServingConnector:
                 "```"
             )
         else:
-            math_threat = (
-                f"Configuration parameter `{param}` deviates from authoritative RFC and NIST cryptographic baselines. "
-                "Non-standard or unvetted parameters introduce cryptanalytic risks under sustained capture."
+            summary = (
+                f"Configuration parameter {param} deviates from authoritative RFC and NIST cryptographic baselines."
             )
-            std_grounding = (
-                f"The compliance engine classified this finding as **{severity}** under authoritative clause {cit} (*{clause_title}*). "
-                "Governing standards require strict compliance with RFC 8221, RFC 8247, and NIST SP 800-77 Rev. 1 specifications."
+            standards_cited = [
+                {"id": f"{doc} {sec}", "note": clause_title}
+            ]
+            risk_note = (
+                f"Leaving {param} active leaves session traffic exposed to {vuln or 'cryptographic degradation'} under sustained operation."
             )
-            sys_impact = f"Leaving `{param}` in this state leaves session traffic exposed to {vuln or 'cryptographic degradation'}."
-            remediation = f"{recom or 'Upgrade transform proposals to modern AEAD encryption (AES-256-GCM) and DH Group 19 (ECP-256).'}"
+            remediation = recom or "Upgrade transform proposals to modern AEAD encryption (AES-256-GCM) and DH Group 19 (ECP-256)."
 
-        sections = [
-            f"### Cryptanalytic Threat & Mathematical Analysis\n{math_threat}",
-            f"### Primary Standards Grounding\n{std_grounding}",
-            f"### System Impact & Blast Radius\n{sys_impact}",
-            f"### Verified Actionable Remediation\n{remediation}",
-        ]
-        return "\n\n".join(sections)
+        payload = {
+            "summary": summary,
+            "standardsCited": standards_cited,
+            "riskNote": risk_note,
+            "remediation": remediation,
+        }
+        return json.dumps(payload)
 
     def _generate_compound_fallback(
         self,
@@ -417,34 +399,22 @@ class LLMServingConnector:
         retrieved_chunks: list[dict[str, Any]],
         model_size: str = "4b",
     ) -> str:
-        """Synthesizes compound blast-radius assessment for multiple concurrent findings."""
+        """Synthesizes compound assessment for multiple concurrent findings."""
         top_chunk = retrieved_chunks[0] if retrieved_chunks else {}
         doc = top_chunk.get("document", "RFC 8221")
         sec = top_chunk.get("section", "§5")
-        cit = f"[{doc} {sec}]"
 
-        finding_summaries = []
-        for f in findings:
-            p = f.get("parameter", "Parameter")
-            s = f.get("severity", "MEDIUM")
-            r = f.get("rule_id", "RULE")
-            finding_summaries.append(f"- **[{s}]** `{r}`: {p} — {f.get('description', '')}")
-
-        findings_block = "\n".join(finding_summaries)
-
-        sections = [
-            "### Multi-Finding Compound Risk Synthesis\n"
-            f"A total of {len(findings)} compliance findings were detected concurrently in this IPsec capture session:\n{findings_block}",
-            "### Compound Blast Radius & Exploit Correlation\n"
-            "When deployed simultaneously, these vulnerabilities interact to multiply the attack surface across the entire security boundary. "
-            "Specifically, weak key exchange (such as Diffie-Hellman Group 1/2) allows an adversary to compromise session keys, "
-            "while the absence of Perfect Forward Secrecy (PFS) enables retroactive decryption of past recorded captures. "
-            "Simultaneously, weak encryption or hashing primitives allow block collision exploitation and packet forgery.",
-            f"### Primary Standards Compliance Authority\n"
-            f"This compound configuration violates {cit} and multiple associated requirements in RFC 8247 and NIST SP 800-77 Rev. 1. "
-            "No federal or enterprise security policy permits this combination of parameters in operational environments.",
-            "### Unified Remediation Strategy\n"
-            "Apply a comprehensive `swanctl.conf` upgrade replacing all deprecated proposals:\n"
+        summary = f"A total of {len(findings)} compound compliance findings were detected concurrently in this IPsec capture session."
+        standards_cited = [
+            {"id": f"{doc} {sec}", "note": "Primary governing standard"}
+        ]
+        risk_note = (
+            "Compound security evaluation: when deployed simultaneously, weak key exchange and legacy encryption interact to multiply the security risk. "
+            "Specifically, weak Diffie-Hellman groups allow an adversary to compromise session keys, while deprecated ciphers permit block collisions. "
+            "Without Perfect Forward Secrecy, historical tunnel traffic remains vulnerable to retroactive decryption."
+        )
+        remediation = (
+            "Apply a comprehensive swanctl.conf configuration upgrade replacing all deprecated proposals:\n"
             "```text\n"
             "connections {\n"
             "  vpn-gateway {\n"
@@ -453,9 +423,14 @@ class LLMServingConnector:
             "    rekey_time = 4h\n"
             "  }\n"
             "}\n"
-            "```",
-        ]
-        return "\n\n".join(sections)
+            "```"
+        )
+        return json.dumps({
+            "summary": summary,
+            "standardsCited": standards_cited,
+            "riskNote": risk_note,
+            "remediation": remediation,
+        })
 
     def generate(
         self,
@@ -505,7 +480,7 @@ class LLMServingConnector:
             content=fallback_text,
             is_fallback=True,
             latency_ms=latency,
-            model_name=f"Janus-Standards-Engine/{target_model}-CoT",
+            model_name=f"Janus-Standards-Engine/{target_model}",
         )
 
     def generate_compound(
@@ -553,7 +528,7 @@ class LLMServingConnector:
             content=fallback_text,
             is_fallback=True,
             latency_ms=latency,
-            model_name=f"Janus-Standards-Engine/{target_model}-Compound",
+            model_name=f"Janus-Standards-Engine/{target_model}",
         )
 
 

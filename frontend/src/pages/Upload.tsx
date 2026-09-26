@@ -243,13 +243,13 @@ export default function Upload() {
   return (
     <div className="space-y-10 motion-enter max-w-4xl mx-auto">
       <PageHeader
-        eyebrow="Capture intake &amp; pipeline"
+        eyebrow="Capture Intake"
         title="Upload an IPsec capture."
         answer="Drop a packet capture to dissect observed IKE negotiation transforms, classify ESP flows with zero IP leakage, and audit RFC 8221/8247 compliance."
       />
 
       {/* Upload Zone Card */}
-      <section className="rounded-2xl border border-rule bg-surface p-6 sm:p-8 space-y-6 shadow-sm">
+      <section className="border border-rule bg-surface p-6 sm:p-8 space-y-6">
         <div
           onDrop={drop}
           onDragEnter={dragEnter}
@@ -472,7 +472,7 @@ export default function Upload() {
                     )}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-mono text-[10px] font-bold">STAGE 0{idx + 1}</span>
+                      <span className="font-mono text-xs font-semibold text-muted">Stage 0{idx + 1}</span>
                       {isPast ? (
                         <CheckCircle2 size={15} className="text-pass" />
                       ) : isCurrent ? (
@@ -490,11 +490,11 @@ export default function Upload() {
 
             {/* When complete: Show the Verdict Score Gauge */}
             {isDone && parsedScore !== null && parsedGrade && (
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-5 rounded-xl border border-rule bg-sunken/50 p-4 sm:p-5 motion-enter">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-5 border border-rule bg-sunken/40 p-4 sm:p-5 motion-enter">
                 <div className="space-y-1.5 text-center sm:text-left">
-                  <span className="rounded bg-accent/10 px-2 py-0.5 font-mono text-[10px] font-bold text-accent uppercase tracking-wider">
+                  <p className="font-mono text-xs font-semibold text-accent">
                     Audit Verdict
-                  </span>
+                  </p>
                   <h3 className="text-sm font-bold text-ink mt-1">RFC Compliance &amp; Dissection Evaluation</h3>
                   <p className="text-xs text-muted max-w-md leading-relaxed">
                     {status.message}
@@ -629,13 +629,13 @@ export default function Upload() {
               <div
                 key={sample.id}
                 className={cn(
-                  "flex flex-col justify-between rounded-xl border border-rule bg-surface p-4 space-y-3 interactive-card",
+                  "flex flex-col justify-between border border-rule bg-surface p-4 space-y-3",
                   idx < 4 ? `stagger-${idx + 1}` : ""
                 )}
               >
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
-                    <span className="rounded bg-accent/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-accent border border-accent/20">
+                    <span className="font-mono text-[11px] text-muted">
                       {sample.category}
                     </span>
                     <span className="font-mono text-[11px] text-muted">
@@ -645,7 +645,7 @@ export default function Upload() {
 
                   <h3 className="text-sm font-bold text-ink">{sample.title}</h3>
                   <p className="text-xs text-muted leading-relaxed line-clamp-2">{sample.description}</p>
-                  <p className="font-mono text-[11px] text-accent truncate">{sample.cipher}</p>
+                  <p className="font-mono text-[11px] text-ink/80 truncate">{sample.cipher}</p>
                 </div>
 
                 <div className="flex items-center justify-between gap-2 pt-2 border-t border-rule">
@@ -662,7 +662,7 @@ export default function Upload() {
                     type="button"
                     disabled={analyzingSampleId === sample.id || uploading}
                     onClick={() => handleAnalyzeSample(sample.id)}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent-strong disabled:opacity-50 transition-all"
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-accent px-3 py-1.5 text-xs font-semibold text-white hover:bg-accent-strong disabled:opacity-50 transition-all cursor-pointer"
                   >
                     <Play size={12} />
                     <span>{analyzingSampleId === sample.id ? "Launching..." : "1-Click Analyze"}</span>
@@ -675,20 +675,20 @@ export default function Upload() {
       </section>
 
       {/* Fixture-backed walkthrough demo shortcut */}
-      <section className="rounded-xl border border-rule bg-surface p-5 space-y-3">
-        <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-muted">
-          Instant Recorded Evidence (No Backend Required):
+      <section className="border-t border-rule pt-6 space-y-3">
+        <h3 className="text-xs font-medium text-muted">
+          Recorded sample fixtures (offline evaluation):
         </h3>
         <div className="flex flex-wrap gap-2">
           {recordedSampleCaptures.map((sample) => (
             <Link
               key={sample.id}
               to={recordedAnalysisPath(sample)}
-              className="inline-flex items-center gap-2 rounded-lg border border-rule bg-sunken/60 px-3 py-1.5 text-xs font-mono text-ink hover:border-accent transition-colors"
+              className="inline-flex items-center gap-2 rounded border border-rule bg-sunken/40 px-3 py-1.5 text-xs font-mono text-ink hover:border-accent transition-colors"
             >
               <span>{sample.title}</span>
-              <span className="rounded bg-accent/20 px-1.5 py-0.5 text-[10px] text-accent">
-                {sample.cipher}
+              <span className="text-[11px] text-muted">
+                ({sample.cipher})
               </span>
             </Link>
           ))}

@@ -142,21 +142,21 @@ function PostureValue({ label, value }: { label: string; value: string | number 
   const { posture, badgeText } = evaluateParameterPosture(label, value);
   const displayVal = typeof value === "boolean" ? (value ? "Enabled" : "Disabled") : String(value);
 
-  const badgeClass =
+  const statusColor =
     posture === "GOOD"
-      ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+      ? "text-pass"
       : posture === "BAD"
-      ? "bg-red-500/15 text-red-400 border border-red-500/30"
+      ? "text-critical"
       : posture === "WARN"
-      ? "bg-amber-500/15 text-amber-400 border border-amber-500/30"
-      : "bg-sunken text-muted";
+      ? "text-amber-500"
+      : "text-muted";
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-baseline gap-2">
       <span className="font-mono text-xs font-semibold text-ink">{displayVal}</span>
       {badgeText && (
-        <span className={`rounded px-1.5 py-0.5 text-[10px] font-mono font-bold uppercase ${badgeClass}`}>
-          {badgeText}
+        <span className={`font-mono text-[11px] ${statusColor}`}>
+          ({badgeText})
         </span>
       )}
     </div>
@@ -168,33 +168,33 @@ function ScenarioPanel({ report, label }: { report: ComplianceReport; label: str
   const high = report.findings?.filter((f) => f.severity.toUpperCase() === "HIGH").length ?? 0;
 
   return (
-    <div className="flex flex-col justify-between rounded-2xl border border-rule bg-surface p-6 shadow-sm space-y-5 interactive-card">
+    <div className="flex flex-col justify-between border border-rule bg-surface p-5 space-y-4">
       <div className="space-y-4">
         <div className="flex items-center justify-between border-b border-rule pb-3">
-          <h3 className="text-sm font-bold text-ink truncate">{label}</h3>
+          <h3 className="text-sm font-semibold text-ink truncate">{label}</h3>
           <RiskBadge level={critical > 0 ? "CRITICAL" : high > 0 ? "HIGH" : "LOW"} size="sm" />
         </div>
 
-        <div className="flex flex-col sm:flex-row items-center justify-around gap-4 py-2">
+        <div className="flex flex-col sm:flex-row items-center justify-around gap-6 py-2">
           <ScoreGauge score={report.overall_score ?? 0} grade={report.grade} label="Security Score" size={165} />
-          <div className="space-y-2 text-xs font-mono">
+          <dl className="space-y-2 text-xs font-mono min-w-36">
             <div className="flex justify-between gap-4">
-              <span className="text-muted">Grade:</span>
-              <span className="font-bold text-ink">{report.grade}</span>
+              <dt className="text-muted">Grade:</dt>
+              <dd className="font-semibold text-ink">{report.grade}</dd>
             </div>
             <div className="flex justify-between gap-4">
-              <span className="text-muted">Critical:</span>
-              <span className="font-bold text-critical">{critical}</span>
+              <dt className="text-muted">Critical:</dt>
+              <dd className={critical > 0 ? "font-semibold text-critical" : "text-muted"}>{critical}</dd>
             </div>
             <div className="flex justify-between gap-4">
-              <span className="text-muted">High:</span>
-              <span className="font-bold text-high">{high}</span>
+              <dt className="text-muted">High:</dt>
+              <dd className={high > 0 ? "font-semibold text-high" : "text-muted"}>{high}</dd>
             </div>
             <div className="flex justify-between gap-4">
-              <span className="text-muted">Total Findings:</span>
-              <span className="font-bold text-ink">{report.findings?.length ?? 0}</span>
+              <dt className="text-muted">Findings:</dt>
+              <dd className="font-semibold text-ink">{report.findings?.length ?? 0}</dd>
             </div>
-          </div>
+          </dl>
         </div>
 
         <p className="text-xs text-muted leading-relaxed line-clamp-2">{report.summary}</p>
@@ -220,7 +220,6 @@ export default function Compare() {
 
   async function loadReport(id: string, setter: React.Dispatch<React.SetStateAction<ComplianceReport>>) {
     setter(getScenarioFallbackReport(id));
-    // If it's a dynamic user capture, attempt to fetch live results
     if (!AVAILABLE_SCENARIOS.some((s) => s.id === id)) {
       try {
         const data = await getComplianceReport(id);
@@ -265,15 +264,15 @@ export default function Compare() {
 
       {/* Selectors */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="rounded-xl border border-rule bg-surface p-4 space-y-2">
-          <label className="text-xs font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
+        <div className="border border-rule bg-surface p-4 space-y-2">
+          <label className="text-xs font-semibold text-muted flex items-center gap-2">
             <Shield size={14} className="text-accent" />
             Left Scenario (Profile A)
           </label>
           <select
             value={leftId}
             onChange={(e) => setLeftId(e.target.value)}
-            className="w-full rounded-lg border border-rule bg-sunken p-2.5 text-xs font-mono text-ink focus:border-accent focus:outline-none cursor-pointer"
+            className="w-full rounded border border-rule bg-sunken p-2.5 text-xs font-mono text-ink focus:border-accent focus:outline-none cursor-pointer"
           >
             {AVAILABLE_SCENARIOS.map((s) => (
               <option key={s.id} value={s.id}>{s.label}</option>
@@ -281,15 +280,15 @@ export default function Compare() {
           </select>
         </div>
 
-        <div className="rounded-xl border border-rule bg-surface p-4 space-y-2">
-          <label className="text-xs font-semibold text-muted uppercase tracking-wider flex items-center gap-2">
-            <Shield size={14} className="text-purple-400" />
+        <div className="border border-rule bg-surface p-4 space-y-2">
+          <label className="text-xs font-semibold text-muted flex items-center gap-2">
+            <Shield size={14} className="text-accent" />
             Right Scenario (Profile B)
           </label>
           <select
             value={rightId}
             onChange={(e) => setRightId(e.target.value)}
-            className="w-full rounded-lg border border-rule bg-sunken p-2.5 text-xs font-mono text-ink focus:border-accent focus:outline-none cursor-pointer"
+            className="w-full rounded border border-rule bg-sunken p-2.5 text-xs font-mono text-ink focus:border-accent focus:outline-none cursor-pointer"
           >
             {AVAILABLE_SCENARIOS.map((s) => (
               <option key={s.id} value={s.id}>{s.label}</option>
@@ -298,17 +297,17 @@ export default function Compare() {
         </div>
       </div>
 
-      {/* Side-by-side Score Panels */}
+      {/* Side-by-side Score Panels: Dial is the single bold element */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <ScenarioPanel report={leftReport} label={leftLabel} />
         <ScenarioPanel report={rightReport} label={rightLabel} />
       </div>
 
       {/* Parameter Diff Table */}
-      <div className="rounded-2xl border border-rule bg-surface p-6 space-y-4 shadow-sm">
+      <div className="border border-rule bg-surface p-5 space-y-4">
         <div className="flex items-center gap-2 border-b border-rule pb-3">
           <GitCompare size={18} className="text-accent" />
-          <h2 className="text-base font-bold text-ink">Cryptographic Parameter Diff &amp; Posture Matrix</h2>
+          <h2 className="text-base font-semibold text-ink">Cryptographic Parameter Diff &amp; Posture Matrix</h2>
         </div>
 
         <div className="overflow-x-auto">

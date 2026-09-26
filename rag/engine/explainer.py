@@ -17,10 +17,11 @@ Enforces:
 from __future__ import annotations
 
 import logging
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Any, Optional
 
 from rag.engine.citation_verifier import CitationItem, verifier
+from rag.engine.sanitizer import extract_structured_advisory, sanitize_prose
 from rag.engine.serving import server
 from rag.index.hybrid_indexer import SearchResult, retriever
 
@@ -39,10 +40,17 @@ class ExplainerResponse:
     is_fallback: bool
     latency_ms: float
     model_name: str
+    summary: str = ""
+    standards_cited: list[dict[str, str]] = field(default_factory=list)
+    risk_note: str = ""
+    remediation: str = ""
     warning: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        d = asdict(self)
+        d["standardsCited"] = self.standards_cited
+        d["riskNote"] = self.risk_note
+        return d
 
 
 @dataclass
@@ -56,10 +64,17 @@ class CompoundExplainerResponse:
     is_fallback: bool
     latency_ms: float
     model_name: str
+    summary: str = ""
+    standards_cited: list[dict[str, str]] = field(default_factory=list)
+    risk_note: str = ""
+    remediation: str = ""
     warning: Optional[str] = None
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        d = asdict(self)
+        d["standardsCited"] = self.standards_cited
+        d["riskNote"] = self.risk_note
+        return d
 
 
 class ComplianceExplainer:
@@ -100,25 +115,32 @@ class ComplianceExplainer:
             for res in search_results
         ]
 
-        # 2. Build Grounded Prompt with Chain-of-Thought directives
+        # 2. Build Grounded Prompt with Strict Structured Output Contract
         context_blocks = []
         for idx, res in enumerate(search_results, start=1):
-            cit = f"[{res.document} {res.section}]"
             context_blocks.append(
-                f"--- SOURCE {idx}: {cit} {res.title} ---\n{res.text[:800]}\n"
+                f"--- SOURCE {idx}: {res.document} {res.section} {res.title} ---\n{res.text[:800]}\n"
             )
         context_str = "\n".join(context_blocks)
 
         system_prompt = (
-            "You are the Janus Compliance Explainer, a specialized IPsec and cryptography standards domain auditor. "
-            "Your task is to explain WHY the given finding is assigned its severity level by citing the provided "
-            "authoritative standards clauses (RFC 8221, RFC 8247, RFC 9347, RFC 7296, NIST SP 800-77, NIST SP 800-131A, DoD STIG).\n"
-            "Rules:\n"
-            "1. You MUST explicitly cite the governing clause in brackets (e.g. [RFC 8221 §5], [RFC 8247 §2.4], [NIST SP 800-77 Rev. 1 Table 1]).\n"
-            "2. Structure your reasoning with Chain-of-Thought: Cryptanalytic Threat & Mathematical Analysis, "
-            "Primary Standards Grounding, System Impact & Blast Radius, and Verified Actionable Remediation.\n"
-            "3. Only make claims directly grounded in the provided sources. Do not invent RFC numbers or clauses.\n"
-            "4. Conclude with concrete strongSwan swanctl.conf remediation."
+            "You are the Janus Compliance Explainer, an authoritative IPsec and cryptographic standards auditor.\n"
+            "Respond ONLY with a valid JSON object matching this schema:\n"
+            "{\n"
+            '  "summary": "1-2 plain sentences summarizing the finding and compliance status.",\n'
+            '  "standardsCited": [\n'
+            '    {"id": "RFC 8221 §5", "note": "Clause requirement or title"}\n'
+            "  ],\n"
+            '  "riskNote": "Plain prose explaining what this configuration means for system security, without section headers.",\n'
+            '  "remediation": "Plain prose explaining recommended configuration update, or empty string if compliant."\n'
+            "}\n\n"
+            "Strict Constraints:\n"
+            "1. Plain prose only. NEVER use LaTeX or math notation ($...$, ^{}, _{}, \\frac). Write '2^64' or '2 to the 64th power', never dollar-sign math.\n"
+            "2. No bracket citations like [RFC 8221 §5]. Name the standard naturally inline in prose (e.g. 'as required by RFC 8221 §5') or place in standardsCited.\n"
+            "3. No section headers in ALL CAPS, and no emoji or icon-prefixed labels.\n"
+            "4. No internal system or ML terminology in output: never mention 'chain-of-thought', 'CoT', 'grounded', 'latency', model names, or how the answer was produced.\n"
+            "5. No inline badge or pill markup. Output plain text.\n"
+            "6. Return ONLY the raw JSON object, without markdown code fences."
         )
 
         user_prompt = (
@@ -129,7 +151,7 @@ class ComplianceExplainer:
             f"- Description: {desc}\n"
             f"- Vulnerability Tag: {vuln}\n\n"
             f"Authoritative Standards Context:\n{context_str}\n\n"
-            f"Provide a structured Chain-of-Thought analysis explaining why this configuration is classified as {severity} and cite the exact clause."
+            f"Provide a structured compliance assessment in JSON format explaining what this configuration means and cite the governing RFC/NIST standard."
         )
 
         # 3. Call Serving Connector (Local LLM or Resilient Grounded Fallback)
@@ -141,12 +163,36 @@ class ComplianceExplainer:
             model_size=model_size,
         )
 
-        # 4. Citation Verification & 3-Tier Anti-Hallucination Gate
+        # 4. Extract structured advisory and apply regex sanitizer pass as backstop
+        structured = extract_structured_advisory(gen_result.content, finding)
+        summary = structured["summary"]
+        standards_cited = structured["standardsCited"]
+        risk_note = structured["riskNote"]
+        remediation = structured["remediation"]
+
+        # Clean flowing explanation (2 sections max, sentence case, no banners)
+        explanation_blocks = [summary]
+        if risk_note:
+            explanation_blocks.append(f"### What this means\n{risk_note}")
+        if remediation:
+            explanation_blocks.append(f"### Remediation\n{remediation}")
+        clean_explanation = "\n\n".join(explanation_blocks)
+
+        # 5. Citation Verification & 3-Tier Anti-Hallucination Gate
         fallback_chunk = retrieved_dict_list[0] if retrieved_dict_list else None
         v_res = verifier.verify_and_enforce(
-            text=gen_result.content,
+            text=clean_explanation,
             retrieved_fallback_chunk=fallback_chunk,
+            structured_citations=standards_cited,
         )
+
+        # Synchronize verified citations into standards_cited if empty
+        if not standards_cited and v_res.citations:
+            standards_cited = [
+                {"id": f"{c.document} {c.section}".strip(), "note": c.clause_title or ""}
+                for c in v_res.citations
+                if c.verified
+            ]
 
         groundedness_score = 1.0 if v_res.is_grounded else 0.5
         if v_res.total_citations == 0:
@@ -157,6 +203,10 @@ class ComplianceExplainer:
             parameter=parameter,
             severity=severity,
             explanation=v_res.sanitized_text,
+            summary=summary,
+            standards_cited=standards_cited,
+            risk_note=risk_note,
+            remediation=remediation,
             citations=[asdict(c) for c in v_res.citations],
             retrieved_chunks=retrieved_dict_list,
             groundedness_score=groundedness_score,
@@ -210,14 +260,14 @@ class ComplianceExplainer:
 
         context_blocks = []
         for idx, res in enumerate(search_results, start=1):
-            cit = f"[{res.document} {res.section}]"
-            context_blocks.append(f"--- SOURCE {idx}: {cit} {res.title} ---\n{res.text[:600]}\n")
+            context_blocks.append(f"--- SOURCE {idx}: {res.document} {res.section} {res.title} ---\n{res.text[:600]}\n")
         context_str = "\n".join(context_blocks)
 
         system_prompt = (
-            "You are the Janus Compliance Explainer. Perform a compound threat and blast-radius evaluation "
+            "You are the Janus Compliance Explainer. Perform a compound threat evaluation "
             "for an IPsec capture session exhibiting multiple concurrent vulnerabilities. "
-            "Analyze how the vulnerabilities interact and multiply the attack surface. Always cite primary standards."
+            "Respond ONLY with a valid JSON object matching the structured schema: summary, standardsCited, riskNote, remediation.\n"
+            "Strict Constraints: Plain prose only. No LaTeX math notation ($...$). No bracket citations. No ALL CAPS headers. No ML jargon."
         )
 
         findings_lines = "\n".join([f"- [{f.get('severity')}] {f.get('rule_id')}: {f.get('parameter')} ({f.get('description')})" for f in findings])
@@ -225,7 +275,7 @@ class ComplianceExplainer:
             f"Capture Session: {capture_id}\n"
             f"Concurrent Findings ({len(findings)} total):\n{findings_lines}\n\n"
             f"Authoritative Context:\n{context_str}\n\n"
-            f"Explain the compound blast radius and unified remediation strategy."
+            f"Explain what this combined configuration means and provide a unified remediation strategy in JSON format."
         )
 
         gen_result = server.generate_compound(
@@ -236,11 +286,33 @@ class ComplianceExplainer:
             model_size=model_size,
         )
 
+        # Extract structured advisory & backstop regex sanitization
+        structured = extract_structured_advisory(gen_result.content)
+        summary = structured["summary"]
+        standards_cited = structured["standardsCited"]
+        risk_note = structured["riskNote"]
+        remediation = structured["remediation"]
+
+        compound_blocks = [summary]
+        if risk_note:
+            compound_blocks.append(f"### What this means\n{risk_note}")
+        if remediation:
+            compound_blocks.append(f"### Remediation\n{remediation}")
+        clean_compound = "\n\n".join(compound_blocks)
+
         fallback_chunk = retrieved_dict_list[0] if retrieved_dict_list else None
         v_res = verifier.verify_and_enforce(
-            text=gen_result.content,
+            text=clean_compound,
             retrieved_fallback_chunk=fallback_chunk,
+            structured_citations=standards_cited,
         )
+
+        if not standards_cited and v_res.citations:
+            standards_cited = [
+                {"id": f"{c.document} {c.section}".strip(), "note": c.clause_title or ""}
+                for c in v_res.citations
+                if c.verified
+            ]
 
         groundedness_score = 1.0 if v_res.is_grounded else 0.5
         if v_res.total_citations == 0:
@@ -250,6 +322,10 @@ class ComplianceExplainer:
             capture_id=capture_id,
             total_findings=len(findings),
             compound_narrative=v_res.sanitized_text,
+            summary=summary,
+            standards_cited=standards_cited,
+            risk_note=risk_note,
+            remediation=remediation,
             citations=[asdict(c) for c in v_res.citations],
             retrieved_chunks=retrieved_dict_list,
             groundedness_score=groundedness_score,

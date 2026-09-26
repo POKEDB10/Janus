@@ -5,9 +5,8 @@ import { Download, ExternalLink, FileCheck2, FileText, Shield, X } from "lucide-
 import { API_BASE_URL, API_KEY, draftReportNarrative, getReportStatus } from "../api/client";
 import { useCaptureResults } from "../api/queries";
 import { CodeBlock } from "../components/ui/CodeBlock";
-import { ErrorState, InlineNotice, LoadingState, PageHeader, Section } from "../components/ui/Primitives";
+import { ErrorState, InlineNotice, LoadingState, Section } from "../components/ui/Primitives";
 import RiskBadge from "../components/RiskBadge";
-import ScoreGauge from "../components/ScoreGauge";
 import { MarkdownView } from "../components/ui/MarkdownView";
 import { getApiErrorMessage } from "../lib/api-error";
 import { getCaptureContext, isRecordedSample } from "../lib/capture-session";
@@ -64,7 +63,7 @@ function ReportCard({
     <div className="flex flex-col justify-between rounded-2xl border border-rule bg-surface p-6 shadow-sm space-y-4 interactive-card">
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <span className="rounded bg-accent/10 px-2.5 py-0.5 font-mono text-[10px] font-bold text-accent uppercase tracking-wider">
+          <span className="font-mono text-xs font-semibold text-accent">
             {badge}
           </span>
           <span className={`font-mono text-xs font-bold ${ready ? "text-pass" : "text-muted"}`}>
@@ -114,7 +113,7 @@ function CitationList({ citations }: { citations?: CitationItem[] }) {
           <div>
             <p className="font-semibold text-ink text-xs">{citation.clause_title ?? citation.raw_citation}</p>
             <p className="mt-0.5 font-mono text-[11px] text-muted">
-              {citation.document} · {citation.section}
+              {citation.document}, {citation.section}
               {citation.matching_chunk_id ? ` · ${citation.matching_chunk_id}` : ""}
             </p>
           </div>
@@ -174,15 +173,19 @@ export default function Report() {
 
   return (
     <div className="space-y-8 motion-enter max-w-4xl mx-auto">
-      <PageHeader
-        eyebrow="Publication deliverables"
-        title="Audit &amp; Intelligence Reports"
-        answer="Export verified executive and technical security deliverables compiled by Janus's ReportLab engine with exact RFC references and flow attribution."
-      />
+      {/* Clean document header — differentiated from repetitive hero banners */}
+      <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-2 border-b border-rule pb-4">
+        <div>
+          <h1 className="text-xl font-bold text-ink">Publication Deliverables</h1>
+          <p className="text-xs text-muted mt-0.5">
+            Verified executive and technical security deliverables compiled with exact RFC citations and flow attribution.
+          </p>
+        </div>
+      </div>
 
-      {/* Executive Security Verdict Card */}
+      {/* Executive Security Verdict Card — clean document summary without duplicate donut */}
       {compliance && compliance.overall_score !== null && (
-        <section className="rounded-2xl border border-rule bg-surface p-6 sm:p-7 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6">
+        <section className="rounded-2xl border border-rule bg-surface p-6 sm:p-7 shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-6">
           <div className="space-y-3 text-left">
             <div className="flex items-center gap-2">
               <Shield className="size-5 text-accent" />
@@ -192,23 +195,23 @@ export default function Report() {
             <p className="text-xs sm:text-sm text-muted max-w-xl leading-relaxed">
               {compliance.summary ?? "Autonomous cryptographic evaluation completed across standard cipher suites, key exchange, and side-channel resilience."}
             </p>
-            <div className="flex flex-wrap items-center gap-3 font-mono text-xs text-muted">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-xs text-muted">
               <span>{compliance.findings?.length ?? 0} total findings</span>
-              <span>·</span>
+              <span className="text-rule">/</span>
               <span className={critical > 0 ? "text-critical font-bold" : ""}>{critical} critical</span>
-              <span>·</span>
+              <span className="text-rule">/</span>
               <span className={high > 0 ? "text-high font-bold" : ""}>{high} high</span>
-              <span>·</span>
+              <span className="text-rule">/</span>
               <span>{compliance.threat_matrix?.length ?? 0} ATT&amp;CK techniques</span>
             </div>
           </div>
-          <div className="shrink-0">
-            <ScoreGauge
-              score={compliance.overall_score}
-              grade={compliance.grade}
-              label="Audit Score"
-              size={160}
-            />
+          <div className="shrink-0 flex flex-col items-start sm:items-end justify-center rounded-xl bg-sunken/60 border border-rule/80 px-6 py-4 min-w-[170px]">
+            <span className="text-[11px] font-mono text-muted">Evaluation Verdict</span>
+            <div className="flex items-baseline gap-2 mt-1">
+              <span className="text-2xl font-bold font-mono text-ink">Grade {compliance.grade}</span>
+              <span className="font-mono text-xs text-muted">({compliance.overall_score?.toFixed(0)}/100)</span>
+            </div>
+            <span className="text-[11px] text-muted font-mono mt-1">Deterministic Audit</span>
           </div>
         </section>
       )}
@@ -257,13 +260,11 @@ export default function Report() {
                   /etc/swanctl/conf.d/janus-remediated.conf
                 </code>
               </div>
-              <div className="flex items-center gap-2 font-mono text-[11px] text-muted">
-                <span className="rounded bg-pass/10 px-2 py-0.5 text-pass font-semibold border border-pass/30">
-                  AES-256-GCM-16
-                </span>
-                <span>·</span>
+              <div className="flex items-center gap-2 font-mono text-xs text-muted">
+                <span className="text-pass font-medium">AES-256-GCM-16</span>
+                <span className="text-rule">,</span>
                 <span>DH Group 19</span>
-                <span>·</span>
+                <span className="text-rule">,</span>
                 <span>PFS Active</span>
               </div>
             </div>
@@ -311,17 +312,34 @@ export default function Report() {
         {narrativeData && (
           <div className="space-y-6 motion-enter">
             <div className="grid gap-4 rounded-xl border border-rule bg-surface p-4 sm:grid-cols-3">
-              <Metric label="Configuration Grade" value={narrativeData.grade} />
-              <Metric label="Grounding Status" value={narrativeData.is_grounded ? "Fully Grounded" : "Unverified"} />
-              <Metric label="Latency" value={`${narrativeData.latency_ms} ms`} />
+              <Metric label="Configuration grade" value={`Grade ${narrativeData.grade}`} />
+              <Metric
+                label="Compliance score"
+                value={`${narrativeData.overall_score !== null && narrativeData.overall_score !== undefined ? Math.round(narrativeData.overall_score) : (compliance?.overall_score ? Math.round(compliance.overall_score) : "—")}/100`}
+              />
+              <Metric
+                label="Governing standards"
+                value={`${narrativeData.citations?.length ?? 0} verified clauses`}
+              />
             </div>
+
+            {import.meta.env.DEV && (
+              <details className="text-[11px] font-mono text-muted/70 cursor-pointer">
+                <summary className="hover:text-ink">Debug telemetry</summary>
+                <div className="mt-1 flex items-center gap-3 pl-2">
+                  <span>Grounding: {narrativeData.is_grounded ? "Fully Grounded" : "Unverified"}</span>
+                  <span>•</span>
+                  <span>Latency: {narrativeData.latency_ms} ms</span>
+                </div>
+              </details>
+            )}
 
             <NarrativeBlock title="Executive Assessment" text={narrativeData.executive_narrative} />
             <NarrativeBlock title="Technical Assessment" text={narrativeData.technical_narrative} />
 
             <div className="space-y-2">
-              <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-muted">
-                Standards Citation Evidence
+              <h3 className="text-xs font-semibold text-muted">
+                Standards citation evidence
               </h3>
               <CitationList citations={narrativeData.citations} />
             </div>
@@ -346,7 +364,7 @@ export default function Report() {
                 <h3 id="pdf-preview-title" className="text-sm font-bold text-ink">
                   {previewPdf.title}
                 </h3>
-                <span className="rounded bg-accent/10 px-2 py-0.5 font-mono text-[10px] font-bold text-accent uppercase">
+                <span className="font-mono text-xs text-accent">
                   PDF Preview
                 </span>
               </div>
@@ -398,7 +416,7 @@ export default function Report() {
 function Metric({ label, value }: { label: string; value: string }) {
   return (
     <div className="border-l-2 border-accent pl-3">
-      <p className="text-[11px] font-mono uppercase text-muted">{label}</p>
+      <p className="text-[11px] font-mono text-muted">{label}</p>
       <p className="mt-0.5 font-mono text-sm font-bold text-ink">{value}</p>
     </div>
   );

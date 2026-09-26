@@ -68,9 +68,7 @@ export function DetectedParametersPanel({ compliance }: { compliance: Compliance
                     {item.parameter}
                   </td>
                   <td className="px-4 py-3 font-mono text-xs text-ink font-semibold">
-                    <span className="rounded bg-sunken px-2 py-0.5 border border-rule">
-                      {item.detected}
-                    </span>
+                    {item.detected}
                   </td>
                   <td className="px-4 py-3 text-xs text-muted leading-relaxed">
                     {item.required}
@@ -89,28 +87,28 @@ export function DetectedParametersPanel({ compliance }: { compliance: Compliance
           <div className="rounded-xl border border-rule bg-surface p-4 text-xs space-y-2.5 shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-rule/60 pb-2">
               <div className="flex items-center gap-2">
-                <span className="font-mono font-semibold uppercase tracking-wider text-ink text-[11px]">
-                  Post-Quantum Cryptographic Posture
+                <span className="font-mono font-semibold text-ink text-[11px]">
+                  Post-quantum cryptographic posture
                 </span>
-                <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[10px] font-semibold ${
+                <span className={`inline-flex items-center gap-1 font-mono text-xs font-semibold ${
                   isVulnerable
-                    ? "border border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                    : "border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                    ? "text-amber-500"
+                    : "text-emerald-500"
                 }`}>
                   {isVulnerable ? (
                     <>
-                      <ShieldAlert className="size-3" />
-                      CRQC_VULNERABLE · HNDL Exposure
+                      <ShieldAlert className="size-3.5" />
+                      CRQC vulnerable (HNDL exposure)
                     </>
                   ) : isHybrid ? (
                     <>
-                      <ShieldCheck className="size-3" />
-                      RFC_9370_HYBRID · PROTECTED
+                      <ShieldCheck className="size-3.5" />
+                      RFC 9370 hybrid (Protected)
                     </>
                   ) : (
                     <>
-                      <ShieldCheck className="size-3" />
-                      QUANTUM_RESISTANT
+                      <ShieldCheck className="size-3.5" />
+                      Quantum resistant
                     </>
                   )}
                 </span>

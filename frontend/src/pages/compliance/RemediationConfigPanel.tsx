@@ -23,7 +23,7 @@ export function RemediationConfigPanel({ compliance }: { compliance: ComplianceR
           {/* Header Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-rule/60 pb-3">
             <div className="space-y-0.5">
-              <span className="font-mono text-xs font-bold uppercase tracking-wider text-ink">
+              <span className="text-sm font-semibold text-ink">
                 Hardened strongSwan 5.7+ Policy
               </span>
               <p className="font-mono text-[11px] text-muted">
@@ -46,7 +46,7 @@ export function RemediationConfigPanel({ compliance }: { compliance: ComplianceR
           {/* Expandable Technical Explanation Drawer */}
           {showExplanation && (
             <div className="rounded-lg border border-accent/30 bg-accent/5 p-4 space-y-3 motion-enter">
-              <div className="flex items-center gap-2 text-xs font-bold font-mono uppercase tracking-wider text-accent">
+              <div className="flex items-center gap-2 text-xs font-semibold text-accent">
                 <ShieldCheck className="size-4" />
                 <span>Authoritative Technical Rationale for Proposed Configuration</span>
               </div>

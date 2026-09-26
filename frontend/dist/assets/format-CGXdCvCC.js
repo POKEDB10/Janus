@@ -1,1 +1,0 @@
-function n(t){return t===void 0?"—":t<1024?`${t} B`:t<1024**2?`${(t/1024).toFixed(1)} KB`:`${(t/1024**2).toFixed(1)} MB`}function i(t,r=0){return t==null?"—":`${(t*100).toFixed(r)}%`}export{i as a,n as f};

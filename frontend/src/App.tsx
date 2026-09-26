@@ -18,7 +18,14 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 import { ErrorBoundary } from "./components/ui/ErrorBoundary";
 
 function Footer() {
-  return <footer data-secondary-chrome="true" className="border-t border-rule"><p className="mx-auto max-w-content px-4 py-4 text-xs text-muted sm:px-6">SIH26160 · Cipher Ops</p></footer>;
+  return (
+    <footer data-secondary-chrome="true" className="border-t border-rule">
+      <div className="mx-auto flex max-w-content flex-col gap-1 px-4 py-4 text-xs text-muted sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <p>Smart India Hackathon SIH26160</p>
+        <p className="font-mono text-[11px]">Evaluated by Team Cipher Ops</p>
+      </div>
+    </footer>
+  );
 }
 
 function AppFrame({ children, captureId }: { children: ReactNode; captureId?: string }) {

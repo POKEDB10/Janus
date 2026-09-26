@@ -1,15 +1,44 @@
 import Markdown from "react-markdown";
-import { AlertTriangle, BookOpen, CheckCircle2, ShieldAlert } from "lucide-react";
 import { CodeBlock } from "./CodeBlock";
-import { cn } from "../../lib/cn";
 
 interface MarkdownViewProps {
   content: string;
   className?: string;
 }
 
+function sanitizeClientProse(raw: string): string {
+  if (!raw) return "";
+  let text = raw;
+
+  // Strip LaTeX math: e.g. $2^{64}$ -> 2^64, $\approx$ -> ~, $\times$ -> x
+  text = text.replace(/\$([^\$]+)\$/g, (_m, g1) => {
+    return g1
+      .replace(/\^\{?(\d+)\}?/g, "^$1")
+      .replace(/\\times/g, "x")
+      .replace(/\\approx/g, "~")
+      .replace(/\\le/g, "<=")
+      .replace(/\\ge/g, ">=")
+      .replace(/\\cdot/g, "·");
+  });
+
+  // Reframe blast radius / system impact headers and strip ALL-CAPS banners
+  text = text.replace(/###\s+THREAT ANALYSIS/gi, "### Threat analysis");
+  text = text.replace(/###\s+STANDARDS GROUNDING/gi, "### Governing standards");
+  text = text.replace(/###\s+(?:SYSTEM IMPACT & BLAST RADIUS|BLAST RADIUS|System Impact & Blast Radius)/gi, "### What this means");
+  text = text.replace(/###\s+(?:ACTIONABLE REMEDIATION|REMEDIATION)/gi, "### Remediation");
+
+  // Reframe any remaining [RFC xxxx §y] bracket citations to RFC xxxx §y
+  text = text.replace(/\[((?:RFC|NIST|CNSA|FIPS)[^\]]+)\]/g, "$1");
+
+  // Remove (CoT) if present in prose
+  text = text.replace(/\s*\(CoT\)/g, "");
+
+  return text;
+}
+
 export function MarkdownView({ content, className = "" }: MarkdownViewProps) {
   if (!content) return null;
+  const cleanContent = sanitizeClientProse(content);
 
   return (
     <div className={`prose-sm text-xs leading-relaxed ${className}`}>
@@ -27,40 +56,17 @@ export function MarkdownView({ content, className = "" }: MarkdownViewProps) {
           ),
           h3: ({ children }) => {
             const rawText = Array.isArray(children) ? children.join("") : String(children ?? "");
-            const text = rawText.toLowerCase();
-            const isThreat = text.includes("threat") || text.includes("cryptanalytic") || text.includes("mathematical");
-            const isStandards = text.includes("standard") || text.includes("grounding") || text.includes("primary");
-            const isImpact = text.includes("impact") || text.includes("blast");
-            const isRemediation = text.includes("remediation") || text.includes("actionable") || text.includes("verified");
-
-            const Icon = isThreat
-              ? AlertTriangle
-              : isStandards
-              ? BookOpen
-              : isImpact
-              ? ShieldAlert
-              : isRemediation
-              ? CheckCircle2
-              : null;
-
+            let text = rawText
+              .replace(/System Impact & Blast Radius/gi, "What this means")
+              .replace(/Blast Radius/gi, "What this means")
+              .trim();
+            if (text.length > 3 && text === text.toUpperCase() && /[A-Z]/.test(text)) {
+              text = text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
+            }
             return (
-              <div
-                className={cn(
-                  "mt-5 mb-2.5 flex items-center gap-2.5 rounded-lg border px-3 py-2 text-xs font-mono font-bold tracking-wider uppercase",
-                  isThreat
-                    ? "border-amber-500/30 bg-amber-500/10 text-amber-500 dark:text-amber-400"
-                    : isStandards
-                    ? "border-accent/30 bg-accent/10 text-accent dark:text-accent-strong"
-                    : isImpact
-                    ? "border-critical/30 bg-critical/10 text-critical"
-                    : isRemediation
-                    ? "border-pass/30 bg-pass/10 text-pass"
-                    : "border-rule bg-sunken text-ink"
-                )}
-              >
-                {Icon && <Icon className="size-4 shrink-0" />}
-                <span>{children}</span>
-              </div>
+              <h3 className="text-xs font-semibold text-ink mt-4 mb-2 first:mt-0">
+                {text || children}
+              </h3>
             );
           },
           h4: ({ children }) => (
@@ -94,9 +100,9 @@ export function MarkdownView({ content, className = "" }: MarkdownViewProps) {
             const isInline = !className;
             if (isInline) {
               return (
-                <code className="rounded bg-sunken px-1.5 py-0.5 font-mono text-[11px] text-accent border border-rule/60 font-medium">
+                <strong className="font-mono text-xs font-semibold text-ink">
                   {children}
-                </code>
+                </strong>
               );
             }
             const codeString = String(children).replace(/\n$/, "");
@@ -124,7 +130,7 @@ export function MarkdownView({ content, className = "" }: MarkdownViewProps) {
           ),
         }}
       >
-        {content}
+        {cleanContent}
       </Markdown>
     </div>
   );

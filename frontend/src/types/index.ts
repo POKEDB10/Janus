@@ -65,8 +65,21 @@ export interface ReportStatus { capture_id: string; executive_ready: boolean; te
 export interface GenerateReportResponse { status: string; report_id: string; executive_url?: string; technical_url?: string; }
 export interface CitationItem { raw_citation: string; document: string; section: string; verified: boolean; matching_chunk_id?: string; clause_title?: string; }
 export interface RetrievedChunk { chunk_id: string; document: string; section: string; title: string; category: string; text: string; score: number; }
-export interface ExplainerResponse { rule_id: string; parameter: string; severity: string; explanation: string; citations: CitationItem[]; retrieved_chunks: RetrievedChunk[]; groundedness_score: number; is_fallback: boolean; latency_ms: number; model_name: string; warning?: string; }
-export interface ReportNarrativeResponse { capture_id: string; overall_score: number | null; grade: string; executive_narrative: string; technical_narrative: string; citations: CitationItem[]; is_grounded: boolean; latency_ms: number; }
+export interface StandardCitedItem { id: string; note: string; }
+export interface ExplainerResponse {
+  rule_id: string; parameter: string; severity: string; explanation: string;
+  citations: CitationItem[]; retrieved_chunks: RetrievedChunk[]; groundedness_score: number;
+  is_fallback: boolean; latency_ms: number; model_name: string; warning?: string;
+  summary?: string; standardsCited?: StandardCitedItem[]; standards_cited?: StandardCitedItem[];
+  riskNote?: string; risk_note?: string; remediation?: string; compound_narrative?: string;
+}
+export interface ReportNarrativeResponse {
+  capture_id: string; overall_score: number | null; grade: string;
+  executive_narrative: string; technical_narrative: string; citations: CitationItem[];
+  is_grounded: boolean; latency_ms: number;
+  summary?: string; standardsCited?: StandardCitedItem[]; standards_cited?: StandardCitedItem[];
+  riskNote?: string; risk_note?: string; remediation?: string;
+}
 export interface HealthResponse { status: string; version: string; service: string; }
 export interface ModelInfo {
   model_name: string; architecture: string; training_data: { source: string; total_flows: number; flows_per_class: number; scenarios: number; note: string; };

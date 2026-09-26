@@ -129,15 +129,61 @@ class CitationVerifier:
                 return val
         return None
 
+    def verify_structured_citations(
+        self,
+        standards_cited: list[dict[str, str]],
+    ) -> list[CitationItem]:
+        """Verify structured citation items: [{"id": "RFC 8221 §5", "note": "..."}]."""
+        items: list[CitationItem] = []
+        for s in standards_cited:
+            raw_id = s.get("id", "")
+            note = s.get("note", "")
+            # Parse document and section from id
+            m = re.match(
+                r"(RFC\s*[0-9]{4}|NIST\s*SP\s*800-(?:77|131A)(?:\s*Rev\.\s*[12])?|DoD\s*(?:IPsec\s*)?STIG)\s*(?:§|Section|Sec\.?|Table|V\-)?\s*([0-9\.\w\-]*)",
+                raw_id.strip(),
+                re.IGNORECASE,
+            )
+            if m:
+                doc = m.group(1).strip()
+                sec = m.group(2).strip() or "§1"
+                match_info = self.verify_citation(doc, sec)
+                if match_info:
+                    items.append(
+                        CitationItem(
+                            raw_citation=raw_id,
+                            document=match_info["document"],
+                            section=match_info["section"],
+                            verified=True,
+                            matching_chunk_id=match_info["chunk_id"],
+                            clause_title=match_info["title"] or note,
+                        )
+                    )
+                else:
+                    items.append(
+                        CitationItem(
+                            raw_citation=raw_id,
+                            document=doc,
+                            section=sec,
+                            verified=False,
+                            matching_chunk_id=None,
+                            clause_title=note or None,
+                        )
+                    )
+        return items
+
     def verify_and_enforce(
         self,
         text: str,
         retrieved_fallback_chunk: Optional[dict[str, Any]] = None,
+        structured_citations: Optional[list[dict[str, str]]] = None,
     ) -> VerificationResult:
         """
         Extracts citations, checks against corpus, and enforces the 3-tier failure policy.
         """
         matches = list(CITATION_REGEX.finditer(text))
+        bracket_spans = [m.span() for m in matches]
+
         citation_items: list[CitationItem] = []
         verified_count = 0
         unverified_count = 0
@@ -172,6 +218,49 @@ class CitationVerifier:
                         clause_title=None,
                     )
                 )
+
+        # Also detect unbracketed citations in text
+        unbracketed_matches = list(
+            re.finditer(
+                r"\b(RFC\s*[0-9]{4}|NIST\s*SP\s*800-(?:77|131A)(?:\s*Rev\.\s*[12])?|DoD\s*(?:IPsec\s*)?STIG)\s*(?:§|Section|Sec\.?|Table|V\-)\s*([0-9\.\w\-]+)",
+                text,
+                re.IGNORECASE,
+            )
+        )
+        for um in unbracketed_matches:
+            # Check if this match falls within an already matched bracketed span
+            if any(bs[0] <= um.start() and um.end() <= bs[1] for bs in bracket_spans):
+                continue
+            raw = um.group(0)
+            doc = um.group(1)
+            sec = um.group(2)
+            # Avoid duplicate citations
+            if any(c.document.replace(" ", "") == doc.replace(" ", "") and c.section == sec for c in citation_items):
+                continue
+            match_info = self.verify_citation(doc, sec)
+            if match_info is not None:
+                verified_count += 1
+                citation_items.append(
+                    CitationItem(
+                        raw_citation=raw,
+                        document=match_info["document"],
+                        section=match_info["section"],
+                        verified=True,
+                        matching_chunk_id=match_info["chunk_id"],
+                        clause_title=match_info["title"],
+                    )
+                )
+
+        # Include structured citations if passed
+        if structured_citations:
+            extra = self.verify_structured_citations(structured_citations)
+            for item in extra:
+                if not any(c.document.replace(" ", "") == item.document.replace(" ", "") and c.section == item.section for c in citation_items):
+                    citation_items.append(item)
+                    if item.verified:
+                        verified_count += 1
+                    else:
+                        unverified_count += 1
 
         is_grounded = (unverified_count == 0) and (verified_count > 0 or len(matches) == 0)
         warning = None

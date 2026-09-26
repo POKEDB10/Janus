@@ -1,6 +1,6 @@
 import { Menu } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
-import { useBackendStatus, useModelStatus } from "../../api/queries";
+import { useBackendStatus } from "../../api/queries";
 import { isRecordedSample } from "../../lib/capture-session";
 import { cn } from "../../lib/cn";
 import { ThemeToggle } from "../ui/ThemeToggle";
@@ -15,23 +15,42 @@ const navItems = [
 function StatusCluster() {
   const { search } = useLocation();
   const backend = useBackendStatus();
-  const model = useModelStatus(backend.isSuccess);
   const recorded = isRecordedSample(search);
-  const backendLabel = backend.isPending ? "Backend checking" : backend.isSuccess ? "Backend reachable" : "Backend unavailable";
-  const modelLabel = backend.isSuccess ? model.isPending ? "Model checking" : model.isSuccess ? "Model metadata loaded" : "Model unavailable" : "Model unknown";
-  const dotColor = backend.isSuccess ? "bg-pass text-pass" : backend.isError ? "bg-critical text-critical" : "bg-muted text-muted";
+
+  if (recorded) {
+    return (
+      <div className="hidden items-center gap-2 font-mono text-xs text-muted lg:flex" role="status" aria-label="Playback state: Recorded sample">
+        <span className="size-2 rounded-full bg-muted/60" aria-hidden="true" />
+        <span>Recorded session</span>
+      </div>
+    );
+  }
+
+  if (backend.isPending) {
+    return (
+      <div className="hidden items-center gap-2 font-mono text-xs text-muted lg:flex" role="status" aria-label="Engine status: Connecting">
+        <span className="size-2 rounded-full bg-amber-500 animate-pulse" aria-hidden="true" />
+        <span>Connecting…</span>
+      </div>
+    );
+  }
+
+  if (backend.isError) {
+    return (
+      <div className="hidden items-center gap-2 font-mono text-xs text-critical lg:flex" role="status" aria-label="Engine status: Offline">
+        <span className="size-2 rounded-full bg-critical" aria-hidden="true" />
+        <span>Offline</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="hidden items-center gap-3 font-mono text-xs font-medium text-muted lg:flex" role="status" aria-live="polite" aria-label="System status">
-      <span className="inline-flex items-center gap-2">
-        <span className={cn("size-2 rounded-full transition-colors", dotColor, backend.isSuccess && "live-beacon")} aria-hidden="true" />
-        <span>{backendLabel}</span>
+    <div className="hidden items-center gap-2 font-mono text-xs text-muted lg:flex" role="status" aria-label="Engine status: Connected">
+      <span className="relative flex size-2">
+        <span className="absolute inline-flex size-full animate-ping rounded-full bg-pass opacity-75" />
+        <span className="relative inline-flex size-2 rounded-full bg-pass" />
       </span>
-      <span className="h-3 border-l border-rule" />
-      <span>{modelLabel}</span>
-      <span className="h-3 border-l border-rule" />
-      <span className={cn("px-1.5 py-0.5 rounded text-[11px]", recorded ? "bg-sunken text-muted border border-rule/60" : "bg-pass/10 text-pass border border-pass/30 font-semibold")}>
-        {recorded ? "Recorded" : "Live"}
-      </span>
+      <span className="text-ink font-medium">Connected</span>
     </div>
   );
 }

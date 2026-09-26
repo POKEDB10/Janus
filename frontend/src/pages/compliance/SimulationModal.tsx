@@ -445,7 +445,7 @@ export function SimulationModal({
               {/* Telemetry Counters */}
               <div className="grid gap-2.5 grid-cols-2 sm:grid-cols-4">
                 <div className="rounded-xl border border-rule bg-surface p-3 space-y-0.5">
-                  <span className="text-[10px] font-mono uppercase text-muted tracking-wider">Projected Packets</span>
+                  <span className="text-[10px] font-mono text-muted tracking-wider">Projected packets</span>
                   <p className="text-base font-mono font-bold text-ink">
                     {packetsSent.toLocaleString()}
                   </p>
@@ -453,7 +453,7 @@ export function SimulationModal({
                 </div>
 
                 <div className="rounded-xl border border-rule bg-surface p-3 space-y-0.5">
-                  <span className="text-[10px] font-mono uppercase text-muted tracking-wider">Projected Volume</span>
+                  <span className="text-[10px] font-mono text-muted tracking-wider">Projected volume</span>
                   <p className="text-base font-mono font-bold text-ink">
                     {formattedDataVolume}
                   </p>
@@ -461,7 +461,7 @@ export function SimulationModal({
                 </div>
 
                 <div className="rounded-xl border border-rule bg-surface p-3 space-y-0.5">
-                  <span className="text-[10px] font-mono uppercase text-muted tracking-wider">Flow Concurrency</span>
+                  <span className="text-[10px] font-mono text-muted tracking-wider">Flow concurrency</span>
                   <p className="text-base font-mono font-bold text-ink">
                     {activeFlowsCount} Tunnels
                   </p>
@@ -469,7 +469,7 @@ export function SimulationModal({
                 </div>
 
                 <div className="rounded-xl border border-rule bg-surface p-3 space-y-0.5">
-                  <span className="text-[10px] font-mono uppercase text-muted tracking-wider">Anti-Replay Window</span>
+                  <span className="text-[10px] font-mono text-muted tracking-wider">Anti-replay window</span>
                   <p className="text-base font-mono font-bold text-pass">
                     64 / Active
                   </p>
@@ -654,8 +654,8 @@ export function SimulationModal({
 
                   {summary && (
                     <div className="space-y-1">
-                      <h4 className="text-xs font-mono font-bold uppercase tracking-wider text-muted">
-                        Executive Rule Engine Summary:
+                      <h4 className="text-xs font-mono font-semibold text-ink">
+                        Executive rule engine summary
                       </h4>
                       <p className="text-xs text-muted leading-relaxed">{summary}</p>
                     </div>

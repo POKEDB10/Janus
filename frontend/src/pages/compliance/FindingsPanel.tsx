@@ -36,21 +36,21 @@ function AdvisoryDetails({ finding }: { finding: Finding }) {
   return (
     <dl className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
       {finding.cve_id ? (
-        <div className="rounded bg-red-500/10 border border-red-500/20 px-2 py-0.5">
-          <dt className="inline text-muted font-mono">CVE: </dt>
-          <dd className="inline font-mono font-semibold text-critical">{finding.cve_id}</dd>
+        <div className="flex items-center gap-1">
+          <dt className="text-muted font-mono">CVE:</dt>
+          <dd className="font-mono font-semibold text-critical">{finding.cve_id}</dd>
         </div>
       ) : null}
       {finding.cwe_id ? (
-        <div className="rounded bg-sunken px-2 py-0.5">
-          <dt className="inline text-muted font-mono">CWE: </dt>
-          <dd className="inline font-mono text-ink">{finding.cwe_id}</dd>
+        <div className="flex items-center gap-1">
+          <dt className="text-muted font-mono">CWE:</dt>
+          <dd className="font-mono font-medium text-ink">{finding.cwe_id}</dd>
         </div>
       ) : null}
       {finding.cvss_score !== null && finding.cvss_score !== undefined ? (
-        <div className="rounded bg-sunken px-2 py-0.5">
-          <dt className="inline text-muted font-mono">CVSS: </dt>
-          <dd className="data-number inline font-mono font-bold text-ink">{finding.cvss_score.toFixed(1)}</dd>
+        <div className="flex items-center gap-1">
+          <dt className="text-muted font-mono">CVSS:</dt>
+          <dd className="data-number font-mono font-bold text-ink">{finding.cvss_score.toFixed(1)}</dd>
         </div>
       ) : null}
       {finding.nvd_url ? (
@@ -120,7 +120,7 @@ export function FindingsPanel({ findings, onExplain }: { findings: Finding[]; on
                 <div className="rounded-lg border border-accent/30 bg-accent/5 p-3 flex items-start gap-2.5">
                   <Lightbulb size={16} className="text-accent shrink-0 mt-0.5" />
                   <div>
-                    <p className="text-xs font-bold text-accent uppercase tracking-wider">Actionable Remediation</p>
+                    <p className="text-xs font-semibold text-accent">Actionable remediation</p>
                     <p className="text-xs text-ink mt-0.5">{fix}</p>
                   </div>
                 </div>
@@ -129,7 +129,7 @@ export function FindingsPanel({ findings, onExplain }: { findings: Finding[]; on
               {finding.references?.length ? (
                 <p className="text-xs text-muted">
                   <span className="font-medium text-ink">Standards Cited: </span>
-                  {finding.references.join(" · ")}
+                  {finding.references.join(", ")}
                 </p>
               ) : null}
 

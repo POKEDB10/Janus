@@ -12,11 +12,12 @@ this engine drafts the natural language executive context and technical commenta
 from __future__ import annotations
 
 import logging
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from typing import Any, Optional
 
 from rag.engine.citation_verifier import verifier
 from rag.engine.explainer import explainer
+from rag.engine.sanitizer import sanitize_prose
 from rag.index.hybrid_indexer import retriever
 
 logger = logging.getLogger(__name__)
@@ -32,9 +33,16 @@ class ReportNarrativeResponse:
     citations: list[dict[str, Any]]
     is_grounded: bool
     latency_ms: float
+    summary: str = ""
+    standards_cited: list[dict[str, str]] = field(default_factory=list)
+    risk_note: str = ""
+    remediation: str = ""
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        d = asdict(self)
+        d["standardsCited"] = self.standards_cited
+        d["riskNote"] = self.risk_note
+        return d
 
 
 class ReportNarrativeWriter:
@@ -72,16 +80,16 @@ class ReportNarrativeWriter:
         # Categorize findings
         critical_findings = [f for f in findings if f.get("severity") in ("CRITICAL", "HIGH")]
 
-        # Determine primary standard references
+        # Determine primary standard references (unbracketed, natural inline)
         primary_citations = []
         if any("3DES" in str(f) or "GCM" in str(f) for f in findings):
-            primary_citations.append("[RFC 8221 Sec. 5]")
+            primary_citations.append("RFC 8221 §5")
         if any("DH" in str(f) or "Group" in str(f) for f in findings):
-            primary_citations.append("[RFC 8247 Sec. 2.4]")
+            primary_citations.append("RFC 8247 §2.4")
         if any("IP-TFS" in str(f) or "Obfuscated" in str(analysis_data or {}) for f in findings):
-            primary_citations.append("[RFC 9347 Sec. 3]")
+            primary_citations.append("RFC 9347 §3")
         if not primary_citations:
-            primary_citations = ["[RFC 8221 Sec. 5]", "[NIST SP 800-77 Rev. 1 Table 1]"]
+            primary_citations = ["RFC 8221 §5", "NIST SP 800-77 Rev. 1 Table 1"]
 
         # 1. Executive Summary Narrative Draft
         exec_paragraphs = []
@@ -101,8 +109,8 @@ class ReportNarrativeWriter:
             )
         else:
             exec_paragraphs.append(
-                f"**CRITICAL COMPLIANCE NOTICE:** An automated protocol audit for session '{capture_id}' resulted in a non-compliant "
-                f"score of **{score:.1f}/100 (Grade {grade})** with high-risk vulnerabilities detected. The evaluated tunnel employs legacy "
+                f"Critical compliance notice: An automated protocol audit for session '{capture_id}' resulted in a non-compliant "
+                f"score of **{score:.1f}/100 (Grade {grade})** with CRITICAL vulnerabilities detected. The evaluated tunnel employs legacy "
                 f"cryptography explicitly prohibited by {', '.join(primary_citations)}. Immediate administrative intervention is required "
                 f"to prevent potential session compromise and traffic eavesdropping."
             )
@@ -110,18 +118,18 @@ class ReportNarrativeWriter:
         if critical_findings:
             vuln_names = [f.get("vulnerability_tag") or f.get("parameter") for f in critical_findings[:3]]
             exec_paragraphs.append(
-                f"**Key Deficiencies:** High-priority findings include {', '.join(str(v) for v in vuln_names)}. "
+                f"Key deficiencies: High-priority findings include {', '.join(str(v) for v in vuln_names)}. "
                 f"These configurations directly breach mandatory standards clauses ({primary_citations[0]}), exposing the network to "
-                f"active MitM exploitation or cryptanalytic degradation. An automated `swanctl.conf` remediation block has been staged to "
+                f"active MitM exploitation or cryptanalytic degradation. An automated swanctl.conf remediation block has been staged to "
                 f"upgrade all endpoints to AES-256-GCM and DH Group 19."
             )
 
-        exec_text = "\n\n".join(exec_paragraphs)
+        exec_text = sanitize_prose("\n\n".join(exec_paragraphs))
 
         # 2. Technical Protocol Assessment Narrative Draft
         tech_paragraphs = []
         tech_paragraphs.append(
-            f"### Protocol Transformation & Cryptographic Evaluation\n"
+            f"### Protocol transformation and cryptographic evaluation\n"
             f"The deterministic rule engine evaluated the negotiated Security Association (SA) parameters against the IETF IPsec "
             f"Algorithm Implementation Requirements ({', '.join(primary_citations)}) and NIST SP 800-77 Rev. 1 guidelines. "
             f"Configured ciphers: ESP Confidentiality (`{eval_params.get('esp_encryption', 'N/A')}`), Integrity (`{eval_params.get('esp_auth', 'N/A')}`), "
@@ -138,15 +146,20 @@ class ReportNarrativeWriter:
         if threat_matrix:
             threat_count = sum(1 for t in threat_matrix if t.get("status") == "VULNERABLE")
             tech_paragraphs.append(
-                f"### Threat Matrix & ATT&CK Correlation\n"
+                f"### Threat matrix and ATT&CK correlation\n"
                 f"The compliance evaluation mapped session vulnerabilities against MITRE ATT&CK techniques, identifying **{threat_count}** "
                 f"vulnerable threat vector(s). Mitigations require immediate deployment of modern AEAD transform suites and PFS rekeying intervals."
             )
 
-        tech_text = "\n\n".join(tech_paragraphs)
+        tech_text = sanitize_prose("\n\n".join(tech_paragraphs))
+
+        standards_cited = [{"id": cit, "note": "Primary governing standard"} for cit in primary_citations]
 
         # Verification
-        v_res = verifier.verify_and_enforce(exec_text + " " + tech_text)
+        v_res = verifier.verify_and_enforce(
+            exec_text + " " + tech_text,
+            structured_citations=standards_cited,
+        )
         latency = (time.perf_counter() - start_t) * 1000.0
 
         return ReportNarrativeResponse(
@@ -155,6 +168,10 @@ class ReportNarrativeWriter:
             grade=grade,
             executive_narrative=exec_text,
             technical_narrative=tech_text,
+            summary=exec_paragraphs[0] if exec_paragraphs else "",
+            standards_cited=standards_cited,
+            risk_note=exec_paragraphs[1] if len(exec_paragraphs) > 1 else "",
+            remediation="Upgrade transform proposals to modern AEAD encryption (AES-256-GCM) and DH Group 19 (ECP-256).",
             citations=[asdict(c) for c in v_res.citations],
             is_grounded=v_res.is_grounded,
             latency_ms=round(latency, 2),

@@ -23,9 +23,13 @@ function groundedness(value: number) {
 
 function cleanModelName(modelName: string): string {
   if (modelName.includes("Janus-Grounded-Fallback") || modelName.includes("Janus-Standards-Engine")) {
-    return "Janus Standards Rule Engine (CoT)";
+    return "Janus Standards Rule Engine";
   }
-  return modelName;
+  return modelName
+    .replace(/\s*\(CoT\)/gi, "")
+    .replace(/-CoT/gi, "")
+    .replace(/-Compound/gi, "")
+    .trim();
 }
 
 export function useExplainerDrawer() {
@@ -125,7 +129,7 @@ function ExplainerContent({
               <RiskBadge level={(finding.severity as any) || "INFO"} />
               <span className="font-mono text-xs font-bold text-ink">{finding.rule_id}</span>
             </div>
-            <span className="rounded bg-surface px-2.5 py-0.5 font-mono text-[11px] font-semibold text-ink border border-rule">
+            <span className="font-mono text-xs font-semibold text-ink">
               {finding.parameter}
             </span>
           </div>
@@ -170,10 +174,49 @@ function ExplainerContent({
         </button>
       </div>
 
-      {/* Tab 1: Advisory & Remediation Markdown */}
+      {/* Tab 1: Advisory & Remediation */}
       {activeTab === "analysis" && (
         <div className="space-y-4 motion-fade">
-          <MarkdownView content={data.explanation} />
+          {data.summary ? (
+            <div className="space-y-4">
+              <div className="space-y-3">
+                <p className="text-xs sm:text-[13px] leading-relaxed text-ink/90">
+                  {data.summary}
+                </p>
+                {(data.riskNote || data.risk_note) && (
+                  <div className="space-y-1 pt-1">
+                    <h4 className="text-xs font-semibold text-ink">What this means</h4>
+                    <p className="text-xs sm:text-[13px] leading-relaxed text-ink/90">
+                      {data.riskNote ?? data.risk_note}
+                    </p>
+                  </div>
+                )}
+                {((data.standardsCited && data.standardsCited.length > 0) ||
+                  (data.standards_cited && data.standards_cited.length > 0)) && (
+                  <div className="space-y-1.5 pt-1">
+                    <h4 className="text-xs font-semibold text-ink">Governing standards</h4>
+                    <ul className="space-y-1 text-xs sm:text-[13px] text-ink/80">
+                      {(data.standardsCited ?? data.standards_cited ?? []).map((std, idx) => (
+                        <li key={idx} className="leading-relaxed">
+                          <strong className="font-mono font-semibold text-ink">{std.id}</strong>
+                          {std.note ? <span> — {std.note}</span> : null}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+
+              {data.remediation && (
+                <div className="border-t border-rule/60 pt-3 space-y-2">
+                  <h4 className="text-xs font-semibold text-ink">Remediation</h4>
+                  <MarkdownView content={data.remediation} />
+                </div>
+              )}
+            </div>
+          ) : (
+            <MarkdownView content={data.explanation} />
+          )}
         </div>
       )}
 
@@ -249,21 +292,21 @@ function ExplainerContent({
         </div>
       )}
 
-      {/* Technical Audit Footer (Replacing raw debug dl) */}
+      {/* Technical Audit Footer (Clean Attribution; Telemetry behind dev toggle) */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-rule pt-4 text-xs font-mono text-muted">
-        <div className="flex items-center gap-3">
-          <span className="inline-flex items-center gap-1.5 text-pass font-medium">
-            <CheckCircle2 className="size-3.5" />
-            <span>Grounded: {groundedness(data.groundedness_score)}</span>
-          </span>
-          <span>•</span>
-          <span className="text-ink">
-            {cleanModelName(data.model_name)}
-          </span>
-        </div>
-        <div className="text-[11px] text-muted">
-          Latency: <span className="font-semibold text-ink">{data.latency_ms.toFixed(1)} ms</span>
-        </div>
+        <span className="text-ink font-medium">
+          {cleanModelName(data.model_name)}
+        </span>
+        {import.meta.env.DEV && (
+          <details className="text-[11px] font-mono text-muted/70 cursor-pointer">
+            <summary className="hover:text-ink">Debug telemetry</summary>
+            <div className="mt-1 flex items-center gap-3 pl-2">
+              <span>Grounded: {groundedness(data.groundedness_score)}</span>
+              <span>•</span>
+              <span>Latency: {data.latency_ms.toFixed(1)} ms</span>
+            </div>
+          </details>
+        )}
       </div>
     </div>
   );
