@@ -33,7 +33,18 @@ export function recordedAnalysisPath(sample: RecordedSampleCapture): string {
 }
 
 export function sampleDownloadHref(sample: SamplePcap): string {
-  return new URL(sample.download_url, API_BASE_URL).toString();
+  const rawUrl = sample?.download_url || "";
+  if (!rawUrl) return "#";
+  if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://")) {
+    return rawUrl;
+  }
+  const base = API_BASE_URL || (typeof window !== "undefined" && window.location?.origin ? window.location.origin : "");
+  if (!base) return rawUrl;
+  try {
+    return new URL(rawUrl, base).toString();
+  } catch {
+    return rawUrl;
+  }
 }
 
 export function useTestbedSamples() {
