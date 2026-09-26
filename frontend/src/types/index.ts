@@ -6,7 +6,8 @@ export type AnalysisPipelineStatus =
   | "CLASSIFYING"
   | "SCORING"
   | "DONE"
-  | "ERROR";
+  | "ERROR"
+  | "INDETERMINATE";
 
 export type GuardrailStatus =
   | "VERIFIED"

@@ -32,6 +32,7 @@ const statusText: Record<AnalysisStatus["status"], string> = {
   SCORING: "RFC Compliance Scoring",
   DONE: "Analysis Complete",
   ERROR: "Pipeline Failed",
+  INDETERMINATE: "Not Assessable",
 };
 
 const PIPELINE_STAGES = [
