@@ -157,9 +157,9 @@ class LLMServingConnector:
 
         top_chunk = retrieved_chunks[0] if retrieved_chunks else {}
         doc = top_chunk.get("document", "RFC 8221")
-        sec_raw = str(top_chunk.get("section", "§5")).strip()
-        sec = sec_raw if sec_raw.startswith("§") or sec_raw.lower().startswith("table") or sec_raw.lower().startswith("appendix") else f"§{sec_raw}"
-        clause_title = top_chunk.get("title", "Standards Specification")
+        sec_raw = str(top_chunk.get("section", "Section 5")).replace("§", "").strip()
+        sec = sec_raw if sec_raw.lower().startswith("section") or sec_raw.lower().startswith("table") or sec_raw.lower().startswith("appendix") else f"Section {sec_raw}"
+        clause_title = str(top_chunk.get("title", "Standards Specification")).replace("§", "").strip()
 
         sev_upper = str(severity).upper()
         p_lower = param.lower()
@@ -169,10 +169,10 @@ class LLMServingConnector:
         if "gcm" in p_lower or "gcm" in r_lower or "chacha" in p_lower:
             summary = (
                 f"{param} utilizes modern Authenticated Encryption with Associated Data (AEAD), "
-                f"satisfying RFC 8221 §5 requirements."
+                f"satisfying RFC 8221 Section 5 requirements."
             )
             standards_cited = [
-                {"id": "RFC 8221 §5", "note": "ESP Encryption Algorithms — MUST implement"},
+                {"id": "RFC 8221 Section 5", "note": "ESP Encryption Algorithms — MUST implement"},
                 {"id": "NIST SP 800-77 Rev. 1", "note": "Guidance on IPsec VPNs"},
             ]
             risk_note = (
@@ -187,7 +187,7 @@ class LLMServingConnector:
                 "Traffic Flow Security (TFS) is not configured, leaving packet length and timing profiles observable."
             )
             standards_cited = [
-                {"id": "RFC 9347 §2", "note": "Aggregation and Fragmentation (AGGFRAG) payload format for IPsec Traffic Flow Security"}
+                {"id": "RFC 9347 Section 2", "note": "Aggregation and Fragmentation (AGGFRAG) payload format for IPsec Traffic Flow Security"}
             ]
             risk_note = (
                 "Payload confidentiality remains mathematically sound under AEAD encryption. However, without constant-rate AGGFRAG framing, "
@@ -224,7 +224,7 @@ class LLMServingConnector:
                 "3DES employs a deprecated 64-bit block cipher vulnerable to SWEET32 ciphertext collisions."
             )
             standards_cited = [
-                {"id": "RFC 8221 §5", "note": "ESP Encryption Algorithms — MUST NOT implement"},
+                {"id": "RFC 8221 Section 5", "note": "ESP Encryption Algorithms — MUST NOT implement"},
                 {"id": "NIST SP 800-131A Rev. 2", "note": "Disallowed symmetric encryption algorithms"},
             ]
             risk_note = (
@@ -252,7 +252,7 @@ class LLMServingConnector:
                 "Single DES relies on an obsolete 56-bit key length vulnerable to exhaustive keyspace exhaustion."
             )
             standards_cited = [
-                {"id": "RFC 8221 §5", "note": "ESP Encryption Algorithms — MUST NOT implement"}
+                {"id": "RFC 8221 Section 5", "note": "ESP Encryption Algorithms — MUST NOT implement"}
             ]
             risk_note = (
                 "Single DES relies on a 56-bit key length (2^56 keyspace). Modern GPU and FPGA clusters can exhaust "
@@ -277,7 +277,7 @@ class LLMServingConnector:
                 "Diffie-Hellman Group 2 uses a 1024-bit MODP group susceptible to Number Field Sieve precomputation."
             )
             standards_cited = [
-                {"id": "RFC 8247 §2.4", "note": "Diffie-Hellman Groups — MUST NOT implement"},
+                {"id": "RFC 8247 Section 2.4", "note": "Diffie-Hellman Groups — MUST NOT implement"},
                 {"id": "NIST SP 800-131A Rev. 2", "note": "Disallowed keys below 112 bits of security"},
             ]
             risk_note = (
@@ -300,7 +300,7 @@ class LLMServingConnector:
                 "HMAC-MD5 integrity relies on a collision-vulnerable hash algorithm prohibited by modern standards."
             )
             standards_cited = [
-                {"id": "RFC 8221 §5", "note": "ESP Authentication Algorithms — MUST NOT implement"}
+                {"id": "RFC 8221 Section 5", "note": "ESP Authentication Algorithms — MUST NOT implement"}
             ]
             risk_note = (
                 "MD5 has demonstrated practical cryptographic collision vulnerabilities. Attackers can forge valid HMAC-MD5 signatures "
@@ -322,10 +322,10 @@ class LLMServingConnector:
             )
         elif "auth_none" in p_lower or "none" in r_lower:
             summary = (
-                "Unauthenticated CBC mode provides zero data integrity and is prohibited by RFC 8221 §4."
+                "Unauthenticated CBC mode provides zero data integrity and is prohibited by RFC 8221 Section 4."
             )
             standards_cited = [
-                {"id": "RFC 8221 §4", "note": "ESP Transform Combinations — AUTH_NONE prohibited with CBC"}
+                {"id": "RFC 8221 Section 4", "note": "ESP Transform Combinations — AUTH_NONE prohibited with CBC"}
             ]
             risk_note = (
                 "Unauthenticated CBC mode is vulnerable to bit-flipping and padding oracle attacks. Modifying ciphertext block C[i-1] "
@@ -350,8 +350,8 @@ class LLMServingConnector:
                 "Zero cryptographic encapsulation was detected on traversing packets."
             )
             standards_cited = [
-                {"id": "RFC 8221 §5", "note": "ESP Encapsulation Requirements"},
-                {"id": "NIST SP 800-77 Rev. 1 §4.1", "note": "Mandatory ESP encapsulation"},
+                {"id": "RFC 8221 Section 5", "note": "ESP Encapsulation Requirements"},
+                {"id": "NIST SP 800-77 Rev. 1 Section 4.1", "note": "Mandatory ESP encapsulation"},
             ]
             risk_note = (
                 "Plaintext IP payloads, protocol headers, and credentials traverse intermediate network hops unencrypted with zero confidentiality or integrity guarantees. "
@@ -402,11 +402,12 @@ class LLMServingConnector:
         """Synthesizes compound assessment for multiple concurrent findings."""
         top_chunk = retrieved_chunks[0] if retrieved_chunks else {}
         doc = top_chunk.get("document", "RFC 8221")
-        sec = top_chunk.get("section", "§5")
+        sec_raw = str(top_chunk.get("section", "Section 5")).replace("§", "").strip()
+        sec = sec_raw if sec_raw.lower().startswith("section") or sec_raw.lower().startswith("table") or sec_raw.lower().startswith("appendix") else f"Section {sec_raw}"
 
         summary = f"A total of {len(findings)} compound compliance findings were detected concurrently in this IPsec capture session."
         standards_cited = [
-            {"id": f"{doc} {sec}", "note": "Primary governing standard"}
+            {"id": f"{doc} {sec}".strip(), "note": "Primary governing standard"}
         ]
         risk_note = (
             "Compound security evaluation: when deployed simultaneously, weak key exchange and legacy encryption interact to multiply the security risk. "

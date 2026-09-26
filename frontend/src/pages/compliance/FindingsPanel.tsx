@@ -7,7 +7,7 @@ const FIX_SUGGESTIONS: Record<string, string> = {
   "RFC8221-ENCR_3DES":
     "Change ESP cipher from 3DES → AES-256-GCM-16 in swanctl.conf. Resolves CVE-2016-2183 Sweet32 collision risks. Estimated effort: 2 minutes.",
   "RFC8221-ENCR_BLOWFISH":
-    "Replace Blowfish with AES-256-GCM-16. Blowfish is MUST NOT per RFC 8221 §5.",
+    "Replace Blowfish with AES-256-GCM-16. Blowfish is MUST NOT per RFC 8221 Section 5.",
   "RFC8247-DH_GROUP_2":
     "Upgrade DH Group 2 (MODP-1024) → Group 19 (ECP-256) in your IKEv2 proposal. Mitigates Logjam discrete log attacks. Estimated effort: 5 minutes.",
   "RFC8247-DH_GROUP_1":
@@ -17,7 +17,7 @@ const FIX_SUGGESTIONS: Record<string, string> = {
   "RFC8221-AUTH_HMAC_SHA1_96":
     "Migrate from HMAC-SHA1-96 to HMAC-SHA2-256-128 or switch to an AEAD cipher.",
   "NIST-SA_LIFETIME":
-    "Reduce SA lifetime to ≤ 4h (14400 s) per NIST SP 800-77 Rev. 1 §7.2.3. One config line change.",
+    "Reduce SA lifetime to ≤ 4h (14400 s) per NIST SP 800-77 Rev. 1 Section 7.2.3. One config line change.",
   "NIST-PFS":
     "Enable Perfect Forward Secrecy (PFS) by configuring a Child SA DH group. Estimated effort: 1 minute.",
 };
@@ -129,7 +129,15 @@ export function FindingsPanel({ findings, onExplain }: { findings: Finding[]; on
               {finding.references?.length ? (
                 <p className="text-xs text-muted">
                   <span className="font-medium text-ink">Standards Cited: </span>
-                  {finding.references.join(", ")}
+                  {finding.references
+                    .map((r) =>
+                      r
+                        .replace(/(?:Section|Sec\.?)\s*§\s*/gi, "Section ")
+                        .replace(/§\s*([0-9])/g, "Section $1")
+                        .replace(/§/g, "")
+                        .replace(/Section\s+Section\s+/gi, "Section ")
+                    )
+                    .join(", ")}
                 </p>
               ) : null}
 

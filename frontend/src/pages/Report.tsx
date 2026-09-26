@@ -103,6 +103,24 @@ function ReportCard({
   );
 }
 
+function cleanCitationText(text?: string | null): string {
+  if (!text) return "";
+  return String(text)
+    .replace(/(?:Section|Sec\.?)\s*§\s*/gi, "Section ")
+    .replace(/§\s*([0-9])/g, "Section $1")
+    .replace(/§/g, "")
+    .replace(/Section\s+Section\s+/gi, "Section ")
+    .trim();
+}
+
+function formatCitationSection(sec?: string | null): string {
+  if (!sec) return "";
+  const s = String(sec).replace(/^(?:section|sec\.?|§)\s*/i, "").replace(/^[§\s]+/, "").trim();
+  if (!s) return "";
+  if (/^(table|appendix|clause)/i.test(s)) return s;
+  return `Section ${s}`;
+}
+
 function CitationList({ citations }: { citations?: CitationItem[] }) {
   const safeCitations = citations ?? [];
   if (!safeCitations.length) return <InlineNotice>No citation evidence was returned.</InlineNotice>;
@@ -121,9 +139,9 @@ function CitationList({ citations }: { citations?: CitationItem[] }) {
       {uniqueCitations.map((citation, index) => (
         <article key={`${citation.document}-${citation.section}-${index}`} className="grid gap-2 py-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
           <div>
-            <p className="font-semibold text-ink text-xs">{citation.clause_title ?? citation.raw_citation}</p>
+            <p className="font-semibold text-ink text-xs">{cleanCitationText(citation.clause_title ?? citation.raw_citation)}</p>
             <p className="mt-0.5 font-mono text-[11px] text-muted">
-              {citation.document}, {citation.section}
+              {citation.document}, {formatCitationSection(citation.section)}
               {citation.matching_chunk_id ? ` · ${citation.matching_chunk_id}` : ""}
             </p>
           </div>

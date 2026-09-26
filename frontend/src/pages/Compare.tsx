@@ -123,7 +123,7 @@ export function getScenarioFallbackReport(id: string): ComplianceReport {
             severity: "HIGH",
             description: "SWEET32 vulnerability (CVE-2016-2183) — 64-bit block cipher collision risks.",
             recommendation: "Replace with ENCR_AES_GCM_16.",
-            references: ["RFC 8221 §5", "CVE-2016-2183"],
+            references: ["RFC 8221 Section 5", "CVE-2016-2183"],
           },
           {
             rule_id: "RFC8247-DH_GROUP_2",
@@ -131,7 +131,7 @@ export function getScenarioFallbackReport(id: string): ComplianceReport {
             severity: "HIGH",
             description: "1024-bit MODP group vulnerable to nation-state Logjam precomputation.",
             recommendation: "Upgrade to DH Group 19 (ECP-256) or Group 14 (MODP-2048).",
-            references: ["RFC 8247 §2.4", "CVE-2015-4000"],
+            references: ["RFC 8247 Section 2.4", "CVE-2015-4000"],
           },
         ]
       : [],

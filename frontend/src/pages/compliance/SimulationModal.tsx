@@ -223,7 +223,7 @@ export function SimulationModal({
       setLogs((prev) => [
         ...prev,
         `[${formatDuration(m2Sec)}] Stress testing anti-replay window (64-packet bitmap).`,
-        `[${formatDuration(m2Sec)}] Evaluating Diffie-Hellman Group ${dhGroup} work factor against RFC 8247 §2.4...`,
+        `[${formatDuration(m2Sec)}] Evaluating Diffie-Hellman Group ${dhGroup} work factor against RFC 8247 Section 2.4...`,
       ]);
     }
 
@@ -533,7 +533,7 @@ export function SimulationModal({
                           </span>
                         </div>
                         <ul className="text-xs text-muted space-y-1 font-mono">
-                          <li>• Cipher: <strong className="text-ink">{cipher}</strong> — Authenticated AEAD encryption (RFC 8221 §5 MUST requirement)</li>
+                          <li>• Cipher: <strong className="text-ink">{cipher}</strong> — Authenticated AEAD encryption (RFC 8221 Section 5 MUST requirement)</li>
                           <li>• Integrity: <strong className="text-ink">{auth}</strong> — Integrated Galois/Counter Mode authentication tag</li>
                           <li>• Key Exchange: <strong className="text-ink">Diffie-Hellman Group {dhGroup}</strong> — Cryptographically sound key exchange parameter</li>
                           <li>• Forward Secrecy: <strong className="text-ink">PFS {pfsEnabled ? "Active" : "Disabled"}</strong> — Ephemeral Child SA key generation</li>

@@ -259,11 +259,11 @@
         "observed_value": "ENCR_AES_CBC",
         "compliant_value": "ENCR_AES_GCM_16",
         "title": "Non-AEAD Cipher (AES-CBC) Selected",
-        "description": "AES-256-CBC requires a separate integrity algorithm and is susceptible to CBC padding oracle timing attacks (CVE-2016-2183 class). RFC 8221 §5 recommends MUST NOT use AES-CBC for new deployments — prefer AES-GCM-16 or ChaCha20-Poly1305.",
+        "description": "AES-256-CBC requires a separate integrity algorithm and is susceptible to CBC padding oracle timing attacks (CVE-2016-2183 class). RFC 8221 Section 5 recommends MUST NOT use AES-CBC for new deployments — prefer AES-GCM-16 or ChaCha20-Poly1305.",
         "cve": null,
         "attack_vector": "Padding oracle side-channel; requires active MITM position",
         "remediation": "Replace ENCR_AES_CBC with ENCR_AES_GCM_16 (key_length=256) in both IKE and ESP proposals. Remove separate AUTH_HMAC_SHA2_256_128 — AEAD provides integrity natively.",
-        "rfc_reference": "RFC 8221 §5 — ENCR_AES_CBC SHOULD NOT (ESP)"
+        "rfc_reference": "RFC 8221 Section 5 — ENCR_AES_CBC SHOULD NOT (ESP)"
       },
       {
         "finding_id": "F-002",
@@ -273,11 +273,11 @@
         "observed_value": "14 (MODP-2048)",
         "compliant_value": "19 (ECP-256) or 31 (Curve25519)",
         "title": "DH Group 14 (MODP-2048) Approaching Deprecation",
-        "description": "DH Group 14 (2048-bit MODP/Oakley) is currently SHOULD (RFC 8247 §4) but is scheduled for deprecation as NSA/NIST move toward elliptic-curve groups. No known practical attacks exist, but upgrade path to Group 19/20/31 is recommended.",
+        "description": "DH Group 14 (2048-bit MODP/Oakley) is currently SHOULD (RFC 8247 Section 4) but is scheduled for deprecation as NSA/NIST move toward elliptic-curve groups. No known practical attacks exist, but upgrade path to Group 19/20/31 is recommended.",
         "cve": null,
         "attack_vector": "Discrete logarithm (NFS); not practical below 112-bit security level for 2048-bit MODP",
         "remediation": "Upgrade DH group to 19 (ECP-256), 20 (ECP-384), or 31 (Curve25519) in both IKE and ESP proposals for future-proof key exchange.",
-        "rfc_reference": "RFC 8247 §4 — DH Group 14 SHOULD (IKEv2)"
+        "rfc_reference": "RFC 8247 Section 4 — DH Group 14 SHOULD (IKEv2)"
       }
     ],
     "threat_matrix": [

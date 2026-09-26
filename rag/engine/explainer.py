@@ -21,7 +21,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Optional
 
 from rag.engine.citation_verifier import CitationItem, verifier
-from rag.engine.sanitizer import extract_structured_advisory, sanitize_prose
+from rag.engine.sanitizer import clean_section_symbol, extract_structured_advisory, sanitize_prose
 from rag.engine.serving import server
 from rag.index.hybrid_indexer import SearchResult, retriever
 
@@ -102,18 +102,20 @@ class ComplianceExplainer:
             category=category,
         )
 
-        retrieved_dict_list = [
-            {
+        retrieved_dict_list = []
+        for res in search_results:
+            sec_clean = (res.section or "").replace("§", "").strip()
+            if sec_clean and not sec_clean.lower().startswith(("section", "table", "appendix", "clause")):
+                sec_clean = f"Section {sec_clean}"
+            retrieved_dict_list.append({
                 "chunk_id": res.chunk_id,
                 "document": res.document,
-                "section": res.section,
-                "title": res.title,
+                "section": sec_clean,
+                "title": clean_section_symbol(res.title or ""),
                 "category": res.category,
-                "text": res.text,
+                "text": (res.text or "").replace("§", "Section "),
                 "score": res.score,
-            }
-            for res in search_results
-        ]
+            })
 
         # 2. Build Grounded Prompt with Strict Structured Output Contract
         context_blocks = []
@@ -129,14 +131,14 @@ class ComplianceExplainer:
             "{\n"
             '  "summary": "1-2 plain sentences summarizing the finding and compliance status.",\n'
             '  "standardsCited": [\n'
-            '    {"id": "RFC 8221 §5", "note": "Clause requirement or title"}\n'
+            '    {"id": "RFC 8221 Section 5", "note": "Clause requirement or title"}\n'
             "  ],\n"
             '  "riskNote": "Plain prose explaining what this configuration means for system security, without section headers.",\n'
             '  "remediation": "Plain prose explaining recommended configuration update, or empty string if compliant."\n'
             "}\n\n"
             "Strict Constraints:\n"
             "1. Plain prose only. NEVER use LaTeX or math notation ($...$, ^{}, _{}, \\frac). Write '2^64' or '2 to the 64th power', never dollar-sign math.\n"
-            "2. No bracket citations like [RFC 8221 §5]. Name the standard naturally inline in prose (e.g. 'as required by RFC 8221 §5') or place in standardsCited.\n"
+            "2. No bracket citations like [RFC 8221 Section 5]. Name the standard naturally inline in prose (e.g. 'as required by RFC 8221 Section 5') or place in standardsCited. Do NOT use the section symbol (§); write 'Section' instead.\n"
             "3. No section headers in ALL CAPS, and no emoji or icon-prefixed labels.\n"
             "4. No internal system or ML terminology in output: never mention 'chain-of-thought', 'CoT', 'grounded', 'latency', model names, or how the answer was produced.\n"
             "5. No inline badge or pill markup. Output plain text.\n"
@@ -189,10 +191,26 @@ class ComplianceExplainer:
         # Synchronize verified citations into standards_cited if empty
         if not standards_cited and v_res.citations:
             standards_cited = [
-                {"id": f"{c.document} {c.section}".strip(), "note": c.clause_title or ""}
+                {"id": clean_section_symbol(f"{c.document} {c.section}".strip()), "note": clean_section_symbol(c.clause_title or "")}
                 for c in v_res.citations
                 if c.verified
             ]
+        else:
+            standards_cited = [
+                {"id": clean_section_symbol(s.get("id", "")), "note": clean_section_symbol(s.get("note", ""))}
+                for s in standards_cited
+            ]
+
+        cleaned_citations = []
+        for c in v_res.citations:
+            cd = asdict(c)
+            cd["raw_citation"] = clean_section_symbol(cd.get("raw_citation", ""))
+            cd["clause_title"] = clean_section_symbol(cd.get("clause_title", ""))
+            s_val = str(cd.get("section", "")).replace("§", "").strip()
+            if s_val and not s_val.lower().startswith(("section", "table", "appendix", "clause")):
+                s_val = f"Section {s_val}"
+            cd["section"] = s_val
+            cleaned_citations.append(cd)
 
         groundedness_score = 1.0 if v_res.is_grounded else 0.5
         if v_res.total_citations == 0:
@@ -207,7 +225,7 @@ class ComplianceExplainer:
             standards_cited=standards_cited,
             risk_note=risk_note,
             remediation=remediation,
-            citations=[asdict(c) for c in v_res.citations],
+            citations=cleaned_citations,
             retrieved_chunks=retrieved_dict_list,
             groundedness_score=groundedness_score,
             is_fallback=gen_result.is_fallback,
@@ -245,18 +263,20 @@ class ComplianceExplainer:
             top_k=top_k,
         )
 
-        retrieved_dict_list = [
-            {
+        retrieved_dict_list = []
+        for res in search_results:
+            sec_clean = (res.section or "").replace("§", "").strip()
+            if sec_clean and not sec_clean.lower().startswith(("section", "table", "appendix", "clause")):
+                sec_clean = f"Section {sec_clean}"
+            retrieved_dict_list.append({
                 "chunk_id": res.chunk_id,
                 "document": res.document,
-                "section": res.section,
-                "title": res.title,
+                "section": sec_clean,
+                "title": clean_section_symbol(res.title or ""),
                 "category": res.category,
-                "text": res.text,
+                "text": (res.text or "").replace("§", "Section "),
                 "score": res.score,
-            }
-            for res in search_results
-        ]
+            })
 
         context_blocks = []
         for idx, res in enumerate(search_results, start=1):
@@ -267,7 +287,8 @@ class ComplianceExplainer:
             "You are the Janus Compliance Explainer. Perform a compound threat evaluation "
             "for an IPsec capture session exhibiting multiple concurrent vulnerabilities. "
             "Respond ONLY with a valid JSON object matching the structured schema: summary, standardsCited, riskNote, remediation.\n"
-            "Strict Constraints: Plain prose only. No LaTeX math notation ($...$). No bracket citations. No ALL CAPS headers. No ML jargon."
+            "Strict Constraints: Plain prose only. No LaTeX math notation ($...$). No bracket citations. No ALL CAPS headers. No ML jargon. "
+            "Do not use the section symbol (§); write 'Section' instead."
         )
 
         findings_lines = "\n".join([f"- [{f.get('severity')}] {f.get('rule_id')}: {f.get('parameter')} ({f.get('description')})" for f in findings])
@@ -309,10 +330,26 @@ class ComplianceExplainer:
 
         if not standards_cited and v_res.citations:
             standards_cited = [
-                {"id": f"{c.document} {c.section}".strip(), "note": c.clause_title or ""}
+                {"id": clean_section_symbol(f"{c.document} {c.section}".strip()), "note": clean_section_symbol(c.clause_title or "")}
                 for c in v_res.citations
                 if c.verified
             ]
+        else:
+            standards_cited = [
+                {"id": clean_section_symbol(s.get("id", "")), "note": clean_section_symbol(s.get("note", ""))}
+                for s in standards_cited
+            ]
+
+        cleaned_citations = []
+        for c in v_res.citations:
+            cd = asdict(c)
+            cd["raw_citation"] = clean_section_symbol(cd.get("raw_citation", ""))
+            cd["clause_title"] = clean_section_symbol(cd.get("clause_title", ""))
+            s_val = str(cd.get("section", "")).replace("§", "").strip()
+            if s_val and not s_val.lower().startswith(("section", "table", "appendix", "clause")):
+                s_val = f"Section {s_val}"
+            cd["section"] = s_val
+            cleaned_citations.append(cd)
 
         groundedness_score = 1.0 if v_res.is_grounded else 0.5
         if v_res.total_citations == 0:
@@ -326,7 +363,7 @@ class ComplianceExplainer:
             standards_cited=standards_cited,
             risk_note=risk_note,
             remediation=remediation,
-            citations=[asdict(c) for c in v_res.citations],
+            citations=cleaned_citations,
             retrieved_chunks=retrieved_dict_list,
             groundedness_score=groundedness_score,
             is_fallback=gen_result.is_fallback,

@@ -99,6 +99,34 @@ export function useExplainerDrawer() {
   return { open, drawer };
 }
 
+/** Clean § section symbols from document clauses, IDs, and section strings */
+function cleanSectionNumber(sec?: string | null): string {
+  if (!sec) return "";
+  const s = String(sec).trim();
+  // Strip leading §, "Section", "Sec.", and whitespace
+  const stripped = s.replace(/^(?:section|sec\.?|§)\s*/i, "").replace(/^[§\s]+/, "");
+  return stripped || s;
+}
+
+function cleanSectionText(text?: string | null): string {
+  if (!text) return "";
+  return text
+    .replace(/(?:Section|Sec\.?)\s*§\s*/gi, "Section ")
+    .replace(/§\s*([0-9])/g, "Section $1")
+    .replace(/§/g, "")
+    .replace(/Section\s+Section\s+/gi, "Section ")
+    .trim();
+}
+
+function formatSectionLabel(sec?: string | null): string {
+  if (!sec) return "Specification Clause";
+  const num = cleanSectionNumber(sec);
+  if (/^(table|appendix|clause)/i.test(num)) {
+    return num;
+  }
+  return `Section ${num}`;
+}
+
 function SourceChunkCard({ chunk }: { chunk: { chunk_id: string; document: string; section: string; title: string; text: string } }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const isLong = chunk.text.length > 260 || chunk.text.includes("spi 0x") || chunk.text.includes("seq 0x");
@@ -107,11 +135,11 @@ function SourceChunkCard({ chunk }: { chunk: { chunk_id: string; document: strin
     <article className="rounded-xl border border-rule bg-surface p-4 space-y-2.5 transition-colors">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rule/60 pb-2">
         <span className="font-mono text-[11px] font-bold text-accent">
-          {chunk.document} · Section {chunk.section}
+          {chunk.document} · {formatSectionLabel(chunk.section)}
         </span>
         <span className="font-mono text-[10px] text-muted">Standards corpus</span>
       </div>
-      <h4 className="text-xs font-bold text-ink">{chunk.title}</h4>
+      <h4 className="text-xs font-bold text-ink">{cleanSectionText(chunk.title)}</h4>
 
       {isLong ? (
         <div className="space-y-2">
@@ -226,8 +254,8 @@ function ExplainerContent({
                     <ul className="space-y-1 text-xs sm:text-[13px] text-ink/80">
                       {(data.standardsCited ?? data.standards_cited ?? []).map((std, idx) => (
                         <li key={idx} className="leading-relaxed">
-                          <strong className="font-mono font-semibold text-ink">{std.id}</strong>
-                          {std.note ? <span> — {std.note}</span> : null}
+                          <strong className="font-mono font-semibold text-ink">{cleanSectionText(std.id)}</strong>
+                          {std.note ? <span> — {cleanSectionText(std.note)}</span> : null}
                         </li>
                       ))}
                     </ul>
@@ -264,13 +292,13 @@ function ExplainerContent({
                   >
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-accent">{citation.raw_citation}</span>
+                        <span className="font-mono font-bold text-accent">{cleanSectionText(citation.raw_citation)}</span>
                         {citation.clause_title && (
-                          <span className="text-xs text-ink font-medium">— {citation.clause_title}</span>
+                          <span className="text-xs text-ink font-medium">— {cleanSectionText(citation.clause_title)}</span>
                         )}
                       </div>
                       <p className="text-[11px] text-muted font-mono">
-                        {citation.document} · Section {citation.section}
+                        {citation.document} · {formatSectionLabel(citation.section)}
                       </p>
                     </div>
                     {/* Only show a badge when the citation could NOT be verified — verified is the expected state */}

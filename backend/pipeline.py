@@ -302,7 +302,7 @@ async def _execute_analysis_pipeline(
                     "value": "NONE (Cleartext)",
                     "description": f"Observed {len(classified_flows)} unencrypted network flow(s). Zero ESP encapsulation (IP protocol 50) or IKE negotiation (UDP 500/4500) was detected. All packet payloads, protocol headers, and metadata traverse the wire in plaintext, directly exposing communications to passive network sniffing (MITRE ATT&CK T1040) and man-in-the-middle tampering.",
                     "recommendation": "Deploy an RFC 8221 compliant strongSwan IPsec tunnel (tunnel mode with ESP ENCR_AES_GCM_16 and DH Group 19 PFS) between network gateways to secure all transit traffic.",
-                    "references": ["RFC 8221 §5", "NIST SP 800-77 Rev. 1", "MITRE ATT&CK T1040"],
+                    "references": ["RFC 8221 Section 5", "NIST SP 800-77 Rev. 1", "MITRE ATT&CK T1040"],
                     "vulnerability_tag": "CLEARTEXT_EXPOSURE",
                 },
                 {
@@ -313,7 +313,7 @@ async def _execute_analysis_pipeline(
                     "value": "NONE",
                     "description": "No IKEv2 (RFC 7296) or post-quantum hybrid key exchange observed. The connection does not establish authenticated session keys, leaving communications vulnerable to active adversary-in-the-middle attacks.",
                     "recommendation": "Configure strongSwan IKEv2 daemon with mutual certificate authentication and ephemeral ECDH (Curve25519 / NIST P-256) key exchange.",
-                    "references": ["RFC 8247 §2.4", "FIPS 203 (ML-KEM)"],
+                    "references": ["RFC 8247 Section 2.4", "FIPS 203 (ML-KEM)"],
                     "vulnerability_tag": "MISSING_KEY_AGREEMENT",
                 },
                 {
@@ -324,7 +324,7 @@ async def _execute_analysis_pipeline(
                     "value": "NONE",
                     "description": "Unencrypted cleartext IP packets lack ESP sequence numbers and cryptographic authentication tags (ICV), exposing the network to replay attacks, packet injection, and session hijacking.",
                     "recommendation": "Enforce ESP AEAD (AES-GCM) with 64-bit Extended Sequence Numbers (ESN) to guarantee anti-replay protection.",
-                    "references": ["RFC 4303 §3.3.3"],
+                    "references": ["RFC 4303 Section 3.3.3"],
                     "vulnerability_tag": "NO_ANTI_REPLAY",
                 },
             ]

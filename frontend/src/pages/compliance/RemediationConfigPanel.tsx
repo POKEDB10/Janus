@@ -62,7 +62,7 @@ export function RemediationConfigPanel({ compliance }: { compliance: ComplianceR
                 <div className="rounded bg-surface/80 p-3 border border-rule/80 space-y-1">
                   <p className="font-bold text-ink">2. Diffie-Hellman Group 19 (256-bit ECP)</p>
                   <p className="text-muted">
-                    Standardizes on NIST P-256 elliptic curve key exchange per RFC 8247 §2.4. Resists discrete-log precomputation attacks (Logjam) that compromise legacy MODP groups (Group 1, Group 2).
+                    Standardizes on NIST P-256 elliptic curve key exchange per RFC 8247 Section 2.4. Resists discrete-log precomputation attacks (Logjam) that compromise legacy MODP groups (Group 1, Group 2).
                   </p>
                 </div>
 

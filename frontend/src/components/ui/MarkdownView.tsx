@@ -36,8 +36,14 @@ function sanitizeClientProse(raw: string): string {
   text = text.replace(/###\s+(?:SYSTEM IMPACT & BLAST RADIUS|BLAST RADIUS|System Impact & Blast Radius)/gi, "### What this means");
   text = text.replace(/###\s+(?:ACTIONABLE REMEDIATION|REMEDIATION)/gi, "### Remediation");
 
-  // Reframe any remaining [RFC xxxx §y] bracket citations to RFC xxxx §y
+  // Reframe any remaining [RFC xxxx Section y] bracket citations to RFC xxxx Section y
   text = text.replace(/\[((?:RFC|NIST|CNSA|FIPS)[^\]]+)\]/g, "$1");
+
+  // Clean any remaining section symbols (§) and format as 'Section X'
+  text = text.replace(/(?:Section|Sec\.?)\s*§\s*/gi, "Section ");
+  text = text.replace(/§\s*([0-9])/g, "Section $1");
+  text = text.replace(/§/g, "");
+  text = text.replace(/Section\s+Section\s+/gi, "Section ");
 
   // Remove (CoT) if present in prose
   text = text.replace(/\s*\(CoT\)/g, "");

@@ -92,11 +92,33 @@ def _convert_math_fragment(fragment: str) -> str:
     return s.strip()
 
 
+def clean_section_symbol(text: str) -> str:
+    """
+    Remove or reformat the section sign (§) from technical prose and standards citations:
+    - 'Section §4' -> 'Section 4'
+    - '§4.1' -> 'Section 4.1'
+    - 'RFC 8221 §5' -> 'RFC 8221 Section 5'
+    - Lone '§' -> removed
+    """
+    if not text or "§" not in text:
+        return text
+    # 'Section § 4' or 'Sec. § 4' -> 'Section 4'
+    s = re.sub(r"(?i)\b(?:section|sec\.?)\s*§\s*", "Section ", text)
+    # '§ 4' or '§4' -> 'Section 4'
+    s = re.sub(r"§\s*([0-9])", r"Section \1", s)
+    # Any other remaining §
+    s = s.replace("§", "")
+    # Clean redundant 'Section Section'
+    s = re.sub(r"(?i)\bsection\s+section\b", "Section", s)
+    return s.strip()
+
+
 def sanitize_prose(text: str) -> str:
     """
     Backstop regex sanitizer pass enforcing the strict output contract:
-    - Strips math notation ($...$, ^{}, _{}, \frac).
-    - Strips bracket-style citations ([RFC 8221 §5] -> RFC 8221 §5).
+    - Strips math notation ($...$, ^{}, _{}, \\frac).
+    - Strips bracket-style citations ([RFC 8221 §5] -> RFC 8221 Section 5).
+    - Removes section symbols (§ -> Section).
     - Reframes 'System Impact & Blast Radius' to 'What this means'.
     - Converts ALL-CAPS headers/lines over 3 words to sentence case.
     - Removes internal ML / system jargon.
@@ -125,11 +147,14 @@ def sanitize_prose(text: str) -> str:
     # Single-digit subscripts: e.g. C_1, P_2 — only lowercase alpha + single digit
     s = LATEX_TOKEN_SUB_REGEX.sub(r"\1[\2]", s)
 
-    # 2. Bracket citation conversion: [RFC 8221 §5] -> RFC 8221 §5
+    # 2. Bracket citation conversion: [RFC 8221 §5] -> RFC 8221 Section 5
     s = BRACKET_CITATION_REGEX.sub(r"\1", s)
     # Also strip general brackets if they enclose standards-like codes (e.g. [RFC8221-ENCR_3DES] or [RFC 8247])
     # but avoid stripping markdown links [text](url)
     s = re.sub(r"\[([A-Z0-9][A-Za-z0-9\s§\.\-\/]{1,35})\](?!\()", r"\1", s)
+
+    # Clean any section symbols (§)
+    s = clean_section_symbol(s)
 
     # 3. Reframe incident response language
     s = re.sub(
@@ -294,9 +319,10 @@ def extract_structured_advisory(
             remediation_parts.append(body)
         elif "standard" in header or "governing" in header:
             # Extract standard citations from text
-            cits = re.findall(r"(RFC\s*[0-9]{4}(?:\s*§[0-9\.\w\-]+)?|NIST\s*SP\s*800-[^\s,\)]+)", body)
+            cits = re.findall(r"(RFC\s*[0-9]{4}(?:(?:\s*§|\s*Section|\s*Sec\.?)\s*[0-9\.\w\-]+)?|NIST\s*SP\s*800-[^\s,\)]+)", body, re.IGNORECASE)
             for c in cits:
-                standards_cited.append({"id": c.strip(), "note": "Governing specification clause"})
+                clean_c = clean_section_symbol(c.strip())
+                standards_cited.append({"id": clean_c, "note": "Governing specification clause"})
             if not summary_parts:
                 summary_parts.append(body)
         else:
@@ -311,8 +337,8 @@ def extract_structured_advisory(
 
     # Extract any standards mentioned inline
     all_text = f"{summary} {risk_note} {remediation}"
-    for match in re.finditer(r"\b(RFC\s*[0-9]{4}(?:\s*§[0-9\.\w\-]+)?|NIST\s*SP\s*800-(?:77|131A)(?:\s*Rev\.\s*[12])?(?:\s*Table\s*[0-9]+)?)\b", all_text, re.IGNORECASE):
-        std_str = match.group(0).strip()
+    for match in re.finditer(r"\b(RFC\s*[0-9]{4}(?:(?:\s*§|\s*Section|\s*Sec\.?)\s*[0-9\.\w\-]+)?|NIST\s*SP\s*800-(?:77|131A)(?:\s*Rev\.\s*[12])?(?:\s*Table\s*[0-9]+)?)\b", all_text, re.IGNORECASE):
+        std_str = clean_section_symbol(match.group(0).strip())
         if not any(s["id"] == std_str for s in standards_cited):
             standards_cited.append({"id": std_str, "note": "Authoritative standard requirement"})
 

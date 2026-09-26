@@ -17,7 +17,7 @@ from typing import Any, Optional
 
 from rag.engine.citation_verifier import verifier
 from rag.engine.explainer import explainer
-from rag.engine.sanitizer import sanitize_prose, humanize_param_key
+from rag.engine.sanitizer import clean_section_symbol, sanitize_prose, humanize_param_key
 from rag.index.hybrid_indexer import retriever
 
 logger = logging.getLogger(__name__)
@@ -83,13 +83,13 @@ class ReportNarrativeWriter:
         # Determine primary standard references (unbracketed, natural inline)
         primary_citations = []
         if any("3DES" in str(f) or "GCM" in str(f) for f in findings):
-            primary_citations.append("RFC 8221 §5")
+            primary_citations.append("RFC 8221 Section 5")
         if any("DH" in str(f) or "Group" in str(f) for f in findings):
-            primary_citations.append("RFC 8247 §2.4")
+            primary_citations.append("RFC 8247 Section 2.4")
         if any("IP-TFS" in str(f) or "Obfuscated" in str(analysis_data or {}) for f in findings):
-            primary_citations.append("RFC 9347 §3")
+            primary_citations.append("RFC 9347 Section 3")
         if not primary_citations:
-            primary_citations = ["RFC 8221 §5", "NIST SP 800-77 Rev. 1 Table 1"]
+            primary_citations = ["RFC 8221 Section 5", "NIST SP 800-77 Rev. 1 Table 1"]
 
         # 1. Executive Summary Narrative Draft
         exec_paragraphs = []
@@ -169,13 +169,20 @@ class ReportNarrativeWriter:
         seen_cit: set[tuple[str, str]] = set()
         deduped_citations: list[dict] = []
         for c in v_res.citations:
+            cd = asdict(c)
+            cd["raw_citation"] = clean_section_symbol(cd.get("raw_citation", ""))
+            cd["clause_title"] = clean_section_symbol(cd.get("clause_title", ""))
+            s_val = str(cd.get("section", "")).replace("§", "").strip()
+            if s_val and not s_val.lower().startswith(("section", "table", "appendix", "clause")):
+                s_val = f"Section {s_val}"
+            cd["section"] = s_val
             key = (
-                asdict(c)["document"].strip().upper(),
-                asdict(c)["section"].strip().lower(),
+                cd["document"].strip().upper(),
+                cd["section"].strip().lower(),
             )
             if key not in seen_cit:
                 seen_cit.add(key)
-                deduped_citations.append(asdict(c))
+                deduped_citations.append(cd)
 
         return ReportNarrativeResponse(
             capture_id=capture_id,

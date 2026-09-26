@@ -12,6 +12,16 @@ function normalise(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
+function cleanAuditText(text?: string | null): string {
+  if (!text) return "";
+  return String(text)
+    .replace(/(?:Section|Sec\.?)\s*§\s*/gi, "Section ")
+    .replace(/§\s*([0-9])/g, "Section $1")
+    .replace(/§/g, "")
+    .replace(/Section\s+Section\s+/gi, "Section ")
+    .trim();
+}
+
 function displayValue(value: JsonValue): string | null {
   if (value === null || value === undefined) return null;
   if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") return String(value);
@@ -49,12 +59,12 @@ const STANDARD_PARAMS: StandardParamSpec[] = [
   {
     name: "ESP Encryption",
     keys: ["esp_encryption"],
-    required: "AES-GCM-128 / AES-GCM-256 (RFC 8221 §5)",
+    required: "AES-GCM-128 / AES-GCM-256 (RFC 8221 Section 5)",
   },
   {
     name: "ESP Authentication",
     keys: ["esp_auth"],
-    required: "Integrated AEAD or HMAC-SHA2-256 (RFC 8221 §5)",
+    required: "Integrated AEAD or HMAC-SHA2-256 (RFC 8221 Section 5)",
     format: (val, evaluated) => {
       const enc = String(evaluated.esp_encryption || "").toUpperCase();
       if (val === "AUTH_NONE" && enc.includes("GCM")) return "AUTH_NONE (AEAD ICV-16)";
@@ -64,7 +74,7 @@ const STANDARD_PARAMS: StandardParamSpec[] = [
   {
     name: "Diffie-Hellman Group",
     keys: ["dh_group", "ike_dh_group"],
-    required: "Group 19+ (ECP-256) or Group 14+ (MODP-2048) (RFC 8247 §2.4)",
+    required: "Group 19+ (ECP-256) or Group 14+ (MODP-2048) (RFC 8247 Section 2.4)",
     format: (val) => {
       if (val === "19") return "Group 19 (ECP-256)";
       if (val === "20") return "Group 20 (ECP-384)";
@@ -83,7 +93,7 @@ const STANDARD_PARAMS: StandardParamSpec[] = [
   {
     name: "SA Rotation Lifetime",
     keys: ["sa_lifetime_seconds"],
-    required: "≤ 28800s (1h – 8h recommended) (NIST SP 800-77 §5.4)",
+    required: "≤ 28800s (1h – 8h recommended) (NIST SP 800-77 Section 5.4)",
     format: (val) => {
       const num = Number(val);
       if (num === 3600) return "3600s (1h)";
@@ -136,8 +146,10 @@ export function buildAlgorithmComparisons(compliance: ComplianceReport): Algorit
 
     if (matchingFinding) {
       coveredFindings.add(matchingFinding.rule_id);
-      const detected = matchingFinding.value ?? (rawVal ? (spec.format ? spec.format(rawVal, evaluated) : rawVal) : "Detected weak setting");
-      const required = matchingFinding.remediation ?? matchingFinding.recommendation ?? spec.required;
+      const rawDetected = matchingFinding.value ?? (rawVal ? (spec.format ? spec.format(rawVal, evaluated) : rawVal) : "Detected weak setting");
+      const rawRequired = matchingFinding.remediation ?? matchingFinding.recommendation ?? spec.required;
+      const detected = cleanAuditText(rawDetected);
+      const required = cleanAuditText(rawRequired);
       const severity = (matchingFinding.severity?.toUpperCase() || "HIGH") as AlgorithmComparison["status"];
       results.push({
         finding: matchingFinding,
@@ -147,11 +159,11 @@ export function buildAlgorithmComparisons(compliance: ComplianceReport): Algorit
         status: severity,
       });
     } else if (rawVal !== null) {
-      const detected = spec.format ? spec.format(rawVal, evaluated) : rawVal;
+      const rawDetected = spec.format ? spec.format(rawVal, evaluated) : rawVal;
       results.push({
         parameter: spec.name,
-        detected,
-        required: spec.required,
+        detected: cleanAuditText(rawDetected),
+        required: cleanAuditText(spec.required),
         status: spec.pqc ? "ADVISORY" : "PASS",
       });
     }
@@ -160,14 +172,14 @@ export function buildAlgorithmComparisons(compliance: ComplianceReport): Algorit
   // 2. Add any remaining findings not covered in standard list
   for (const f of findings) {
     if (coveredFindings.has(f.rule_id)) continue;
-    const detected = evaluatedValue(f.parameter, evaluated) ?? f.value ?? "Observed non-compliant setting";
-    const required = f.remediation ?? f.recommendation ?? "Remediation recommended per IPsec RFC specification";
+    const rawDetected = evaluatedValue(f.parameter, evaluated) ?? f.value ?? "Observed non-compliant setting";
+    const rawRequired = f.remediation ?? f.recommendation ?? "Remediation recommended per IPsec RFC specification";
     const severity = (f.severity?.toUpperCase() || "HIGH") as AlgorithmComparison["status"];
     results.push({
       finding: f,
       parameter: f.parameter,
-      detected,
-      required,
+      detected: cleanAuditText(rawDetected),
+      required: cleanAuditText(rawRequired),
       status: severity,
     });
   }

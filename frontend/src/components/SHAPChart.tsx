@@ -185,10 +185,9 @@ export const SHAPChart: React.FC<SHAPChartProps> = ({
             tick={{ fontSize: 11 }}
           />
           <Tooltip
-            cursor={{ fill: "rgba(255,255,255,0.04)" }}
+            cursor={{ fill: "rgba(255,255,255,0.06)" }}
             content={<CustomTooltip />}
-            // Position tooltip above cursor to prevent overlap with adjacent bars
-            position={{ x: 160, y: 0 }}
+            wrapperStyle={{ pointerEvents: "none", zIndex: 1000 }}
           />
           {/* Zero reference line — bars diverge from 0, no base-value line */}
           <ReferenceLine x={0} stroke="rgba(128,128,128,0.35)" />

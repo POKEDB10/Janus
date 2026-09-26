@@ -177,7 +177,7 @@ class ComplianceEvaluator:
                     value=esp_encryption,
                     description=f"Unrecognized or non-standard ESP encryption algorithm: {esp_encryption}.",
                     recommendation="Configure standard AES-256-GCM (16 octet ICV) per RFC 8221.",
-                    references=["RFC 8221 §5"],
+                    references=["RFC 8221 Section 5"],
                 )
             )
             threats.append(
@@ -277,7 +277,7 @@ class ComplianceEvaluator:
                         value=str(esp_auth),
                         description="Redundant separate integrity algorithm configured with an AEAD cipher.",
                         recommendation="Set integrity algorithm to None when using AES-GCM or ChaCha20-Poly1305.",
-                        references=["RFC 8221 §5", "RFC 4106"],
+                        references=["RFC 8221 Section 5", "RFC 4106"],
                     )
                 )
         else:
@@ -292,7 +292,7 @@ class ComplianceEvaluator:
                         value="AUTH_NONE",
                         description="AUTH_NONE paired with a non-AEAD cipher provides zero integrity protection.",
                         recommendation="Configure HMAC-SHA-256-128 or switch to AES-256-GCM AEAD.",
-                        references=["RFC 8221 §5"],
+                        references=["RFC 8221 Section 5"],
                         vulnerability_tag="Bit-Flipping / Ciphertext Tampering",
                     )
                 )
@@ -319,7 +319,7 @@ class ComplianceEvaluator:
                             value=esp_auth,
                             description=f"Unrecognized authentication algorithm: {esp_auth}.",
                             recommendation="Configure HMAC-SHA-256-128 per RFC 8221.",
-                            references=["RFC 8221 §5"],
+                            references=["RFC 8221 Section 5"],
                         )
                     )
                 elif auth_rule.severity in (Severity.CRITICAL, Severity.HIGH, Severity.MEDIUM):
@@ -378,7 +378,7 @@ class ComplianceEvaluator:
                         value=f"Group {active_dh}",
                         description=f"Non-standard or legacy Diffie-Hellman group {active_dh}.",
                         recommendation="Configure DH Group 19 (256-bit ECP) or DH Group 14 (2048-bit MODP).",
-                        references=["RFC 8247 §2.3"],
+                        references=["RFC 8247 Section 2.3"],
                     )
                 )
             elif dh_rule.severity == Severity.CRITICAL:
@@ -434,7 +434,7 @@ class ComplianceEvaluator:
                     value="Disabled",
                     description="PFS is disabled for Child SAs. Compromise of long-term IKE SA keys allows retrospective decryption of all past sessions.",
                     recommendation="Enable PFS on all Child SA connections by configuring a DH group during rekeying.",
-                    references=["NIST SP 800-77 Rev. 1 §4.1", "RFC 7296 §1.3"],
+                    references=["NIST SP 800-77 Rev. 1 Section 4.1", "RFC 7296 Section 1.3"],
                     vulnerability_tag="Retrospective Decryption Risk",
                     cwe_id="CWE-655",
                     cvss_score=5.3,
@@ -480,7 +480,7 @@ class ComplianceEvaluator:
                         value=f"{sa_lifetime_seconds}s ({sa_lifetime_seconds/3600:.1f} hours)",
                         description=f"SA lifetime is outside the recommended 1 to 8 hour rotation window. {reason}.",
                         recommendation="Configure Phase 1 (IKE) lifetime to 28800s (8h) and Phase 2 (Child SA) lifetime to 3600s (1h).",
-                        references=["NIST SP 800-77 Rev. 1 §4.2"],
+                        references=["NIST SP 800-77 Rev. 1 Section 4.2"],
                         vulnerability_tag="Key Material Exposure Window",
                         cwe_id="CWE-326",
                         cvss_score=4.3,
@@ -511,7 +511,7 @@ class ComplianceEvaluator:
                         value=f"{rsa_key_bits} bits",
                         description=f"RSA authentication key ({rsa_key_bits} bits) is below the minimum required 2048 bits.",
                         recommendation="Upgrade RSA certificates to 2048-bit or 3072-bit minimum, or migrate to ECDSA (P-256 / P-384).",
-                        references=["NIST SP 800-77 Rev. 1 §3.2", "NIST SP 800-57 Part 1"],
+                        references=["NIST SP 800-77 Rev. 1 Section 3.2", "NIST SP 800-57 Part 1"],
                         vulnerability_tag="RSA Factorization Vulnerability",
                         cwe_id="CWE-326",
                         cvss_score=7.5,
@@ -609,7 +609,7 @@ connections {{
         }}
 
         # Hardened IKEv2 Proposal: AES-256-GCM (AEAD) + SHA-256 PRF + DH Group 19 (ECP-256)
-        # Complies with RFC 8247 §2.4 (Replaces deprecated DH 1/2/5 & weak MD5/SHA-1)
+        # Complies with RFC 8247 Section 2.4 (Replaces deprecated DH 1/2/5 & weak MD5/SHA-1)
         proposals = aes256gcm16-prfsha256-ecp256
 
         # Enforce 4-hour Phase 1 SA rotation (NIST SP 800-77 1h-8h recommended window)
@@ -622,7 +622,7 @@ connections {{
                 mode = tunnel
 
                 # Hardened ESP Proposal: AES-256-GCM-16 AEAD + DH Group 19 (PFS enabled)
-                # Complies with RFC 8221 §5 (Replaces SWEET32-vulnerable 3DES and non-AEAD CBC)
+                # Complies with RFC 8221 Section 5 (Replaces SWEET32-vulnerable 3DES and non-AEAD CBC)
                 esp_proposals = aes256gcm16-ecp256
 
                 # Enforce Perfect Forward Secrecy (PFS) with modern ECP-256 curve
