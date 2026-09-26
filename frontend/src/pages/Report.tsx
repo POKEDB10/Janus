@@ -131,7 +131,7 @@ export default function Report() {
   const { captureId = "" } = useParams();
   const { search } = useLocation();
   const recorded = isRecordedSample(search);
-  const context = getCaptureContext(captureId);
+  const context = getCaptureContext(captureId, search);
   const results = useCaptureResults(captureId, search);
 
   const [previewPdf, setPreviewPdf] = useState<{ url: string; title: string } | null>(null);
@@ -143,7 +143,9 @@ export default function Report() {
     retry: false,
   });
 
-  const narrative = useMutation({ mutationFn: () => draftReportNarrative(captureId) });
+  const narrative = useMutation({
+    mutationFn: () => draftReportNarrative(captureId, context.captureToken),
+  });
 
   if (results.isPending) return <LoadingState label="Loading report deliverables…" />;
   if (results.isError) {

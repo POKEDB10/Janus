@@ -15,6 +15,7 @@ import type {
   SamplePcap,
   UploadResponse,
 } from "../types";
+import { getCaptureContext } from "../lib/capture-session";
 
 export const API_BASE_URL = import.meta.env.VITE_API_URL !== undefined 
   ? import.meta.env.VITE_API_URL 
@@ -29,6 +30,21 @@ export const apiClient = axios.create({
     ...(API_KEY ? { "X-API-Key": API_KEY } : {}),
   },
   timeout: 15_000,
+});
+
+apiClient.interceptors.request.use((config) => {
+  if (!config.headers["X-Capture-Token"]) {
+    // Automatically match capture_id from route URLs e.g. /api/report/:id, /api/analysis/:id
+    const match = config.url?.match(/\/(?:analysis|report|compliance)\/([a-zA-Z0-9_\-]+)/);
+    if (match && match[1]) {
+      const captureId = match[1];
+      const context = getCaptureContext(captureId);
+      if (context?.captureToken) {
+        config.headers["X-Capture-Token"] = context.captureToken;
+      }
+    }
+  }
+  return config;
 });
 
 function captureHeaders(captureToken?: string): Record<string, string> {
@@ -137,26 +153,39 @@ export async function generateReport(captureId: string, captureToken?: string): 
   return data;
 }
 
-export function getExecutiveReportUrl(captureId: string): string {
-  return `${API_BASE_URL}/api/report/${encodeURIComponent(captureId)}/executive`;
+export function getExecutiveReportUrl(captureId: string, captureToken?: string): string {
+  const token = captureToken || getCaptureContext(captureId).captureToken;
+  const q = token ? `?token=${encodeURIComponent(token)}` : "";
+  return `${API_BASE_URL}/api/report/${encodeURIComponent(captureId)}/executive${q}`;
 }
 
-export function getTechnicalReportUrl(captureId: string): string {
-  return `${API_BASE_URL}/api/report/${encodeURIComponent(captureId)}/technical`;
+export function getTechnicalReportUrl(captureId: string, captureToken?: string): string {
+  const token = captureToken || getCaptureContext(captureId).captureToken;
+  const q = token ? `?token=${encodeURIComponent(token)}` : "";
+  return `${API_BASE_URL}/api/report/${encodeURIComponent(captureId)}/technical${q}`;
 }
 
-export function getFlowsCsvUrl(captureId: string): string {
-  return `${API_BASE_URL}/api/analysis/${encodeURIComponent(captureId)}/export/csv`;
+export function getFlowsCsvUrl(captureId: string, captureToken?: string): string {
+  const token = captureToken || getCaptureContext(captureId).captureToken;
+  const q = token ? `?token=${encodeURIComponent(token)}` : "";
+  return `${API_BASE_URL}/api/analysis/${encodeURIComponent(captureId)}/export/csv${q}`;
 }
 
-export async function explainFinding(finding: Finding, topK = 3): Promise<ExplainerResponse> {
-  const { data } = await apiClient.post<ExplainerResponse>("/api/compliance/explain", { finding, top_k: topK });
+export async function explainFinding(finding: Finding, topK = 3, captureToken?: string): Promise<ExplainerResponse> {
+  const { data } = await apiClient.post<ExplainerResponse>(
+    "/api/compliance/explain",
+    { finding, top_k: topK },
+    { headers: captureHeaders(captureToken) },
+  );
   return data;
 }
 
-export async function draftReportNarrative(captureId: string): Promise<ReportNarrativeResponse> {
+export async function draftReportNarrative(captureId: string, captureToken?: string): Promise<ReportNarrativeResponse> {
+  const token = captureToken || getCaptureContext(captureId).captureToken;
   const { data } = await apiClient.post<ReportNarrativeResponse>(
     `/api/report/${encodeURIComponent(captureId)}/draft-narrative`,
+    undefined,
+    { headers: captureHeaders(token) },
   );
   return data;
 }

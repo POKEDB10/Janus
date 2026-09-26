@@ -39,6 +39,35 @@ capture_token_header = APIKeyHeader(name="X-Capture-Token", auto_error=False)
 capture_token_query = APIKeyQuery(name="token", auto_error=False)
 
 
+DEMO_CAPTURE_IDS: set[str] = {
+    "wireshark_ikev2_aes_gcm",
+    "sample_1_ikev2_aes_gcm",
+    "sample_2_multi_suite",
+    "sample_3_heavy_esp",
+    "sample_4_sweet32_3des",
+}
+
+
+def is_demo_capture(capture_id: str) -> bool:
+    """Check if capture_id corresponds to a built-in demo fixture or sample."""
+    if not capture_id:
+        return False
+    cid = capture_id.strip()
+    if cid in DEMO_CAPTURE_IDS:
+        return True
+    if cid.startswith("sample_") or cid.startswith("wireshark_"):
+        return True
+    from pathlib import Path
+    for candidate in [
+        Path("frontend/src/fixtures") / f"{cid}.results.json",
+        Path("/app/frontend/src/fixtures") / f"{cid}.results.json",
+        Path("fixtures") / f"{cid}.results.json",
+    ]:
+        if candidate.exists():
+            return True
+    return False
+
+
 def generate_capture_token(capture_id: str) -> str:
     """Generate a deterministic HMAC-SHA256 token proving ownership of a capture_id."""
     return hmac.new(JANUS_TOKEN_SECRET, capture_id.encode(), hashlib.sha256).hexdigest()[:24]
@@ -46,6 +75,10 @@ def generate_capture_token(capture_id: str) -> str:
 
 def verify_capture_token(capture_id: str, token: str) -> bool:
     """Constant-time verification of a capture ownership token."""
+    if is_demo_capture(capture_id):
+        return True
+    if not token:
+        return False
     expected = generate_capture_token(capture_id)
     return hmac.compare_digest(expected, token)
 
@@ -62,7 +95,8 @@ async def verify_auth_or_token(
     Grants access if:
     1. Authentication is globally disabled (JANUS_REQUIRE_AUTH=false)
     2. A valid master API Key is provided via X-API-Key header, Authorization Bearer, or ?api_key
-    3. A valid capture ownership token is provided matching the route's capture_id
+    3. The requested resource is a built-in public demonstration capture / fixture
+    4. A valid capture ownership token is provided matching the route's capture_id
     """
     if not JANUS_REQUIRE_AUTH:
         return
@@ -78,6 +112,9 @@ async def verify_auth_or_token(
 
     # 2. Check object-level authorization (BOLA) for routes with capture_id path parameter
     capture_id = request.path_params.get("capture_id")
+    if capture_id and is_demo_capture(capture_id):
+        return
+
     provided_token = cap_token_h or cap_token_q
 
     if capture_id and provided_token:

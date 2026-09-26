@@ -9,9 +9,11 @@ from __future__ import annotations
 from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 
+import json
+from pathlib import Path
 from compliance.score import evaluator
 from models import AdHocComplianceRequest, ComplianceReportResponse
-from routes.analysis import _state_store
+from routes.analysis import _get_entry, _state_store
 from security import verify_auth_or_token
 
 router = APIRouter()
@@ -25,8 +27,8 @@ router = APIRouter()
 )
 async def get_compliance_report(capture_id: str) -> ComplianceReportResponse:
     """Retrieve full RFC 8221 / RFC 8247 compliance audit and threat matrix for a capture."""
-    if capture_id in _state_store:
-        entry = _state_store[capture_id]
+    entry = _get_entry(capture_id)
+    if entry:
         results = entry.get("results") or {}
         comp = results.get("compliance")
         if comp and comp.get("overall_score") is not None:
@@ -41,6 +43,31 @@ async def get_compliance_report(capture_id: str) -> ComplianceReportResponse:
                 remediation_config=comp.get("remediation_config", ""),
                 generated_at=comp.get("generated_at", ""),
             )
+
+    candidates = [
+        Path("frontend/src/fixtures") / f"{capture_id}.results.json",
+        Path("/app/frontend/src/fixtures") / f"{capture_id}.results.json",
+        Path("fixtures") / f"{capture_id}.results.json",
+    ]
+    fixture_path = next((p for p in candidates if p.exists()), None)
+    if fixture_path:
+        try:
+            with open(fixture_path, encoding="utf-8") as fp:
+                data = json.load(fp)
+            comp = data.get("compliance", {})
+            return ComplianceReportResponse(
+                capture_id=capture_id,
+                overall_score=comp.get("overall_score", 0.0),
+                grade=comp.get("grade", "N/A"),
+                summary=comp.get("summary", ""),
+                findings=comp.get("findings", []),
+                threat_matrix=comp.get("threat_matrix", []),
+                evaluated_parameters=comp.get("evaluated_parameters", {}),
+                remediation_config=comp.get("remediation_config", ""),
+                generated_at=comp.get("generated_at", ""),
+            )
+        except Exception:
+            pass
 
     raise HTTPException(
         status_code=status.HTTP_404_NOT_FOUND,

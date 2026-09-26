@@ -393,20 +393,26 @@ def download_sample_pcap(sample_id: str):
     response_model=UploadResponse,
     status_code=status.HTTP_202_ACCEPTED,
     summary="Directly enqueue a sample PCAP for live analysis without manual upload",
-    dependencies=[Depends(verify_auth_or_token)],
 )
 @router.post(
     "/captures/samples/{sample_id}/analyze",
     response_model=UploadResponse,
     status_code=status.HTTP_202_ACCEPTED,
     summary="Directly enqueue a sample PCAP for live analysis (alias)",
-    dependencies=[Depends(verify_auth_or_token)],
 )
 async def analyze_sample_pcap(
     sample_id: str,
     background_tasks: BackgroundTasks,
+    request: Request,
 ) -> UploadResponse:
     """Load a sample capture from disk and launch the full analysis pipeline immediately."""
+    # --- Rate limiting guard (respects Cloudflare CF-Connecting-IP) ---
+    client_ip = (
+        request.headers.get("cf-connecting-ip")
+        or request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+        or (request.client.host if request.client else "127.0.0.1")
+    )
+    _enforce_upload_rate_limit(client_ip)
     if sample_id not in SAMPLE_PCAPS:
         raise HTTPException(status_code=404, detail=f"Sample PCAP '{sample_id}' not found.")
 

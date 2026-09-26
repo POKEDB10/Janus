@@ -38,8 +38,13 @@ def _ensure_report_generated(capture_id: str) -> tuple[Path, Path]:
         return exec_path, tech_path
 
     # 2. Check offline fixture results for demo captures
-    fixture_path = Path("frontend/src/fixtures") / f"{capture_id}.results.json"
-    if fixture_path.exists():
+    candidates = [
+        Path("frontend/src/fixtures") / f"{capture_id}.results.json",
+        Path("/app/frontend/src/fixtures") / f"{capture_id}.results.json",
+        Path("fixtures") / f"{capture_id}.results.json",
+    ]
+    fixture_path = next((p for p in candidates if p.exists()), None)
+    if fixture_path:
         import json
         with open(fixture_path, encoding="utf-8") as f:
             fixture_data = json.load(f)
