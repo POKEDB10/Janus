@@ -55,10 +55,12 @@ def is_demo_capture(capture_id: str) -> bool:
     cid = capture_id.strip()
     if cid in DEMO_CAPTURE_IDS:
         return True
-    if cid.startswith("sample_") or cid.startswith("wireshark_"):
+    if cid.startswith("sample_") or cid.startswith("wireshark_") or cid.startswith("scenario_"):
         return True
     from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
     for candidate in [
+        root / "frontend" / "src" / "fixtures" / f"{cid}.results.json",
         Path("frontend/src/fixtures") / f"{cid}.results.json",
         Path("/app/frontend/src/fixtures") / f"{cid}.results.json",
         Path("fixtures") / f"{cid}.results.json",

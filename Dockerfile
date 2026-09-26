@@ -45,6 +45,7 @@ COPY rag/ ./rag/
 COPY parsing/ ./parsing/
 COPY reports/ ./reports/
 COPY dataset/ ./dataset/
+COPY samples/ ./samples/
 COPY frontend/src/fixtures/ ./frontend/src/fixtures/
 
 # Copy compiled frontend from Stage 1 into backend static directory

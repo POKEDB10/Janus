@@ -27,6 +27,7 @@ services:
       - janus_captures:/app/captures
       - janus_reports:/app/reports/output
       - janus_data:/app/data
+      - ./samples:/app/samples:ro
     # Resource limits to protect 4GB host RAM and keep WireGuard alive
     mem_limit: 2800m
     mem_reservation: 1500m
