@@ -101,6 +101,10 @@ export function getFlowDisposition(flow: FlowResult): "ABSTAINED" | "OBFUSCATED"
 export interface PacketTrace { signed_normalized_length: number[]; normalized_length: number[]; log_iat: number[]; }
 export function getPacketTrace(flow: FlowResult): PacketTrace | null {
   const trace = flow.packet_trace;
-  if (!trace || trace.length < 3) return null;
-  return { signed_normalized_length: trace[0] ?? [], normalized_length: trace[1] ?? [], log_iat: trace[2] ?? [] };
+  if (!trace || !Array.isArray(trace) || trace.length < 2) return null;
+  if (trace.length >= 3) {
+    return { signed_normalized_length: trace[0] ?? [], normalized_length: trace[1] ?? [], log_iat: trace[2] ?? [] };
+  }
+  // 2-channel format: [normalized_length, log_iat]
+  return { signed_normalized_length: trace[0] ?? [], normalized_length: trace[0] ?? [], log_iat: trace[1] ?? [] };
 }
