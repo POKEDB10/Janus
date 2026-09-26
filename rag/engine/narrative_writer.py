@@ -17,7 +17,7 @@ from typing import Any, Optional
 
 from rag.engine.citation_verifier import verifier
 from rag.engine.explainer import explainer
-from rag.engine.sanitizer import sanitize_prose
+from rag.engine.sanitizer import sanitize_prose, humanize_param_key
 from rag.index.hybrid_indexer import retriever
 
 logger = logging.getLogger(__name__)
@@ -132,8 +132,9 @@ class ReportNarrativeWriter:
             f"### Protocol transformation and cryptographic evaluation\n"
             f"The deterministic rule engine evaluated the negotiated Security Association (SA) parameters against the IETF IPsec "
             f"Algorithm Implementation Requirements ({', '.join(primary_citations)}) and NIST SP 800-77 Rev. 1 guidelines. "
-            f"Configured ciphers: ESP Confidentiality (`{eval_params.get('esp_encryption', 'N/A')}`), Integrity (`{eval_params.get('esp_auth', 'N/A')}`), "
-            f"and Key Exchange (`Group {eval_params.get('dh_group', 'N/A')}`)."
+            f"Configured ciphers: {humanize_param_key('esp_encryption')} (`{eval_params.get('esp_encryption', 'N/A')}`), "
+            f"{humanize_param_key('esp_auth')} (`{eval_params.get('esp_auth', 'N/A')}`), "
+            f"and {humanize_param_key('dh_group')} (`Group {eval_params.get('dh_group', 'N/A')}`)."
         )
 
         # Detailed finding breakdown
@@ -162,6 +163,20 @@ class ReportNarrativeWriter:
         )
         latency = (time.perf_counter() - start_t) * 1000.0
 
+        # Deduplicate citations by (document, section) — the verifier may add the same
+        # citation from both inline text scanning and structured_citations, producing
+        # duplicate rows in the report's "Standards citation evidence" table.
+        seen_cit: set[tuple[str, str]] = set()
+        deduped_citations: list[dict] = []
+        for c in v_res.citations:
+            key = (
+                asdict(c)["document"].strip().upper(),
+                asdict(c)["section"].strip().lower(),
+            )
+            if key not in seen_cit:
+                seen_cit.add(key)
+                deduped_citations.append(asdict(c))
+
         return ReportNarrativeResponse(
             capture_id=capture_id,
             overall_score=score,
@@ -172,7 +187,7 @@ class ReportNarrativeWriter:
             standards_cited=standards_cited,
             risk_note=exec_paragraphs[1] if len(exec_paragraphs) > 1 else "",
             remediation="Upgrade transform proposals to modern AEAD encryption (AES-256-GCM) and DH Group 19 (ECP-256).",
-            citations=[asdict(c) for c in v_res.citations],
+            citations=deduped_citations,
             is_grounded=v_res.is_grounded,
             latency_ms=round(latency, 2),
         )

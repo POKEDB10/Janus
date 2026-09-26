@@ -2,10 +2,7 @@ import { useCallback, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import {
   BookOpen,
-  CheckCircle2,
   CircleAlert,
-  FileText,
-  Layers,
   Shield,
 } from "lucide-react";
 import { explainFinding } from "../../api/client";
@@ -32,6 +29,37 @@ function cleanModelName(modelName: string): string {
     .trim();
 }
 
+/** Map well-known rule/technique IDs to human-readable advisory titles. */
+const ADVISORY_TITLE_MAP: Record<string, string> = {
+  SIMULATED_VPN_SUITE: "Simulated VPN Suite Advisory",
+  T1040: "Strong Cryptographic Protection (T1040)",
+  T1557: "Adversary-in-the-Middle Resistance (T1557)",
+  T1484: "Domain Policy Modification (T1484)",
+  T1556: "Modify Authentication Process (T1556)",
+  T1552: "Unsecured Credentials (T1552)",
+};
+
+function humanizeAdvisoryTitle(ruleId: string): string {
+  if (!ruleId) return "Compliance Advisory";
+  if (ADVISORY_TITLE_MAP[ruleId]) return ADVISORY_TITLE_MAP[ruleId];
+  // MITRE technique IDs: T1040 style — keep ID as parenthetical
+  if (/^T\d{4}(\.\d{3})?$/.test(ruleId)) {
+    return `Technique ${ruleId} Advisory`;
+  }
+  // RFC rule IDs: RFC8221-ENCR_3DES → sentence-case the suffix, keep rule as badge
+  const rfcMatch = ruleId.match(/^(RFC\d+)-(.+)$/i);
+  if (rfcMatch) {
+    const suffix = rfcMatch[2].replace(/_/g, " ").toLowerCase();
+    return `${suffix.charAt(0).toUpperCase() + suffix.slice(1)} Advisory`;
+  }
+  // SCREAMING_SNAKE → Sentence Case Advisory
+  if (/^[A-Z][A-Z0-9_]+$/.test(ruleId)) {
+    const words = ruleId.replace(/_/g, " ").toLowerCase();
+    return `${words.charAt(0).toUpperCase() + words.slice(1)} Advisory`;
+  }
+  return `${ruleId} Advisory`;
+}
+
 export function useExplainerDrawer() {
   const [finding, setFinding] = useState<Finding | null>(null);
   const explanation = useMutation({ mutationFn: (target: Finding) => explainFinding(target) });
@@ -49,7 +77,7 @@ export function useExplainerDrawer() {
   const drawer = (
     <Drawer
       open={Boolean(finding)}
-      title={finding ? `${finding.rule_id} Compliance Advisory` : "Compliance Advisory"}
+      title={finding ? humanizeAdvisoryTitle(finding.rule_id) : "Compliance Advisory"}
       onClose={close}
     >
       {explanation.isPending ? (
@@ -81,7 +109,7 @@ function SourceChunkCard({ chunk }: { chunk: { chunk_id: string; document: strin
         <span className="font-mono text-[11px] font-bold text-accent">
           {chunk.document} · Section {chunk.section}
         </span>
-        <span className="font-mono text-[10px] text-muted uppercase">RFC Corpus</span>
+        <span className="font-mono text-[10px] text-muted">Standards corpus</span>
       </div>
       <h4 className="text-xs font-bold text-ink">{chunk.title}</h4>
 
@@ -225,10 +253,7 @@ function ExplainerContent({
         <div className="space-y-6 motion-fade">
           {/* Citations Section */}
           <section className="space-y-3">
-            <div className="flex items-center gap-2 font-mono text-xs font-bold text-ink uppercase tracking-wider">
-              <FileText className="size-3.5 text-accent" />
-              <span>Governing Standards Citations</span>
-            </div>
+            <h4 className="text-xs font-semibold text-ink">Governing standards citations</h4>
 
             {data.citations.length > 0 ? (
               <div className="space-y-2">
@@ -248,21 +273,13 @@ function ExplainerContent({
                         {citation.document} · Section {citation.section}
                       </p>
                     </div>
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-mono font-bold uppercase shrink-0",
-                        citation.verified
-                          ? "bg-pass/10 text-pass border border-pass/30"
-                          : "bg-sunken text-muted border border-rule"
-                      )}
-                    >
-                      {citation.verified ? (
-                        <CheckCircle2 className="size-3" />
-                      ) : (
+                    {/* Only show a badge when the citation could NOT be verified — verified is the expected state */}
+                    {!citation.verified && (
+                      <span className="inline-flex items-center gap-1 rounded px-2 py-0.5 text-[10px] font-mono font-bold uppercase shrink-0 bg-sunken text-muted border border-rule">
                         <CircleAlert className="size-3" />
-                      )}
-                      <span>{citation.verified ? "Verified" : "Unverified"}</span>
-                    </span>
+                        <span>Unverified</span>
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -274,12 +291,10 @@ function ExplainerContent({
           {/* Source Clauses Section */}
           {data.retrieved_chunks.length > 0 && (
             <section className="space-y-3 pt-2">
-              <div className="flex items-center justify-between border-t border-rule pt-4">
-                <div className="flex items-center gap-2 font-mono text-xs font-bold text-ink uppercase tracking-wider">
-                  <Layers className="size-3.5 text-accent" />
-                  <span>Primary Standards Text ({data.retrieved_chunks.length})</span>
-                </div>
-                <span className="text-[11px] font-mono text-muted">Authoritative Corpus</span>
+              <div className="border-t border-rule pt-4">
+                <h4 className="text-xs font-semibold text-ink">
+                  Normative clauses ({data.retrieved_chunks.length})
+                </h4>
               </div>
 
               <div className="space-y-3">

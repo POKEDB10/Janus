@@ -106,9 +106,19 @@ function ReportCard({
 function CitationList({ citations }: { citations?: CitationItem[] }) {
   const safeCitations = citations ?? [];
   if (!safeCitations.length) return <InlineNotice>No citation evidence was returned.</InlineNotice>;
+
+  // Deduplicate by (document, section) — backend may send duplicates when the same
+  // citation is found both via inline text scan and via structured_citations merge.
+  const seen = new Map<string, CitationItem>();
+  for (const c of safeCitations) {
+    const key = `${c.document?.trim().toUpperCase()}||${c.section?.trim().toLowerCase()}`;
+    if (!seen.has(key)) seen.set(key, c);
+  }
+  const uniqueCitations = [...seen.values()];
+
   return (
     <div className="divide-y divide-rule border-y border-rule">
-      {safeCitations.map((citation, index) => (
+      {uniqueCitations.map((citation, index) => (
         <article key={`${citation.document}-${citation.section}-${index}`} className="grid gap-2 py-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-start">
           <div>
             <p className="font-semibold text-ink text-xs">{citation.clause_title ?? citation.raw_citation}</p>
@@ -118,7 +128,7 @@ function CitationList({ citations }: { citations?: CitationItem[] }) {
             </p>
           </div>
           <span className={`font-mono text-[10px] font-bold px-2 py-0.5 rounded ${citation.verified ? "bg-pass/10 text-pass border border-pass/20" : "bg-sunken text-muted"}`}>
-            {citation.verified ? "VERIFIED" : "UNVERIFIED"}
+            {citation.verified ? "Verified" : "Unverified"}
           </span>
         </article>
       ))}

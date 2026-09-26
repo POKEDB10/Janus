@@ -21,6 +21,15 @@ function sanitizeClientProse(raw: string): string {
       .replace(/\\cdot/g, "·");
   });
 
+  // Protect SCREAMING_SNAKE_CASE technical identifiers (cipher names, transform IDs,
+  // algorithm constants like ENCR_AES_GCM_16, AUTH_NONE, ENCR_3DES) from being parsed
+  // as markdown emphasis. Wrap them in backtick code spans before the parser sees them.
+  // Pattern: 2+ uppercase words joined by underscores (no lowercase in between).
+  text = text.replace(/\b([A-Z][A-Z0-9]*(?:_[A-Z0-9]+){1,})\b/g, (match) => {
+    // Already inside a backtick span → don't double-wrap
+    return `\`${match}\``;
+  });
+
   // Reframe blast radius / system impact headers and strip ALL-CAPS banners
   text = text.replace(/###\s+THREAT ANALYSIS/gi, "### Threat analysis");
   text = text.replace(/###\s+STANDARDS GROUNDING/gi, "### Governing standards");

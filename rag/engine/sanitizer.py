@@ -20,17 +20,41 @@ import re
 from typing import Any, Optional
 
 
+# ---------------------------------------------------------------------------
+# Human-readable labels for raw IPsec parameter keys.
+# Used by narrative_writer.py and anywhere a raw key gets interpolated into prose.
+# ---------------------------------------------------------------------------
+PARAMETER_HUMAN_LABELS: dict[str, str] = {
+    "esp_encryption": "ESP encryption",
+    "esp_auth": "ESP integrity",
+    "dh_group": "Diffie-Hellman group",
+    "pfs_enabled": "Perfect Forward Secrecy",
+    "auth_method": "IKE authentication method",
+    "sa_lifetime": "SA lifetime",
+    "ike_version": "IKE version",
+    "ike_encryption": "IKE encryption",
+    "ike_auth": "IKE integrity",
+    "ike_prf": "IKE pseudorandom function",
+    "ike_dh_group": "IKE Diffie-Hellman group",
+}
+
+
+def humanize_param_key(key: str) -> str:
+    """Map a raw snake_case parameter key to a human-readable label."""
+    if key in PARAMETER_HUMAN_LABELS:
+        return PARAMETER_HUMAN_LABELS[key]
+    # Fallback: replace underscores with spaces, title-case
+    return key.replace("_", " ").title()
+
+
 # Regex matching LaTeX math notation ($...$ or \$...\$)
-LATEX_MATH_REGEX = re.compile(r"\\?\$([^\$]+?)\\?\$")
+LATEX_MATH_REGEX = re.compile(r"\\\$([^\$]+?)\\\$|\$([^\$]+?)\$")
 
 # Regex matching bracket-style standards citations
 BRACKET_CITATION_REGEX = re.compile(
-    r"\[(RFC\s*[0-9]{4}[^\]]*|NIST\s*SP\s*800-[^\]]*|DoD\s*(?:IPsec\s*)?STIG[^\]]*)\]",
+    r"\[(RFC\s*[0-9]{4}[^\]]*|NIST\s*SP\s*800-[^\]]*|DoD\s*(?:IPsec\s*)?STIG[^]]*)\]",
     re.IGNORECASE,
 )
-
-# Broad bracket citation sanitizer: [RFC 8221 §5], [RFC 8247 Sec. 2.4], [TABLE 1], etc.
-GENERIC_BRACKET_REGEX = re.compile(r"\[([A-Z0-9\s§\.\-\/]{2,40})\]")
 
 # Internal ML / System terminology
 ML_TERMS_REGEX = re.compile(
@@ -42,6 +66,12 @@ ML_TERMS_REGEX = re.compile(
     re.IGNORECASE,
 )
 
+# LaTeX explicit-brace subscript: C_{i-1}, A_{n}, etc.
+# Deliberately scoped to single lowercase/uppercase char + {…} — avoids SCREAMING_SNAKE identifiers.
+LATEX_BRACE_SUB_REGEX = re.compile(r"([A-Za-z])_\{([^}]+)\}")
+# LaTeX single-token subscript: C_i, P_n — only single alpha/digit token, NOT multi-token like GCM_16
+LATEX_TOKEN_SUB_REGEX = re.compile(r"([a-z])_([0-9])(?![A-Za-z_])")
+
 
 def _convert_math_fragment(fragment: str) -> str:
     """Convert common LaTeX math fragments to plain, readable text."""
@@ -49,9 +79,8 @@ def _convert_math_fragment(fragment: str) -> str:
     # Powers: 2^{64} -> 2^64, 2^{32} -> 2^32, 2^{56} -> 2^56
     s = re.sub(r"([0-9a-zA-Z])\^\{([^}]+)\}", r"\1^\2", s)
     s = re.sub(r"([0-9a-zA-Z])\^([0-9a-zA-Z]+)", r"\1^\2", s)
-    # Subscripts: C_{i-1} -> C[i-1], P_i -> P[i]
-    s = re.sub(r"([A-Za-z])_\{([^}]+)\}", r"\1[\2]", s)
-    s = re.sub(r"([A-Za-z])_([0-9a-zA-Z]+)", r"\1[\2]", s)
+    # Subscripts with braces only: C_{i-1} -> C[i-1]
+    s = LATEX_BRACE_SUB_REGEX.sub(r"\1[\2]", s)
     # Common LaTeX math commands
     s = re.sub(r"\\frac\{([^}]+)\}\{([^}]+)\}", r"\1/\2", s)
     s = s.replace(r"\approx", "~")
@@ -71,6 +100,11 @@ def sanitize_prose(text: str) -> str:
     - Reframes 'System Impact & Blast Radius' to 'What this means'.
     - Converts ALL-CAPS headers/lines over 3 words to sentence case.
     - Removes internal ML / system jargon.
+
+    IMPORTANT: Does NOT mangle SCREAMING_SNAKE_CASE identifiers (e.g. ENCR_AES_GCM_16,
+    AUTH_NONE) — the old LaTeX subscript regex was too broad and corrupted cipher names.
+    Only genuine LaTeX subscript patterns with braces (C_{i-1}) or single-digit subscripts
+    (C_1) are converted.
     """
     if not text:
         return ""
@@ -79,15 +113,17 @@ def sanitize_prose(text: str) -> str:
 
     # 1. LaTeX math notation stripping: $...$ -> clean plain prose
     def math_repl(m: re.Match) -> str:
-        content = m.group(1)
+        content = m.group(1) or m.group(2) or ""
         return _convert_math_fragment(content)
 
     s = LATEX_MATH_REGEX.sub(math_repl, s)
     # Catch any lingering 2^{64} not enclosed in dollars
     s = re.sub(r"([0-9a-zA-Z])\^\{([^}]+)\}", r"\1^\2", s)
-    # Catch any lingering C_{i-1} or P_i
-    s = re.sub(r"([A-Za-z])_\{([^}]+)\}", r"\1[\2]", s)
-    s = re.sub(r"([A-Za-z])_([0-9a-zA-Z]+)", r"\1[\2]", s)
+    # Catch LaTeX brace subscripts only: C_{i-1} -> C[i-1]
+    # NOTE: deliberately NOT touching A_B style (SCREAMING_SNAKE) — only brace form.
+    s = LATEX_BRACE_SUB_REGEX.sub(r"\1[\2]", s)
+    # Single-digit subscripts: e.g. C_1, P_2 — only lowercase alpha + single digit
+    s = LATEX_TOKEN_SUB_REGEX.sub(r"\1[\2]", s)
 
     # 2. Bracket citation conversion: [RFC 8221 §5] -> RFC 8221 §5
     s = BRACKET_CITATION_REGEX.sub(r"\1", s)
