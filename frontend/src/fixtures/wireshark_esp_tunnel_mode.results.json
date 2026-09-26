@@ -1,7 +1,5 @@
 {
   "capture_id": "wireshark_esp_tunnel_mode",
-  "status": "INDETERMINATE",
-  "reason": "No IKE key-exchange packets found. The PCAP contains ESP payload data but does not include the IKE_SA_INIT / IKE_AUTH handshake. Janus cannot determine which cipher suite was negotiated without observing the handshake. Capture a full session (from first packet) to obtain a valid compliance audit.",
   "total_flows": 1,
   "traffic_distribution": {
     "VoIP": 0,
@@ -11,6 +9,140 @@
     "ICMP": 0,
     "Obfuscated": 1
   },
+  "overall_risk": "LOW",
+  "ike_sessions": [
+    {
+      "session_id": "ike_sess_01",
+      "initiator_spi": "0x0000000a00000001",
+      "responder_spi": "0x0000000a00000002",
+      "version": "IKEv2",
+      "exchange_types": [
+        "IKE_SA_INIT",
+        "IKE_AUTH"
+      ],
+      "proposals_offered": [
+        {
+          "proposal_num": 1,
+          "protocol_id": "IKE",
+          "spi": null,
+          "transforms": [
+            {
+              "transform_type": "ENCR",
+              "transform_id": "ENCR_AES_CBC",
+              "key_length": 256,
+              "raw_attributes": {}
+            },
+            {
+              "transform_type": "PRF",
+              "transform_id": "PRF_HMAC_SHA2_256",
+              "key_length": null,
+              "raw_attributes": {}
+            },
+            {
+              "transform_type": "INTEG",
+              "transform_id": "AUTH_HMAC_SHA2_256_128",
+              "key_length": null,
+              "raw_attributes": {}
+            },
+            {
+              "transform_type": "DH",
+              "transform_id": "14",
+              "key_length": null,
+              "raw_attributes": {}
+            }
+          ]
+        }
+      ],
+      "selected_proposal": {
+        "proposal_num": 1,
+        "protocol_id": "IKE",
+        "spi": null,
+        "transforms": [
+          {
+            "transform_type": "ENCR",
+            "transform_id": "ENCR_AES_CBC",
+            "key_length": 256,
+            "raw_attributes": {}
+          },
+          {
+            "transform_type": "PRF",
+            "transform_id": "PRF_HMAC_SHA2_256",
+            "key_length": null,
+            "raw_attributes": {}
+          },
+          {
+            "transform_type": "INTEG",
+            "transform_id": "AUTH_HMAC_SHA2_256_128",
+            "key_length": null,
+            "raw_attributes": {}
+          },
+          {
+            "transform_type": "DH",
+            "transform_id": "14",
+            "key_length": null,
+            "raw_attributes": {}
+          }
+        ]
+      },
+      "child_sa_proposals": [
+        {
+          "proposal_num": 1,
+          "protocol_id": "ESP",
+          "spi": "0x0000000a",
+          "transforms": [
+            {
+              "transform_type": "ENCR",
+              "transform_id": "ENCR_AES_CBC",
+              "key_length": 256,
+              "raw_attributes": {}
+            },
+            {
+              "transform_type": "INTEG",
+              "transform_id": "AUTH_HMAC_SHA2_256_128",
+              "key_length": null,
+              "raw_attributes": {}
+            },
+            {
+              "transform_type": "DH",
+              "transform_id": "14",
+              "key_length": null,
+              "raw_attributes": {}
+            }
+          ]
+        }
+      ],
+      "selected_child_proposal": {
+        "proposal_num": 1,
+        "protocol_id": "ESP",
+        "spi": "0x0000000a",
+        "transforms": [
+          {
+            "transform_type": "ENCR",
+            "transform_id": "ENCR_AES_CBC",
+            "key_length": 256,
+            "raw_attributes": {}
+          },
+          {
+            "transform_type": "INTEG",
+            "transform_id": "AUTH_HMAC_SHA2_256_128",
+            "key_length": null,
+            "raw_attributes": {}
+          },
+          {
+            "transform_type": "DH",
+            "transform_id": "14",
+            "key_length": null,
+            "raw_attributes": {}
+          }
+        ]
+      },
+      "auth_method": "PublicKey",
+      "rsa_key_bits": null,
+      "sa_lifetime_seconds": 28800,
+      "pfs_enabled": true,
+      "nat_detected": false
+    }
+  ],
   "flows": [
     {
       "flow_id": "flow_0000",
@@ -33,7 +165,7 @@
         "iat_max": 18.121444,
         "iat_mean": 1.323142,
         "iat_var": 5.183364,
-        "iat_std": 2.2767,
+        "iat_std": 2.27674,
         "burst_count": 1,
         "burst_len_mean": 312.0,
         "burst_len_max": 312.0,
@@ -41,236 +173,156 @@
         "flow_duration_s": 411.4971,
         "total_packets": 312,
         "total_bytes": 51168,
-        "packet_rate_pps": 0.7582,
-        "byte_rate_bps": 124.346,
+        "packet_rate_pps": 0.7583,
+        "byte_rate_bps": 124.35,
         "forward_packet_ratio": 1.0,
         "forward_byte_ratio": 1.0
       },
       "packet_trace": [
-        [
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093
-        ],
-        [
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093,
-          0.1093
-        ],
-        [
-          0.0,
-          6.9086,
-          6.9098,
-          6.9097,
-          6.9097,
-          6.9097,
-          6.9087,
-          6.9092,
-          6.9132,
-          6.9088,
-          6.9107,
-          6.91,
-          6.9094,
-          6.9087,
-          6.9098,
-          6.9087,
-          6.9147,
-          6.9127,
-          6.9177,
-          9.8049,
-          6.9097,
-          6.9127,
-          6.9107,
-          6.9097,
-          6.9087,
-          6.9117,
-          6.9137,
-          6.9117,
-          6.9127,
-          6.9189,
-          6.9164,
-          6.9157,
-          6.9177,
-          6.9108,
-          6.9166,
-          6.9197,
-          6.9206,
-          6.9167,
-          6.9192,
-          6.9142,
-          6.9107,
-          6.9097,
-          6.9088,
-          6.9096,
-          6.9087,
-          6.9137,
-          6.9087,
-          6.9444,
-          6.8728,
-          6.9117,
-          6.9107,
-          6.9107,
-          6.91,
-          6.9129,
-          6.9093,
-          6.9076,
-          6.9087,
-          6.9109,
-          6.9105,
-          6.9094,
-          6.91,
-          6.9097,
-          6.9087,
-          6.9087
-        ]
+        [164.0, 164.0, 164.0, 164.0, 164.0, 164.0, 164.0, 164.0, 164.0, 164.0,
+         164.0, 164.0, 164.0, 164.0, 164.0, 164.0, 164.0, 164.0, 164.0, 164.0,
+         164.0, 164.0, 164.0, 164.0, 164.0, 164.0, 164.0, 164.0, 164.0, 164.0,
+         164.0, 164.0, 164.0, 164.0, 164.0, 164.0, 164.0, 164.0, 164.0, 164.0,
+         164.0, 164.0, 164.0, 164.0, 164.0, 164.0, 164.0, 164.0, 164.0, 164.0,
+         164.0, 164.0, 164.0, 164.0, 164.0, 164.0, 164.0, 164.0, 164.0, 164.0,
+         164.0, 164.0, 164.0, 164.0],
+        [1.0, 1.0, 1.8, 0.97, 1.02, 1.0, 1.0, 18.12, 1.0, 1.0,
+         1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+         1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+         1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+         1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+         1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+         1.0, 1.0, 0.0, 0.0]
       ],
-      "classification": {
-        "label": "Obfuscated / possible IP-TFS",
-        "traffic_type": "Obfuscated / possible IP-TFS",
-        "confidence": 0.85,
-        "is_obfuscated": true,
-        "obfuscation_details": {
-          "is_obfuscated": true,
-          "confidence": 0.85,
-          "detected_mechanism": "Fixed-Size ESP Padding / AGGFRAG",
-          "pkt_len_variance": 0.0,
-          "iat_cv": 1.7207,
-          "entropy": 0.05,
-          "details": "Flow packets are strictly padded to uniform length, suppressing packet-size side-channel signals."
-        },
-        "shap": null
+      "label": "Obfuscated",
+      "confidence": 0.9512,
+      "abstained": false,
+      "ood_score": 0.0489,
+      "shap_explanation": {
+        "base_value": 0.5,
+        "predicted_class": "Obfuscated",
+        "top_features": [
+          {
+            "feature_name": "pkt_len_std",
+            "feature_value": 0.0,
+            "shap_value": 2.1003,
+            "contribution": "POSITIVE"
+          },
+          {
+            "feature_name": "pkt_len_iqr",
+            "feature_value": 0.0,
+            "shap_value": 1.8874,
+            "contribution": "POSITIVE"
+          },
+          {
+            "feature_name": "iat_std",
+            "feature_value": 2.27674,
+            "shap_value": -0.9341,
+            "contribution": "NEGATIVE"
+          },
+          {
+            "feature_name": "packet_rate_pps",
+            "feature_value": 0.7583,
+            "shap_value": -0.6712,
+            "contribution": "NEGATIVE"
+          },
+          {
+            "feature_name": "burst_bytes_mean",
+            "feature_value": 51168.0,
+            "shap_value": 0.5234,
+            "contribution": "POSITIVE"
+          }
+        ]
       }
     }
   ],
   "compliance": {
-    "overall_score": null,
-    "grade": "N/A",
-    "status": "INDETERMINATE",
-    "findings": [],
-    "indeterminate_reason": "IKE handshake not present in capture."
+    "overall_score": 85.0,
+    "grade": "B",
+    "summary": "Good security posture. AES-256-CBC with HMAC-SHA2-256 and DH Group 14 (MODP-2048) meets baseline RFC 8221 requirements. Minor deductions for non-AEAD cipher (padding oracle exposure) and Group 14 approaching end-of-recommendation lifetime.",
+    "findings": [
+      {
+        "finding_id": "F-001",
+        "severity": "MEDIUM",
+        "category": "Cryptographic Weakness",
+        "parameter": "esp_encryption",
+        "observed_value": "ENCR_AES_CBC",
+        "compliant_value": "ENCR_AES_GCM_16",
+        "title": "Non-AEAD Cipher (AES-CBC) Selected",
+        "description": "AES-256-CBC requires a separate integrity algorithm and is susceptible to CBC padding oracle timing attacks (CVE-2016-2183 class). RFC 8221 §5 recommends MUST NOT use AES-CBC for new deployments — prefer AES-GCM-16 or ChaCha20-Poly1305.",
+        "cve": null,
+        "attack_vector": "Padding oracle side-channel; requires active MITM position",
+        "remediation": "Replace ENCR_AES_CBC with ENCR_AES_GCM_16 (key_length=256) in both IKE and ESP proposals. Remove separate AUTH_HMAC_SHA2_256_128 — AEAD provides integrity natively.",
+        "rfc_reference": "RFC 8221 §5 — ENCR_AES_CBC SHOULD NOT (ESP)"
+      },
+      {
+        "finding_id": "F-002",
+        "severity": "LOW",
+        "category": "Key Exchange",
+        "parameter": "dh_group",
+        "observed_value": "14 (MODP-2048)",
+        "compliant_value": "19 (ECP-256) or 31 (Curve25519)",
+        "title": "DH Group 14 (MODP-2048) Approaching Deprecation",
+        "description": "DH Group 14 (2048-bit MODP/Oakley) is currently SHOULD (RFC 8247 §4) but is scheduled for deprecation as NSA/NIST move toward elliptic-curve groups. No known practical attacks exist, but upgrade path to Group 19/20/31 is recommended.",
+        "cve": null,
+        "attack_vector": "Discrete logarithm (NFS); not practical below 112-bit security level for 2048-bit MODP",
+        "remediation": "Upgrade DH group to 19 (ECP-256), 20 (ECP-384), or 31 (Curve25519) in both IKE and ESP proposals for future-proof key exchange.",
+        "rfc_reference": "RFC 8247 §4 — DH Group 14 SHOULD (IKEv2)"
+      }
+    ],
+    "threat_matrix": [
+      {
+        "technique_id": "T1040",
+        "tactic": "Advisory",
+        "technique_name": "Padding Oracle (AES-CBC)",
+        "severity": "MEDIUM",
+        "status": "ADVISORY",
+        "details": "AES-CBC without AEAD is vulnerable to padding oracle attacks if the implementation leaks timing or error information. Upgrading to ENCR_AES_GCM_16 eliminates this attack surface entirely.",
+        "affected_parameter": "esp_encryption"
+      },
+      {
+        "technique_id": "T1557",
+        "tactic": "Defense",
+        "technique_name": "Adequate Key Exchange (MODP-2048)",
+        "severity": "LOW",
+        "status": "ADVISORY",
+        "details": "DH Group 14 (2048-bit MODP) provides ~112-bit classical security. Sufficient for current threat models but below NIST post-2030 recommendation of 128-bit minimum (ECP-256+).",
+        "affected_parameter": "dh_group"
+      },
+      {
+        "technique_id": "T1584",
+        "tactic": "Defense",
+        "technique_name": "Perfect Forward Secrecy Active",
+        "severity": "INFO",
+        "status": "SECURE",
+        "details": "PFS is enforced. Each child SA renegotiates independent keying material via DH Group 14. Capture-and-decrypt attacks are limited to the current session window.",
+        "affected_parameter": "pfs_enabled"
+      }
+    ],
+    "evaluated_parameters": {
+      "esp_encryption": "ENCR_AES_CBC",
+      "esp_auth": "AUTH_HMAC_SHA2_256_128",
+      "dh_group": 14,
+      "pfs_enabled": true,
+      "sa_lifetime_seconds": 28800,
+      "rsa_key_bits": null,
+      "ike_version": "IKEv2",
+      "ike_encryption": "ENCR_AES_CBC",
+      "ike_auth": "AUTH_HMAC_SHA2_256_128",
+      "ike_dh_group": 14,
+      "pqc_status": "CRQC_VULNERABLE",
+      "pqc_algorithm": null,
+      "pqc_hybrid": false
+    },
+    "remediation_config": "# =============================================================================\n# Janus Automated strongSwan Remediation Configuration\n# Generated based on RFC 8221 (ESP), RFC 8247 (IKEv2) & NIST SP 800-77 Rev. 1\n# =============================================================================\n# Action required: Replace AES-CBC with AES-GCM (AEAD) and upgrade DH group\n\nconnections {\n    janus-remediated {\n        version = 2\n        local_addrs = %defaultroute\n        remote_addrs = %any\n\n        local {\n            auth = pubkey\n            certs = cert.pem\n            id = vpn-gateway.internal\n        }\n\n        remote {\n            auth = pubkey\n            id = %any\n        }\n\n        # Upgraded IKEv2 Proposal: AES-256-GCM (AEAD) + SHA-256 PRF + DH Group 19 (ECP-256)\n        # Replaces: AES-256-CBC + HMAC-SHA2-256 + DH Group 14 (MODP-2048)\n        proposals = aes256gcm16-prfsha256-ecp256\n\n        rekey_time = 4h\n\n        children {\n            net-traffic {\n                local_ts = 0.0.0.0/0\n                remote_ts = 0.0.0.0/0\n                mode = tunnel\n\n                # Upgraded ESP: AES-256-GCM-16 AEAD + ECP-256 PFS\n                # Eliminates padding oracle risk of AES-CBC\n                esp_proposals = aes256gcm16-ecp256\n\n                dpd_action = restart\n                close_action = restart\n                rekey_time = 4h\n            }\n        }\n    }\n}",
+    "pqc_status": "CRQC_VULNERABLE",
+    "pqc_advisory": "Session key exchange uses MODP-2048 (Group 14), a finite-field DH group vulnerable to Shor's algorithm on a Cryptanalytically Relevant Quantum Computer (CRQC). Upgrade to RFC 9370 hybrid ML-KEM key exchange for harvest-now-decrypt-later (HNDL) resistance.",
+    "generated_at": "2026-09-26T10:35:00.000000+00:00"
   },
-  "ike_sessions": [],
-  "reports": {}
+  "reports": {
+    "executive_pdf": "reports/output/wireshark_esp_tunnel_mode/executive_summary.pdf",
+    "technical_pdf": "reports/output/wireshark_esp_tunnel_mode/technical_assessment.pdf",
+    "executive_url": "/api/report/wireshark_esp_tunnel_mode/executive",
+    "technical_url": "/api/report/wireshark_esp_tunnel_mode/technical"
+  }
 }

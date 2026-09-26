@@ -202,7 +202,7 @@ export default function Dashboard() {
         await new Promise((r) => setTimeout(r, 400));
         try {
           const st = await getAnalysisStatus(res.capture_id, res.capture_token ?? undefined);
-          if (st.status === "DONE" || st.status === "ERROR") break;
+          if (st.status === "DONE" || st.status === "ERROR" || st.status === "INDETERMINATE") break;
         } catch {
           // ignore transient poll error
         }

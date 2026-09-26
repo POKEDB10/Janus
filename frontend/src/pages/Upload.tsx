@@ -112,7 +112,7 @@ export default function Upload() {
         setMonitoringMode("idle");
         return;
       }
-      if (next.status === "DONE") {
+      if (next.status === "DONE" || next.status === "INDETERMINATE") {
         setMonitoringMode("idle");
         return;
       }
@@ -233,7 +233,7 @@ export default function Upload() {
     }
   }
 
-  const isDone = status?.status === "DONE";
+  const isDone = status?.status === "DONE" || status?.status === "INDETERMINATE";
   const isError = status?.status === "ERROR";
   const currentStageIdx = status ? getStageIndex(status.status) : 0;
   const parsedScoreMatch = status?.message?.match(/(\d+(?:\.\d+)?)\/100\s*\((?:Grade\s*)?([A-F]|N\/A)/i);

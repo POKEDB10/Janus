@@ -173,7 +173,7 @@ async def stream_analysis_progress(capture_id: str) -> StreamingResponse:
                     "logs": current_logs,
                 }
 
-                if current_status == "DONE":
+                if current_status in ("DONE", "INDETERMINATE"):
                     results = entry.get("results") or {}
                     payload["summary"] = {
                         "total_flows": results.get("total_flows", 0),
@@ -213,7 +213,7 @@ async def stream_analysis_progress(capture_id: str) -> StreamingResponse:
 async def get_analysis_results(capture_id: str) -> dict[str, Any]:
     """Retrieve complete analysis results including IKE sessions, flows, and compliance."""
     entry = _get_entry(capture_id)
-    if entry and entry.get("status") == "DONE":
+    if entry and entry.get("status") in ("DONE", "INDETERMINATE"):
         return entry.get("results", {})
 
     raise HTTPException(
